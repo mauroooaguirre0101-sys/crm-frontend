@@ -895,8 +895,8 @@ async function actualizarEstado(id, nuevoEstado, selectEl){
     return;
   }
 
-  if(!LEAD_ESTADOS.includes(nuevoEstado)){
-    console.error('[actualizarEstado] Estado inválido:', nuevoEstado); return;
+  if(!nuevoEstado){
+    console.error('[actualizarEstado] Estado vacío'); return;
   }
   const lead = leadsCache.find(l=>l.id===id);
   const estadoAnterior = lead?.estado;
@@ -1763,8 +1763,8 @@ function _applyCallsFilter(){
     lbl.textContent=parts.filter(Boolean).join(' · ');
   }
   const prev      =callsCache.filter(c=>_gfPrevInRange(c.created_at));
-  const hechas    =filtradas.filter(c=>(c.estado||'')!=='No asistió').length;
-  const hechasP   =prev.filter(c=>(c.estado||'')!=='No asistió').length;
+  const hechas    =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+  const hechasP   =prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
   const reagendas =filtradas.filter(c=>(c.estado||'').toLowerCase()==='re agenda').length;
   const cierres   =filtradas.filter(c=>['Cierre','Cierre PIF'].includes(c.estado||'')).length;
   const cierresP  =prev.filter(c=>['Cierre','Cierre PIF'].includes(c.estado||'')).length;
@@ -2030,11 +2030,17 @@ async function saveEditCall(){
         const lead=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
         if(lead){
           lead.estado=leadEstado;
-          await apiFetch(`${API_URL}/leads/${lead.id}`,{method:'PATCH',body:JSON.stringify({estado:leadEstado,updated_at:new Date().toISOString()})});
+          await apiFetch(`${API_URL}/leads/${lead.id}`,{method:'PATCH',body:JSON.stringify({estado:leadEstado})});
           console.log(`[sync] @${ig} → lead.estado = "${leadEstado}"`);
           if(document.getElementById('page-leads')?.classList.contains('active')) _applyLeadsFilter();
         }
       }
+    }
+
+    if(['Cierre','Cierre PIF'].includes(estado)){
+      const ig2=(call?.instagram||'').toLowerCase();
+      const leadForCierre=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig2);
+      _mostrarPopupCierre(call?.id||id, leadForCierre||{nombre:call?.nombre||'',instagram:call?.instagram||''});
     }
 
     closeModal('modal-edit-call');
@@ -2236,21 +2242,68 @@ function _mostrarPopupCierre(leadId, lead){
   window._pendingCierre={leadId,lead};
   document.getElementById('modal-cierre').classList.add('open');
 }
-function saveCierre(){
+async function saveCierre(){
   const nombre=(document.getElementById('cierre-nombre')?.value||'').trim();
   const instagram=(document.getElementById('cierre-instagram')?.value||'').trim().replace(/^@/,'').toLowerCase();
   const tipoPago=document.getElementById('cierre-tipo-pago')?.value||'Contado';
   const cash=parseFloat(document.getElementById('cierre-cash')?.value)||0;
   const comprobante=(document.getElementById('cierre-comprobante')?.value||'').trim();
   if(!nombre){toast('✗ Nombre es obligatorio');return;}
+
+  // Chequear duplicado por instagram en localStorage
+  if(instagram){
+    const existe=S.clients.find(c=>(c.instagram||'').toLowerCase()===instagram);
+    if(existe){
+      toast(`⚠️ Ya existe cliente con @${instagram} — no se duplica`);
+      closeModal('modal-cierre');
+      window._pendingCierre=null;
+      return;
+    }
+  }
+
   const hoy=new Date();
   const seg=new Date(hoy); seg.setDate(hoy.getDate()+30);
   const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+3);
+  const clienteData={
+    id:uid(),
+    nombre,
+    instagram,
+    inicio:hoy.toISOString().slice(0,10),
+    fin:sal.toISOString().slice(0,10),
+    pp:tipoPago,
+    mod:'—',
+    proxpago:seg.toISOString().slice(0,10),
+    estado:'Al día',
+    proxpaso:'Onboarding',
+    road:'',
+    cash_collected:cash,
+    comprobante
+  };
+
+  // Intentar crear en Railway; si no existe endpoint, guardamos local
+  try{
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:cash,comprobante,estado:'Al día'})});
+    if(res.ok){
+      const data=await res.json().catch(()=>({}));
+      if(data?.id) clienteData.id=data.id;
+      console.log('[saveCierre] cliente creado en Railway:', data);
+    } else {
+      const body=await res.text().catch(()=>'');
+      if(res.status===409){
+        toast(`⚠️ Ya existe cliente con @${instagram} en el sistema`);
+        closeModal('modal-cierre'); window._pendingCierre=null; return;
+      }
+      console.warn('[saveCierre] Railway respondió',res.status,body,'— guardando local');
+    }
+  }catch(e){
+    console.warn('[saveCierre] Sin endpoint /clientes, guardando local:',e.message);
+  }
+
   if(cash>0){
     S.ing.push({id:uid(),concepto:'Venta Nueva',fecha:hoy.toISOString().slice(0,10),tipo:'Venta Nueva',usd:cash,nombre,instagram});
     save('ing');
   }
-  S.clients.push({id:uid(),nombre,instagram,inicio:hoy.toISOString().slice(0,10),fin:sal.toISOString().slice(0,10),pp:tipoPago,mod:'—',proxpago:seg.toISOString().slice(0,10),estado:'Al día',proxpaso:'Onboarding',road:'',cash_collected:cash,comprobante});
+  S.clients.push(clienteData);
   save('clients');
   _logActivity('Cliente creado',{nombre,instagram},'Desde cierre de lead');
   closeModal('modal-cierre');
