@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — Sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- AUTH LOADER -->
+<div id="auth-loader">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+  </div>
+  <div style="font-size:12px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase">Verificando sesión…</div>
+</div>
+
+<!-- AUTH OVERLAY (login) -->
+<div id="auth-overlay" class="hidden">
+  <div class="auth-box">
+    <div class="auth-logo">CR</div>
+    <div class="auth-title">CRM Pro</div>
+    <div class="auth-sub">Iniciá sesión para continuar</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="form-group"><label class="form-label">Email</label>
+      <input type="email" id="auth-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')login()"></div>
+    <div class="form-group" style="margin-top:12px"><label class="form-label">Contraseña</label>
+      <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+    <button class="btn btn-gold" id="auth-btn" onclick="login()" style="width:100%;margin-top:18px;justify-content:center;padding:11px">
+      Iniciar sesión
+    </button>
+  </div>
+</div>
+
+<!-- USER HEADER -->
+<div id="user-header" style="display:none">
+  <!-- Cliente selector -->
+  <div id="cliente-selector-wrap">
+    <span class="cs-label">Cliente</span>
+    <select id="cliente-selector" onchange="onClienteChange(this.value)">
+      <option value="">— Seleccionar —</option>
+    </select>
+  </div>
+  <!-- Team badge -->
+  <div class="team-badge" onclick="toggleTeamPanel()" style="margin-right:4px">
+    <div class="team-pulse"></div>
+    <span class="team-label">Equipo</span>
+    <span class="team-count" id="team-count">1</span>
+    <div class="team-panel" id="team-panel"></div>
+  </div>
+  <div class="user-badge" onclick="toggleUserMenu()">
+    <div class="user-dot"></div>
+    <span class="user-email" id="user-email-label">—</span>
+    <span class="user-role-badge" id="user-role-label" style="background:rgba(212,168,50,0.07);border:1px solid rgba(212,168,50,0.15);color:var(--gold)">—</span>
+    <div class="user-menu" id="user-menu">
+      <div class="user-menu-item danger" onclick="logout()">Cerrar sesión</div>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-circle">CR</div>
+    <div class="logo-text">
+      <div class="logo-name">CRM Pro</div>
+      <div class="logo-sub">Sistema de gestión</div>
+    </div>
+  </div>
+  <div class="nav-scroll">
+    <div class="nav-section-label">Principal</div>
+    <div class="nav-item active" id="nav-dash" onclick="nav('dash',this)"><div class="nav-dot"></div><span class="nav-text">Dashboard</span></div>
+    <div class="nav-item" id="nav-acc" onclick="nav('acc',this)"><div class="nav-dot"></div><span class="nav-text">SOPs</span></div>
+    <div class="nav-section-label">Agencia</div>
+    <div class="nav-item" id="nav-found" onclick="nav('found',this)"><div class="nav-dot"></div><span class="nav-text">Fundaciones</span></div>
+    <div class="nav-item" id="nav-cont" onclick="nav('cont',this)"><div class="nav-dot"></div><span class="nav-text">Contenido</span></div>
+    <div class="nav-item" id="nav-ang" onclick="nav('ang',this)"><div class="nav-dot"></div><span class="nav-text">Ángulos</span></div>
+    <div class="nav-item" id="nav-ref" onclick="nav('ref',this)"><div class="nav-dot"></div><span class="nav-text">Referentes</span></div>
+    <div class="nav-item" id="nav-met" onclick="nav('met',this)"><div class="nav-dot"></div><span class="nav-text">Métricas</span></div>
+    <div class="nav-item" id="nav-ig" onclick="nav('ig',this)"><div class="nav-dot"></div><span class="nav-text">Instagram</span></div>
+    <div class="nav-section-label">Ventas</div>
+    <div class="nav-item" id="nav-leads" onclick="nav('leads',this)"><div class="nav-dot"></div><span class="nav-text">Leads</span></div>
+    <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><div class="nav-dot"></div><span class="nav-text">Llamadas</span></div>
+    <div class="nav-item" id="nav-clients" onclick="nav('clients',this)"><div class="nav-dot"></div><span class="nav-text">Clientes</span></div>
+    <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><div class="nav-dot"></div><span class="nav-text">Finanzas</span></div>
+    <div class="nav-section-label">Sistema</div>
+    <div class="nav-item" id="nav-exp" onclick="nav('exp',this)"><div class="nav-dot"></div><span class="nav-text">Exportar / Importar</span></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+
+<!-- DASHBOARD -->
+<section class="page active" id="page-dash">
+  <div class="dash-header-row">
+    <div class="dash-title-group">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" style="margin-bottom:0">Resumen general del negocio</div>
+    </div>
+    <div class="currency-panel">
+      <div class="currency-panel-label">Moneda de visualización</div>
+      <div class="currency-row">
+        <select class="currency-select" id="currency-select" onchange="onCurrencyChange()">
+          <option value="USD">🇺🇸 USD — Dólar Estadounidense</option>
+          <option value="UYU">🇺🇾 UYU — Peso Uruguayo</option>
+          <option value="ARS">🇦🇷 ARS — Peso Argentino</option>
+          <option value="BRL">🇧🇷 BRL — Real Brasileño</option>
+          <option value="EUR">🇪🇺 EUR — Euro</option>
+          <option value="MXN">🇲🇽 MXN — Peso Mexicano</option>
+          <option value="COP">🇨🇴 COP — Peso Colombiano</option>
+          <option value="CLP">🇨🇱 CLP — Peso Chileno</option>
+          <option value="PEN">🇵🇪 PEN — Sol Peruano</option>
+          <option value="GBP">🇬🇧 GBP — Libra Esterlina</option>
+        </select>
+      </div>
+      <div class="currency-rate-wrap">
+        <span class="currency-rate-label">1 USD =</span>
+        <input class="currency-rate-input" type="number" id="currency-rate" value="1" min="0.0001" step="any" onchange="onRateChange()" oninput="onRateChange()">
+        <span class="currency-rate-label" id="currency-code-label">USD</span>
+      </div>
+      <div class="currency-info" id="currency-info-text">Moneda base del sistema</div>
+    </div>
+  </div>
+  <div class="tabs" id="dash-tabs">
+    <div class="tab" data-period="dia" onclick="setDashFilter('dia',this)">Día</div>
+    <div class="tab" data-period="semana" onclick="setDashFilter('semana',this)">Semana</div>
+    <div class="tab active" data-period="mes" onclick="setDashFilter('mes',this)">Mes</div>
+    <div class="tab" data-period="año" onclick="setDashFilter('año',this)">Año</div>
+  </div>
+  <div class="metric-grid metric-grid-4" id="dash-metrics"></div>
+  <div class="metric-grid metric-grid-2" id="dash-metrics2"></div>
+  <div class="savings-grid" id="dash-savings"></div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="section-header"><h3>Ingresos vs Egresos</h3></div>
+    <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-header"><h3>Últimos movimientos</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Concepto</th><th>Tipo</th><th>Monto</th></tr></thead>
+      <tbody id="dash-mov"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- SOPs -->
+<section class="page" id="page-acc">
+  <div class="page-title">SOPs</div>
+  <div class="page-sub">Procedimientos estándar de operación · Link, Área y Detalles</div>
+  <div class="card">
+    <div class="section-header">
+      <h3>Biblioteca de SOPs</h3>
+      <button class="btn btn-gold" onclick="openModal('modal-sop')">+ Nuevo SOP</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Link SOP</th>
+        <th>Área</th>
+        <th>Detalles del SOP</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="sops-table-body"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- FUNDACIONES -->
+<section class="page" id="page-found">
+  <div class="page-title">Fundaciones</div>
+  <div class="page-sub">Avatar ideal y estructura de oferta</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="section-header"><h3>Avatar Ideal</h3></div>
+      <div id="found-avatar-form"></div>
+      <div style="margin-top:14px"><button class="btn btn-gold" onclick="saveFound()">Guardar</button></div>
+    </div>
+    <div class="card">
+      <div class="section-header"><h3>Oferta y Servicio</h3></div>
+      <div id="found-oferta-form"></div>
+      <div style="margin-top:14px"><button class="btn btn-gold" onclick="saveFound()">Guardar</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTENIDO -->
+<section class="page" id="page-cont">
+  <div class="page-title">Contenido</div>
+  <div class="page-sub">Calendario de Contenido — Corto + Historias — Ordená tu semana</div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+    <div class="tabs" id="cont-type-tabs" style="margin-bottom:0">
+      <div class="tab active" onclick="contFilter('tipo','Todos',this)">Todos</div>
+      <div class="tab" onclick="contFilter('tipo','Reel',this)">Reels</div>
+      <div class="tab" onclick="contFilter('tipo','Carrusel',this)">Carruseles</div>
+      <div class="tab" onclick="contFilter('tipo','Historia',this)">Historias</div>
+    </div>
+    <div class="tabs" id="cont-time-tabs" style="margin-bottom:0">
+      <div class="tab active" onclick="contFilter('time','todo',this)">Todo</div>
+      <div class="tab" onclick="contFilter('time','mes',this)">Este mes</div>
+      <div class="tab" onclick="contFilter('time','semana',this)">Esta semana</div>
+      <div class="tab" onclick="contFilter('time','hoy',this)">Hoy</div>
+    </div>
+    <button class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-cont')">+ Nueva pieza</button>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="section-header"><h3>Posts — Reels y Carruseles</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Formato</th><th>Tipo</th><th>Hook</th><th>CTA</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="cont-table"></tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="section-header">
+      <h3>Historias</h3>
+      <button class="btn btn-outline" onclick="openModal('modal-hist')">+ Nueva historia</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Tipo</th><th>Hook</th><th>CTA</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="hist-table"></tbody>
+    </table></div>
+  </div>
+
+  <!-- ANALYTICS DE VENTAS POR TIPO DE CONTENIDO -->
+  <div style="margin-top:24px">
+    <div class="page-title" style="font-size:16px;margin-bottom:4px">Ventas por tipo de contenido</div>
+    <div class="page-sub" style="margin-bottom:16px">Ventas anuales generadas por Reels, Carruseles e Historias · fuente: Métricas</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div class="card">
+        <div class="section-header" style="margin-bottom:12px">
+          <h3>Reels</h3>
+        </div>
+        <div class="chart-wrap" style="height:180px"><canvas id="contChartReel"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-header" style="margin-bottom:12px">
+          <h3>Carruseles</h3>
+        </div>
+        <div class="chart-wrap" style="height:180px"><canvas id="contChartCarrusel"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-header" style="margin-bottom:12px">
+          <h3>Historias</h3>
+        </div>
+        <div class="chart-wrap" style="height:180px"><canvas id="contChartHistoria"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ÁNGULOS -->
+<section class="page" id="page-ang">
+  <div class="page-title">Ángulos</div>
+  <div class="metric-grid metric-grid-2" id="ang-metrics"></div>
+  <div class="card">
+    <div class="section-header">
+      <h3>Ángulos de venta y contenido</h3>
+      <button class="btn btn-gold" onclick="openModal('modal-ang')">+ Ángulo</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ángulo</th><th>Tipo</th><th>1er contacto</th><th>Último contacto</th><th>Para AD</th><th>Ventas</th><th></th></tr></thead>
+      <tbody id="ang-table"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- REFERENTES -->
+<section class="page" id="page-ref">
+  <div class="page-title">Referentes del Mercado</div>
+  <div class="card">
+    <div class="section-header">
+      <h3>Perfiles referentes</h3>
+      <button class="btn btn-gold" onclick="openModal('modal-ref')">+ Agregar referente</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nombre / Handle</th><th>Nicho</th><th>Seguidores</th><th>Recolectado</th><th></th></tr></thead>
+      <tbody id="ref-table"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- MÉTRICAS -->
+<section class="page" id="page-met">
+  <div class="page-title">Métricas</div>
+  <div class="page-sub">Trazabilidad de Contenido</div>
+  <div class="metric-grid metric-grid-4" id="met-metrics"></div>
+  <div class="card">
+    <div class="section-header">
+      <h3>Registro de métricas</h3>
+      <button class="btn btn-gold" onclick="openModal('modal-met')">+ Cargar métrica</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Tipo</th><th>Leads</th><th>Comentarios</th><th>Ventas</th><th><span class="api-badge">API</span></th><th></th></tr></thead>
+      <tbody id="met-table"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- LEADS -->
+<section class="page" id="page-leads">
+  <div class="page-title">Leads</div>
+  <div class="page-sub">Pipeline de prospectos · <span class="api-badge">ManyChat webhook activo</span></div>
+
+  <div class="metric-grid metric-grid-4" id="leads-metrics"></div>
+
+  <!-- Funnel metrics -->
+  <div id="leads-funnel-wrap" style="margin-bottom:20px">
+    <div class="card" style="padding:16px 20px">
+      <div class="section-header" style="margin-bottom:14px">
+        <h3>Funnel de conversión</h3>
+        <span style="font-size:11px;color:var(--text3)">calculado sobre todos los leads</span>
+      </div>
+      <div id="leads-funnel-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
+    </div>
+  </div>
+
+  <!-- Contadores por estado -->
+  <div id="leads-estado-counters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+
+  <!-- Filtros de período -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    <div class="tabs" id="leads-filter-tabs" style="margin-bottom:0">
+      <div class="tab" data-period="dia" onclick="setLeadsFilter('dia',this)">Día</div>
+      <div class="tab" data-period="semana" onclick="setLeadsFilter('semana',this)">Semana</div>
+      <div class="tab active" data-period="mes" onclick="setLeadsFilter('mes',this)">Mes</div>
+      <div class="tab" data-period="año" onclick="setLeadsFilter('año',this)">Año</div>
+    </div>
+    <!-- Selector de mes -->
+    <select id="leads-mes-select" onchange="onLeadsMesChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="">— Filtrar por mes —</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+    <!-- Buscador -->
+    <div style="flex:1;min-width:200px;max-width:340px;position:relative">
+      <input type="text" id="leads-search" placeholder="Buscar por nombre o Instagram…"
+        oninput="onLeadsSearch()"
+        style="padding-left:32px;font-size:13px">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none">🔍</span>
+    </div>
+    <button class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-lead')">+ Nuevo lead</button>
+    <!-- Seguidores nuevos -->
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.03);
+                border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);
+                padding:5px 12px;white-space:nowrap">
+      <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Seguidores</span>
+      <span id="leads-seguidores-badge"
+            style="font-family:'Inter',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.02em;color:var(--gold-light);line-height:1">0</span>
+    </div>
+  </div>
+
+  <!-- Métricas por etiqueta -->
+  <div id="leads-etiquetas-wrap" style="margin-bottom:20px;display:none">
+    <div class="card" style="padding:16px 20px">
+      <div class="section-header" style="margin-bottom:12px">
+        <h3>Leads por etiqueta</h3>
+        <span id="leads-etiquetas-period" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="leads-etiquetas-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+  </div>
+
+  <!-- Tabla principal -->
+  <div class="card">
+    <div class="section-header">
+      <h3>Pipeline <span id="leads-count-badge" class="badge bgy" style="margin-left:6px">0</span></h3>
+      <span id="leads-filter-label" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th style="color:var(--text3);font-size:10px;width:32px">#</th>
+        <th>Fecha</th>
+        <th>Nombre</th>
+        <th>Instagram</th>
+        <th>Origen</th>
+        <th>Tipo</th>
+        <th>Etiqueta</th>
+        <th>Estado</th>
+        <th>Llamada</th>
+        <th>Última acción</th>
+        <th>Notas</th>
+        <th>Fuente</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="leads-table"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- CLIENTES -->
+<section class="page" id="page-clients">
+  <div class="page-title">Clientes</div>
+  <div class="page-sub" id="clients-sub">0 clientes en programa</div>
+  <div class="metric-grid metric-grid-4" id="clients-metrics" style="margin-bottom:20px"></div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <button class="btn btn-gold" onclick="openModal('modal-client')">+ Nuevo cliente</button>
+  </div>
+  <div id="clients-sections"></div>
+</section>
+
+<!-- FINANZAS -->
+<section class="page" id="page-fin">
+  <div class="page-title">Finanzas</div>
+  <div class="fin-tabs-row">
+    <div class="tabs" id="fin-filter-tabs" style="margin-bottom:0">
+      <div class="tab" data-period="dia" onclick="setFinFilter('dia',this)">Día</div>
+      <div class="tab" data-period="semana" onclick="setFinFilter('semana',this)">Semana</div>
+      <div class="tab active" data-period="mes" onclick="setFinFilter('mes',this)">Mes</div>
+      <div class="tab" data-period="año" onclick="setFinFilter('año',this)">Año</div>
+    </div>
+    <select id="fin-mes-select" onchange="_gfSetMes(this.value)" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="">— Filtrar por mes —</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+  </div>
+  <div class="metric-grid metric-grid-4" id="fin-metrics"></div>
+  <div class="finance-grid">
+    <div class="card">
+      <div class="section-header">
+        <h3>Ingresos</h3>
+        <button class="btn btn-gold" onclick="openModal('modal-ing')">+ Ingreso</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Concepto</th><th>Fecha</th><th>Monto</th><th>Tipo</th><th></th></tr></thead>
+        <tbody id="ing-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <h3>Egresos</h3>
+        <button class="btn btn-gold" onclick="openModal('modal-gas')">+ Egreso</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Concepto</th><th>Fecha</th><th>Monto</th><th>Tipo</th><th></th></tr></thead>
+        <tbody id="gas-table"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- RENOVACIONES -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-header">
+      <h3>Renovaciones</h3>
+      <span id="reno-summary" style="font-size:11px;color:var(--text3)">Sin renovaciones próximas</span>
+    </div>
+    <div id="reno-container" style="display:flex;flex-wrap:wrap;gap:10px;padding:4px 0"></div>
+  </div>
+
+  <!-- HISTORIAL DE ACTIVIDAD -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-header">
+      <h3>Historial de actividad</h3>
+    </div>
+    <div id="activity-log-container" class="activity-log"></div>
+  </div>
+</section>
+
+<!-- EXPORTAR -->
+<section class="page" id="page-exp">
+  <div class="page-title">Exportar / Importar</div>
+  <div class="page-sub">Backup completo de todos tus datos del CRM</div>
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px">Gestión de datos</div>
+        <div style="font-size:13px;color:var(--text2)">Exportá todos tus datos en un archivo JSON o importá un backup previo.</div>
+      </div>
+      <button class="btn btn-gold" onclick="exportData()">⬇ Exportar datos</button>
+      <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">⬆ Importar datos</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+    </div>
+  </div>
+  <div class="export-stats" id="exp-stats"></div>
+  <div class="card">
+    <div class="section-header"><h3>Integraciones futuras</h3></div>
+    <div class="integration-grid">
+      <div class="integration-card">
+        <span class="api-badge">API</span>
+        <div class="integration-title">Zapier / Make</div>
+        <div class="integration-desc">Automatizar leads desde Instagram DM, Calendly y WhatsApp con flujos sin código.</div>
+      </div>
+      <div class="integration-card">
+        <span class="api-badge">API</span>
+        <div class="integration-title">Meta Business API</div>
+        <div class="integration-desc">Importar métricas de alcance, impresiones y engagement automáticamente.</div>
+      </div>
+      <div class="integration-card">
+        <span class="api-badge scraped-badge">SCRAPED</span>
+        <div class="integration-title">Apify Scraping</div>
+        <div class="integration-desc">Análisis automático de perfiles de referentes: engagement, frecuencia, temas.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LLAMADAS -->
+<section class="page" id="page-calls">
+  <div class="page-title">Llamadas de venta</div>
+  <div class="page-sub">Gestión de llamadas · Solo closers y admins</div>
+
+  <div class="metric-grid metric-grid-4" id="calls-metrics"></div>
+
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    <div class="tabs" id="calls-filter-tabs" style="margin-bottom:0">
+      <div class="tab" data-period="dia" onclick="setCallsFilter('dia',this)">Día</div>
+      <div class="tab" data-period="semana" onclick="setCallsFilter('semana',this)">Semana</div>
+      <div class="tab active" data-period="mes" onclick="setCallsFilter('mes',this)">Mes</div>
+      <div class="tab" data-period="año" onclick="setCallsFilter('año',this)">Año</div>
+    </div>
+    <select id="calls-mes-select" onchange="onCallsMesChange()"
+      style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;
+             letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);
+             border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="">— Filtrar por mes —</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+    <div id="calls-loading" style="font-size:11px;color:var(--text3);display:none">⏳ Cargando…</div>
+    <button id="btn-new-call" class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-call')">+ Nueva llamada</button>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <h3>Llamadas <span id="calls-count-badge" class="badge bgy" style="margin-left:6px">0</span></h3>
+      <span id="calls-filter-label" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+    <div class="table-wrap calls-table"><table>
+      <thead><tr>
+        <th style="width:32px;color:var(--text3);font-size:10px">#</th>
+        <th>Nombre</th>
+        <th>Instagram</th>
+        <th>WhatsApp</th>
+        <th>Info previa</th>
+        <th>Estado</th>
+        <th>Motivo</th>
+        <th>Seguimientos</th>
+        <th>Responde</th>
+        <th id="calls-th-link">Link</th>
+        <th>Reporte</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="calls-table"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- INSTAGRAM -->
+<section class="page" id="page-ig">
+  <div class="page-title">Instagram</div>
+  <div class="page-sub">Métricas de cuenta · Ingresá los datos manualmente o pegá la URL del reel</div>
+
+  <!-- Account overview (clickeable para editar) -->
+  <div class="ig-metrics-grid" id="ig-metrics"></div>
+
+  <!-- Reels grid -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-header">
+      <h3>Reels</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--text3)">Hacé click en un reel para ver el detalle</span>
+        <button class="btn btn-outline" onclick="openIGCuentaModal()">✎ Editar cuenta</button>
+        <button class="btn btn-gold" onclick="openIGReelModal()">+ Agregar reel</button>
+      </div>
+    </div>
+    <div id="ig-reels-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:4px 0"></div>
+  </div>
+
+  <!-- Reel detail panel -->
+  <div id="ig-reel-detail" class="card" style="display:none;margin-top:16px">
+    <div class="section-header" style="margin-bottom:16px">
+      <div>
+        <div id="ig-detail-title" style="font-size:15px;font-weight:700;color:var(--text)"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">
+          <span id="ig-detail-date"></span>
+          <a id="ig-detail-url" href="#" target="_blank" style="color:var(--blue);margin-left:6px;display:none">Ver en Instagram ↗</a>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="if(_igSelectedReel)deleteIGReel(_igSelectedReel.id,event)" style="color:var(--red);border-color:rgba(184,72,72,0.2)">Eliminar</button>
+        <button class="btn btn-outline" onclick="document.getElementById('ig-reel-detail').style.display='none'">Cerrar</button>
+      </div>
+    </div>
+    <div class="ig-detail-stats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Retención</div>
+      <div style="background:rgba(255,255,255,0.05);border-radius:100px;height:8px;overflow:hidden;margin-bottom:6px">
+        <div class="ig-retention-fill" style="height:100%;border-radius:100px;transition:width .4s"></div>
+      </div>
+      <div class="ig-retention-pct" style="font-size:13px;font-weight:700;color:var(--text2)"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- MODALS -->
+
+<!-- MODAL SETTER — Pre-call -->
+<div class="modal-bg" id="modal-call" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">📅 Agendar llamada</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Completá la info del prospecto antes de la llamada.</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre</label>
+      <input type="text" id="pc-nombre" placeholder="Juan Pérez"></div>
+    <div class="form-group"><label class="form-label">Instagram <span style="color:var(--red)">*</span></label>
+      <input type="text" id="pc-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-group"><label class="form-label">WhatsApp</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="pc-country" onchange="onPCCountryChange()"
+        style="flex-shrink:0;width:auto;padding:9px 8px;font-size:12px;font-weight:700;
+               background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.12);
+               border-radius:var(--rs);color:var(--text2);cursor:pointer;
+               box-shadow:inset 0 1px 3px rgba(0,0,0,0.4)">
+        <option value="+598">🇺🇾 +598</option><option value="+54">🇦🇷 +54</option>
+        <option value="+52">🇲🇽 +52</option><option value="+34">🇪🇸 +34</option>
+        <option value="+1">🇺🇸 +1</option><option value="+55">🇧🇷 +55</option>
+        <option value="+57">🇨🇴 +57</option><option value="+56">🇨🇱 +56</option>
+        <option value="+51">🇵🇪 +51</option>
+      </select>
+      <input type="text" id="pc-whatsapp" placeholder="91234567" style="flex:1" oninput="onPCWAInput()">
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px">
+      Resultado: <span id="pc-whatsapp-preview" style="color:var(--gold)">+598</span>
+    </div>
+  </div>
+  <div class="form-group"><label class="form-label">Info previa <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:10px">(contexto del prospecto)</span></label>
+    <textarea id="pc-info" placeholder="Situación del prospecto, objeciones esperadas, por qué podría cerrar…" style="min-height:110px"></textarea>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-call')">Cancelar</button>
+    <button class="btn btn-gold" id="pc-save-btn" onclick="savePreCall()">Guardar y agendar</button>
+  </div>
+</div></div>
+
+<!-- MODAL CLOSER — Editar llamada -->
+<div class="modal-bg" id="modal-edit-call" onclick="closeBg(event,this)">
+<div class="modal" style="max-height:92vh;overflow-y:auto;width:600px">
+  <div class="modal-title">📝 Editar llamada</div>
+  <input type="hidden" id="ec-id">
+
+  <!-- SECCIÓN FIJA -->
+  <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:var(--rs);padding:14px;margin-bottom:18px">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Info del prospecto (readonly)</div>
+    <div class="form-grid form-grid-2">
+      <div class="form-group" style="margin-bottom:10px"><label class="form-label">Nombre</label>
+        <input type="text" id="ec-nombre" disabled style="opacity:.5;cursor:not-allowed"></div>
+      <div class="form-group" style="margin-bottom:10px"><label class="form-label">Instagram</label>
+        <input type="text" id="ec-instagram" disabled style="opacity:.5;cursor:not-allowed"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px"><label class="form-label">WhatsApp</label>
+      <input type="text" id="ec-whatsapp" disabled style="opacity:.5;cursor:not-allowed"></div>
+    <div class="form-group" style="margin-bottom:0"><label class="form-label">Info previa</label>
+      <div style="position:relative">
+        <textarea id="ec-info" readonly style="min-height:60px;opacity:.6;cursor:default;resize:none;padding-right:80px"></textarea>
+        <button class="btn btn-outline" onclick="verInfoPreviaModal(document.getElementById('ec-info').value)" style="position:absolute;right:6px;top:6px;font-size:10px;padding:3px 8px">Ver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN EDITABLE -->
+  <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Estado y seguimiento</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Estado <span style="color:var(--red)">*</span></label>
+      <select id="ec-estado" onchange="onEditCallEstadoChange()">
+        <option>Cierre</option><option>Cierre PIF</option><option>Seguimiento Post Call</option>
+        <option>Re agenda</option><option>No Cierre</option><option>No asistió</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Seguimientos</label>
+      <input type="number" id="ec-seguimientos" min="0" value="0"></div>
+  </div>
+  <div class="form-group" id="ec-motivo-wrap" style="display:none">
+    <label class="form-label">Motivo de no cierre <span style="color:var(--red)">*</span></label>
+    <input type="text" id="ec-motivo" placeholder="Ej: precio, tiempo, no calificó…">
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Responde</label>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text2)">
+          <input type="radio" name="ec-responde" id="ec-resp-si" style="accent-color:var(--gold);width:15px;height:15px"> Sí
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text2)">
+          <input type="radio" name="ec-responde" id="ec-resp-no" checked style="accent-color:var(--gold);width:15px;height:15px"> No
+        </label>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Link de la llamada</label>
+      <input type="text" id="ec-link" placeholder="https://…"></div>
+  </div>
+
+  <!-- SECCIÓN REPORTE ESTRUCTURADO -->
+  <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:18px 0 10px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">Reporte del closer</div>
+
+  <div class="form-group"><label class="form-label">¿Qué fue lo que más le llamó la atención/atrajo de la oferta y contenido?</label>
+    <textarea id="ec-atraccion" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Qué mencionó el lead que podemos utilizar para el contenido?</label>
+    <textarea id="ec-contenido" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Qué lo motivó a estar dentro de la llamada?</label>
+    <textarea id="ec-motivacion" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Cuál es el dolor más fuerte que tenía?</label>
+    <textarea id="ec-dolor" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Qué objeción apareció?</label>
+    <textarea id="ec-objecion" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Qué tipo de perfil tiene el lead?</label>
+    <textarea id="ec-perfil" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+  <div class="form-group"><label class="form-label">¿Este lead representa al avatar ideal?</label>
+    <div style="display:flex;gap:16px;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2)">
+        <input type="radio" name="ec-avatar" id="ec-avatar-si" value="Si" style="accent-color:var(--gold);width:15px;height:15px"> Sí
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2)">
+        <input type="radio" name="ec-avatar" id="ec-avatar-no" value="No" checked style="accent-color:var(--gold);width:15px;height:15px"> No
+      </label>
+    </div>
+  </div>
+  <div class="form-group"><label class="form-label">¿Qué puedo aportar para marketing desde la llamada?</label>
+    <textarea id="ec-aporte" placeholder="Respuesta…" style="min-height:70px"></textarea></div>
+
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-edit-call')">Cancelar</button>
+    <button class="btn btn-gold" id="ec-save-btn" onclick="saveEditCall()">Guardar cambios</button>
+  </div>
+</div></div>
+
+<!-- MODAL INFO PREVIA -->
+<div class="modal-bg" id="modal-info-previa" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">📋 Info previa</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="modal-info-meta"></div>
+  <div id="modal-info-body" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+       border-radius:var(--rs);padding:16px;font-size:13px;color:var(--text2);white-space:pre-wrap;
+       line-height:1.7;max-height:60vh;overflow-y:auto"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-info-previa')">Cerrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL VER REPORTE LLAMADA -->
+<div class="modal-bg" id="modal-ver-reporte" onclick="closeBg(event,this)">
+<div class="modal" style="max-height:92vh;overflow-y:auto;width:580px">
+  <div class="modal-title">📊 Reporte de llamada</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px" id="modal-reporte-meta"></div>
+  <div id="modal-reporte-body"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ver-reporte')">Cerrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL VER REPORTE AGENDA -->
+<div class="modal-bg" id="modal-ver-reporte-agenda" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">Reporte de agenda</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="modal-agenda-meta"></div>
+  <div id="modal-agenda-body" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+       border-radius:var(--rs);padding:14px;font-size:13px;color:var(--text2);white-space:pre-wrap;min-height:80px;line-height:1.6"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ver-reporte-agenda')">Cerrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL LISTA DE AGENDADOS -->
+<div class="modal-bg" id="modal-agendados" onclick="closeBg(event,this)">
+<div class="modal" style="width:600px">
+  <div class="modal-title">Leads agendados</div>
+  <div class="table-wrap" style="max-height:400px;overflow-y:auto"><table>
+    <thead><tr><th>Nombre</th><th>Instagram</th><th>Reporte agenda</th></tr></thead>
+    <tbody id="modal-agendados-body"></tbody>
+  </table></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-agendados')">Cerrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL REPORTE SETTER -->
+<div class="modal-bg" id="modal-reporte-setter" style="display:none;align-items:center;justify-content:center">
+<div class="modal">
+  <div class="modal-title">Reporte de agenda <span style="color:var(--red);font-size:14px">*</span></div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:14px">El lead fue marcado como <b style="color:var(--gold)">Agendado</b>. Completá el reporte antes de continuar.</div>
+  <input type="hidden" id="reporte-setter-lead-id">
+  <div class="form-group">
+    <label class="form-label">Reporte de agenda</label>
+    <textarea id="reporte-setter-texto" placeholder="Escribe el reporte de la agenda…" style="min-height:120px"></textarea>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-gold" onclick="guardarReporteAgenda()">Guardar reporte</button>
+  </div>
+</div></div>
+
+<!-- MODAL SOP -->
+<div class="modal-bg" id="modal-sop" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nuevo SOP</div>
+  <div class="form-group"><label class="form-label">Link del SOP</label>
+    <input type="text" id="sop-link" placeholder="https://notion.so/... o https://drive.google.com/..."></div>
+  <div class="form-group"><label class="form-label">Área</label>
+    <select id="sop-area">
+      <option>Marketing</option>
+      <option>Ventas</option>
+      <option>Productos</option>
+      <option>Operaciones</option>
+      <option>Otro</option>
+    </select></div>
+  <div class="form-group"><label class="form-label">Detalles del SOP</label>
+    <textarea id="sop-detalles" placeholder="Descripción breve de qué cubre este SOP y cuándo usarlo..." style="min-height:90px"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-sop')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveSOP()">Guardar SOP</button>
+  </div>
+</div></div>
+
+<!-- MODAL CONTENIDO -->
+<div class="modal-bg" id="modal-cont" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nueva pieza de contenido</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="c-fecha"></div>
+    <div class="form-group"><label class="form-label">Tipo</label>
+      <select id="c-tipo"><option>Reel</option><option>Carrusel</option></select></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Ángulo</label><input type="text" id="c-angulo" placeholder="Ej: Dolor del cliente"></div>
+    <div class="form-group"><label class="form-label">Formato</label><input type="text" id="c-formato" placeholder="Ej: Educativo, storytelling"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">CTA</label><input type="text" id="c-cta" placeholder="Ej: Escríbeme"></div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="c-estado"><option>Idea</option><option>Guión listo</option><option>Grabando</option><option>Editando</option><option>Subido</option></select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Hook</label><input type="text" id="c-hook" placeholder="Primera frase impactante"></div>
+  <div class="form-group"><label class="form-label">Guión</label><textarea id="c-guion" placeholder="Escribe el guión completo..."></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-cont')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveCont()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL HISTORIA -->
+<div class="modal-bg" id="modal-hist" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nueva historia</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="h-fecha"></div>
+    <div class="form-group"><label class="form-label">Tipo</label>
+      <select id="h-tipo">
+        <option>Contenido de valor</option><option>Encuesta</option><option>Pregunta abierta</option>
+        <option>CTA-Venta</option><option>Detrás de escena</option><option>Reposter</option>
+      </select></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Ángulo</label><input type="text" id="h-angulo"></div>
+    <div class="form-group"><label class="form-label">Formato</label><input type="text" id="h-formato"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">CTA</label><input type="text" id="h-cta"></div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="h-estado"><option>Idea</option><option>Guión listo</option><option>Grabando</option><option>Editando</option><option>Subido</option></select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Hook</label><input type="text" id="h-hook"></div>
+  <div class="form-group"><label class="form-label">Guión</label><textarea id="h-guion"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-hist')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveHist()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL ÁNGULO -->
+<div class="modal-bg" id="modal-ang" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Ángulo</div>
+  <div class="form-group"><label class="form-label">Ángulo</label><input type="text" id="a-angulo" placeholder="Nombre del ángulo"></div>
+  <div class="form-group"><label class="form-label">Tipo</label>
+    <select id="a-tipo"><option>Problema</option><option>Solución</option><option>Producto</option><option>Mentalidad</option><option>Volumen</option><option>Otro</option></select></div>
+  <div class="form-group">
+    <label class="form-label">Primer Contacto <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none">(Enter o + para agregar)</span></label>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Se vincula con Métricas de Contenido y Clientes</div>
+    <div class="chips-input-wrap" id="a-pc-wrap">
+      <input type="text" id="a-pc-input" placeholder="Nombre..." onkeydown="chipsKey(event,'a-pc')">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Último Contacto</label>
+    <div class="chips-input-wrap" id="a-uc-wrap">
+      <input type="text" id="a-uc-input" placeholder="Nombre..." onkeydown="chipsKey(event,'a-uc')">
+    </div>
+  </div>
+  <div class="form-group"><label class="form-label">Para AD</label>
+    <select id="a-ad"><option>No</option><option>Sí</option></select></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ang')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveAng()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL REFERENTE -->
+<div class="modal-bg" id="modal-ref" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Agregar referente</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre / Perfil</label><input type="text" id="r-nombre"></div>
+    <div class="form-group"><label class="form-label">Link de Instagram</label><input type="text" id="r-link" placeholder="@usuario o URL"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Seguidores</label><input type="number" id="r-seg"></div>
+    <div class="form-group"><label class="form-label">Nicho y oferta</label><input type="text" id="r-nicho"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Recolectar (hooks · ideas · seguir)</label><textarea id="r-rec"></textarea></div>
+  <div style="background:rgba(61,106,170,0.07);border:1px solid rgba(61,106,170,0.15);border-radius:var(--rs);padding:14px;margin-top:4px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="api-badge">API</span><span style="font-size:12px;color:var(--text2)">Datos automáticos (futuro)</span></div>
+    <div class="form-grid form-grid-2">
+      <div class="form-group field-disabled"><label class="form-label">Engagement rate</label><input type="text" disabled placeholder="—"></div>
+      <div class="form-group field-disabled"><label class="form-label">Último post</label><input type="text" disabled placeholder="—"></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ref')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveRef()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL MÉTRICA -->
+<div class="modal-bg" id="modal-met" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Cargar métrica</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="m-fecha"></div>
+    <div class="form-group"><label class="form-label">Tipo</label>
+      <select id="m-tipo"><option>Reel</option><option>Carrusel</option><option>Historia</option></select></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Ángulo del contenido</label><input type="text" id="m-angulo"></div>
+    <div class="form-group"><label class="form-label">CTA</label><input type="text" id="m-cta"></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Comentarios</label><input type="number" id="m-com" value="0"></div>
+    <div class="form-group"><label class="form-label">Seguidores nuevos</label><input type="number" id="m-seg" value="0"></div>
+    <div class="form-group"><label class="form-label">Leads</label><input type="number" id="m-leads" value="0"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Ventas — nombre del cliente (Ej: Martín R., Lucía V.)</label><input type="text" id="m-ventas"></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Primer contacto de</label><input type="text" id="m-pc"></div>
+    <div class="form-group"><label class="form-label">Último contacto de</label><input type="text" id="m-uc"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-met')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveMet()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL LEAD -->
+<div class="modal-bg" id="modal-lead" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nuevo lead</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre y apellido <span style="color:var(--red)">*</span></label><input type="text" id="l-nombre" placeholder="Juan Pérez"></div>
+    <div class="form-group"><label class="form-label">Instagram <span style="color:var(--red)">*</span></label><input type="text" id="l-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Origen <span style="color:var(--red)">*</span></label>
+      <select id="l-origen"><option value="">— Seleccionar —</option><option>Inbound</option><option>Outbound</option></select></div>
+    <div class="form-group"><label class="form-label">Tipo <span style="color:var(--red)">*</span></label>
+      <select id="l-tipo"><option value="">— Seleccionar —</option><option>Ads</option><option>Organico</option><option>Outbound</option></select></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Etiqueta / Campaña</label><input type="text" id="l-etiqueta" placeholder="Ej: Reel 24/4, Historia Oferta..."></div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="l-estado">
+        <option>Primer Contacto</option>
+        <option>Micro VSL Enviado</option>
+        <option>VSL Pre Call Enviado</option>
+        <option>Calendly Enviado</option>
+        <option>En seguimiento</option>
+        <option>Agendado</option>
+        <option>Cerrado</option>
+        <option>Seña</option>
+        <option>Seguimiento Post Call</option>
+        <option>Perdido Post Call</option>
+        <option>Perdido</option>
+      </select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Última acción</label><input type="text" id="l-accion" placeholder="Ej: Envió DM, preguntó por precio..."></div>
+  <div class="form-group"><label class="form-label">Notas</label><textarea id="l-notas" placeholder="Info adicional..."></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-lead')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveLead()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-bg" id="modal-client" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nuevo cliente</div>
+  <div class="form-group"><label class="form-label">Nombre y apellido</label><input type="text" id="cl-nombre"></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="cl-inicio"></div>
+    <div class="form-group"><label class="form-label">Fecha de finalización</label><input type="date" id="cl-fin"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Plan de pago</label>
+      <select id="cl-pp"><option>PIF</option><option>CUOTA</option><option>RESELL</option><option>UPSELL</option><option>DOWNSELL</option></select></div>
+    <div class="form-group"><label class="form-label">Modalidad</label>
+      <select id="cl-mod"><option>Único</option><option>Cuota</option><option>Fecha específica</option></select></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" id="cl-proxpago"></div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="cl-estado"><option>Al día</option><option>Pendiente</option><option>Vencido</option><option>Inactivo</option></select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Próximo paso</label><input type="text" id="cl-proxpaso"></div>
+  <div class="form-group"><label class="form-label">Roadmap — link</label><input type="text" id="cl-road" placeholder="https://..."></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveClient()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL INGRESO -->
+<div class="modal-bg" id="modal-ing" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Ingreso</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Concepto</label>
+      <select id="i-concepto"><option>Venta Nueva</option><option>Cuota</option><option>Venta Interna</option><option>Recompra</option><option>Personal</option></select></div>
+    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="i-fecha"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Tipo</label>
+    <select id="i-tipo"><option>Cliente</option><option>Cambio</option></select></div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Monto USD</label><input type="number" id="i-usd" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Monto ARS</label><input type="number" id="i-ars" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Monto EUR</label><input type="number" id="i-eur" placeholder="0"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ing')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveIng()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL EGRESO -->
+<div class="modal-bg" id="modal-gas" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Egreso</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Concepto</label><input type="text" id="g-concepto" placeholder="Descripción del egreso"></div>
+    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="g-fecha"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Tipo</label>
+      <select id="g-tipo"><option>Retiro A</option><option>Retiro B</option><option>Gasto Personal</option><option>Gasto Empresa</option><option>ADS</option></select></div>
+    <div class="form-group"><label class="form-label">Categoría</label>
+      <select id="g-cat"><option>Retiro</option><option>Pago</option><option>Marketing</option><option>Ventas</option><option>Producto</option><option>Operaciones</option><option>Empleados</option></select></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Monto USD</label><input type="number" id="g-usd" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Monto ARS</label><input type="number" id="g-ars" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Monto EUR</label><input type="number" id="g-eur" placeholder="0"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-gas')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveGas()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL IG — AGREGAR REEL -->
+<div class="modal-bg" id="modal-ig-reel" onclick="closeBg(event,this)">
+<div class="modal" style="width:540px">
+  <div class="modal-title">+ Agregar reel</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Pegá la URL del reel e ingresá las métricas manualmente desde Instagram Insights.</div>
+  <div class="form-group"><label class="form-label">Título / Descripción <span style="color:var(--red)">*</span></label>
+    <input type="text" id="igr-titulo" placeholder="Ej: Cómo conseguí mis primeros 10 clientes"></div>
+  <div class="form-group"><label class="form-label">URL del reel (opcional)</label>
+    <input type="text" id="igr-url" placeholder="https://www.instagram.com/reel/..."></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha de publicación</label><input type="date" id="igr-fecha"></div>
+    <div class="form-group"><label class="form-label">Views</label><input type="number" id="igr-views" min="0" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Likes</label><input type="number" id="igr-likes" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Comentarios</label><input type="number" id="igr-comments" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Guardados</label><input type="number" id="igr-saves" min="0" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Compartidos</label><input type="number" id="igr-shares" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Retención % (0–100)</label><input type="number" id="igr-retention" min="0" max="100" value="0"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ig-reel')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveIGReel()">Guardar reel</button>
+  </div>
+</div></div>
+
+<!-- MODAL IG — EDITAR CUENTA -->
+<div class="modal-bg" id="modal-ig-cuenta" onclick="closeBg(event,this)">
+<div class="modal" style="width:480px">
+  <div class="modal-title">✎ Métricas de cuenta</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Ingresá los datos actuales de la cuenta desde Instagram Insights.</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Handle (@ usuario)</label><input type="text" id="ig-c-account" placeholder="@tucuenta"></div>
+    <div class="form-group"><label class="form-label">Seguidores totales</label><input type="number" id="ig-c-followers" min="0" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Crecimiento este mes %</label><input type="number" id="ig-c-growth" step="0.1" value="0"></div>
+    <div class="form-group"><label class="form-label">Engagement promedio %</label><input type="number" id="ig-c-engagement" step="0.1" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Reach</label><input type="number" id="ig-c-reach" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">CTR % (link bio)</label><input type="number" id="ig-c-ctr" step="0.1" value="0"></div>
+    <div class="form-group"><label class="form-label">Watch Time prom. (s)</label><input type="number" id="ig-c-watchtime" step="0.1" value="0"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ig-cuenta')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveIGCuenta()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL CIERRE → CLIENTE -->
+<div class="modal-bg" id="modal-cierre" onclick="closeBg(event,this)">
+<div class="modal" style="width:560px">
+  <div class="modal-title">🎉 ¡Lead cerrado! Crear cliente</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Completá los datos para crear el cliente y registrar la venta automáticamente.</div>
+
+  <!-- Auto-dates display -->
+  <div class="cierre-auto-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:rgba(212,168,50,0.05);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:14px;margin-bottom:18px">
+    <div class="cierre-auto-item">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Inicio</div>
+      <div id="cierre-fecha-inicio" style="font-size:13px;font-weight:700;color:var(--gold-light)">—</div>
+    </div>
+    <div class="cierre-auto-item">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">2ª Cuota</div>
+      <div id="cierre-segunda-cuota" style="font-size:13px;font-weight:700;color:var(--text2)">—</div>
+    </div>
+    <div class="cierre-auto-item">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Fin (3m)</div>
+      <div id="cierre-dia-salida" style="font-size:13px;font-weight:700;color:var(--text2)">—</div>
+    </div>
+    <div class="cierre-auto-item">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Mes</div>
+      <div id="cierre-mes" style="font-size:13px;font-weight:700;color:var(--text2)">—</div>
+    </div>
+  </div>
+
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre y apellido <span style="color:var(--red)">*</span></label>
+      <input type="text" id="cierre-nombre" placeholder="Juan Pérez"></div>
+    <div class="form-group"><label class="form-label">Instagram</label>
+      <input type="text" id="cierre-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Tipo de pago</label>
+      <select id="cierre-tipo-pago">
+        <option>Contado</option>
+        <option>Cuotas</option>
+        <option>PIF</option>
+        <option>Seña</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Monto cobrado (USD)</label>
+      <input type="number" id="cierre-cash" placeholder="0" min="0" step="any"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
+    <input type="text" id="cierre-comprobante" placeholder="Nº transferencia, captura, link…"></div>
+
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-cierre')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveCierre()">Crear cliente</button>
+  </div>
+</div></div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
