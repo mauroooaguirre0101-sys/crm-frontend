@@ -1,4 +1,6 @@
 // ========== SUPABASE ==========
+alert("FRONT NUEVO CARGADO");
+
 const API_URL = "https://noble-determination-production.up.railway.app";
 
 const _sb = supabase.createClient(
