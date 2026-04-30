@@ -18,9 +18,9 @@ function fmtUSD(n){return n?'$'+fmt(n):'$0'}
 function apiFetch(url, options={}){
   const cliente_id = localStorage.getItem('clienteSeleccionado')||'';
   const email      = localStorage.getItem('userEmail')||'';
-  if(!cliente_id||!email){
-    console.warn('[apiFetch] Falta cliente_id o email — headers incompletos');
-  }
+  if(!cliente_id || !email){
+  throw new Error('Faltan headers de autenticación');
+}
   return fetch(url,{
     ...options,
     headers:{
