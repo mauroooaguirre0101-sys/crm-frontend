@@ -1539,8 +1539,9 @@ async function saveClient(){
   const nc={id:uid(),nombre:v('cl-nombre'),instagram:v('cl-instagram').replace(/^@/,'').toLowerCase(),inicio:v('cl-inicio'),fin:v('cl-fin'),pp:v('cl-pp'),mod:v('cl-mod'),proxpago:v('cl-proxpago'),estado:v('cl-estado'),proxpaso:v('cl-proxpaso'),road:v('cl-road'),cash_collected:0};
   if(!nc.nombre.trim()){toast('Ingresá el nombre del cliente');return;}
   try{
-    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre:nc.nombre,instagram:nc.instagram,inicio:nc.inicio,fin:nc.fin,tipo_pago:nc.pp||'Contado',cash_collected:0,estado:nc.estado||'Al día'})});
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre:nc.nombre,instagram:nc.instagram,inicio:nc.inicio,fin:nc.fin,tipo_pago:nc.pp||'Contado',cash_collected:0,estado:nc.estado||'Al día',pp:nc.pp||null,proxpaso:nc.proxpaso||null,road:nc.road||null,mod:nc.mod||null,proxpago:nc.proxpago||null})});
     if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)nc.id=d.id;}
+    else{const b=await res.text().catch(()=>'');console.warn('[saveClient] POST /clientes respondió',res.status,b);}
   }catch(e){console.warn('[saveClient]',e.message);}
   S.clients.push(nc);
   save('clients');
@@ -2912,7 +2913,7 @@ async function saveCierre(){
 
   // Intentar crear en Railway; si no existe endpoint, guardamos local
   try{
-    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:cash,comprobante,estado:'Al día'})});
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:cash,comprobante,estado:'Al día',pp:clienteData.pp,proxpaso:clienteData.proxpaso,road:clienteData.road,mod:clienteData.mod,proxpago:clienteData.proxpago,programa:clienteData.programa})});
     if(res.ok){
       const data=await res.json().catch(()=>({}));
       if(data?.id) clienteData.id=data.id;
