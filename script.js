@@ -48,6 +48,7 @@ const KEYS={
   gas:     `exp2_gas_${_cid}`,
   angulos: `exp2_angulos_${_cid}`,
   refs:    `exp2_refs_${_cid}`,
+  cuotas:  `exp2_cuotas_${_cid}`,
 };
 
 let S={
@@ -62,6 +63,7 @@ let S={
   gas:     ld(KEYS.gas,     []),
   angulos: ld(KEYS.angulos, []),
   refs:    ld(KEYS.refs,    []),
+  cuotas:  ld(KEYS.cuotas,  []),
 };
 
 let leadsCache = [];
@@ -385,6 +387,7 @@ function renderDash(){
   const totalIngP=ingP.reduce((a,x)=>a+(+x.usd||0),0);
   const totalGasP=gasP.reduce((a,x)=>a+(+x.usd||0),0);
   const neto=totalIng-totalGas, netoP=totalIngP-totalGasP;
+  const cashCC=getCashCollected(_gfInRange), cashCCP=getCashCollected(_gfPrevInRange);
 
   const activeClients=S.clients.filter(c=>c.estado==='Al día').length;
   const now2=new Date(), tm=now2.getMonth(), ty=now2.getFullYear();
@@ -404,13 +407,13 @@ function renderDash(){
   document.getElementById('dash-metrics').innerHTML=`
     ${metCard('Ingresos',fmtMoney(totalIng),'green',_delta(totalIng,totalIngP))}
     ${metCard('Egresos',fmtMoney(totalGas),'red',_delta(totalGas,totalGasP))}
-    ${metCard('Neto',fmtMoney(neto),neto>=0?'green':'red',_delta(neto,netoP))}
+    ${metCard('Cash Collected',fmtMoney(cashCC),'green',_delta(cashCC,cashCCP))}
     ${metCard('Clientes activos',activeClients,'',_delta(newClientsThis,newClientsPrev))}
   `;
   document.getElementById('dash-metrics2').innerHTML=`
-    ${metCard('Leads período',leadsF.length,'',_delta(leadsF.length,leadsP.length))}
+    ${metCard('Leads',leadsF.length,'',_delta(leadsF.length,leadsP.length))}
     ${metCard('Cerrados',cerradosF,'green',_delta(cerradosF,cerradosP))}
-    ${metCard('Calls período',callsF.length,'',_delta(callsF.length,callsP.length))}
+    ${metCard('Calls',callsF.length,'',_delta(callsF.length,callsP.length))}
     ${metCard('Personal A+B',fmtMoney(retA+retB),'')}
   `;
 
@@ -433,7 +436,7 @@ function renderDash(){
       <div class="savings-breakdown">
         <span class="savings-pill">Ventas nuevas: ${vnCount}</span>
       </div>
-      <div class="savings-count">${vnCount} transaccion${vnCount!==1?'es':''} en el período</div>
+      <div class="savings-count">${vnCount} transaccion${vnCount!==1?'es':''} en el rango</div>
     </div>
     <div class="savings-card cuotas-upsells">
       <span class="savings-icon">📦</span>
@@ -445,7 +448,7 @@ function renderDash(){
         ${recompraCount?`<span class="savings-pill">Recompras: ${recompraCount}</span>`:''}
         ${!cuotasItems.length?`<span class="savings-pill" style="opacity:.4">Sin movimientos</span>`:''}
       </div>
-      <div class="savings-count">${cuotasItems.length} transaccion${cuotasItems.length!==1?'es':''} en el período</div>
+      <div class="savings-count">${cuotasItems.length} transaccion${cuotasItems.length!==1?'es':''} en el rango</div>
     </div>
   `;
 
@@ -495,6 +498,14 @@ function metCard(label,val,cls='',delta=''){
     deltaHtml=`<div class="metric-delta ${cls2}">${delta} vs anterior</div>`;
   }
   return `<div class="metric-card"><div class="metric-label">${label}</div><div class="metric-value ${cls}">${val}</div>${deltaHtml}</div>`;
+}
+function metCardSm(label,val,cls='',delta=''){
+  let deltaHtml='';
+  if(delta){
+    const isUp=delta.startsWith('+');
+    deltaHtml=`<div class="metric-delta ${isUp?'up':'down'}" style="font-size:10px">${delta}</div>`;
+  }
+  return `<div class="metric-card" style="padding:8px 12px"><div class="metric-label" style="font-size:10px;margin-bottom:2px">${label}</div><div class="metric-value ${cls}" style="font-size:15px">${val}</div>${deltaHtml}</div>`;
 }
 
 // ========== SOPS ==========
@@ -771,7 +782,21 @@ function saveMet(){
 }
 function delMet(i){if(!confirm('¿Eliminar?'))return;S.mets.splice(i,1);save('mets');renderMet()}
 
+// ========== MÉTRICAS COMPARATIVAS — API ==========
+async function fetchMetrics(range='month'){
+  try{
+    const res=await apiFetch(`${API_URL}/metrics?range=${range}`);
+    if(!res.ok){ console.warn('[fetchMetrics] HTTP',res.status); return null; }
+    return await res.json();
+  }catch(e){
+    console.error('[fetchMetrics]',e);
+    return null;
+  }
+}
+
 // ========== LEADS — SUPABASE ==========
+// IDs eliminados localmente — el polling no los vuelve a insertar aunque el server falle
+const _pendingDeletes = new Set();
 let _leadsInterval = null;
 let leadsFilter    = 'mes';
 let leadsMes       = '';
@@ -922,7 +947,6 @@ async function actualizarEstado(id, nuevoEstado, selectEl){
   }
 
   if(nuevoEstado === 'Agendado') _mostrarPopupReporteAgenda(id, lead);
-  if(nuevoEstado === 'Cerrado') _mostrarPopupCierre(id, lead);
   _logActivity(`Estado → ${nuevoEstado}`, lead, estadoAnterior?`Antes: ${estadoAnterior}`:'');
 
   _renderEstadoCounters(leadsCache);
@@ -990,18 +1014,16 @@ function _applyLeadsFilter(){
   const metricsEl=document.getElementById('leads-metrics');
   if(metricsEl){
     const agendados = filtrados.filter(l=>l.estado==='Agendado').length;
-    const cerrados  = filtrados.filter(l=>l.estado==='Cerrado'||l.estado==='Seña').length;
     const perdidos  = filtrados.filter(l=>ESTADO_PERDIDO.has(l.estado)).length;
     const prev      = leadsCache.filter(l=>_gfPrevInRange(l.created_at));
     const prevTot   = prev.length;
     const prevAg    = prev.filter(l=>l.estado==='Agendado').length;
-    const prevCer   = prev.filter(l=>l.estado==='Cerrado'||l.estado==='Seña').length;
     const prevPerd  = prev.filter(l=>ESTADO_PERDIDO.has(l.estado)).length;
+    metricsEl.style.justifyContent='center';
     metricsEl.innerHTML =
-      metCard('Total período', total,      '', _delta(total,prevTot))+
-      metCard('Agendados',     agendados,  '', _delta(agendados,prevAg))+
-      metCard('Cerrados/Seña', cerrados,   'green', _delta(cerrados,prevCer))+
-      metCard('Perdidos',      perdidos,   'red', _delta(perdidos,prevPerd));
+      metCard('Total',     total,     '', _delta(total,prevTot))+
+      metCard('Agendados', agendados, '', _delta(agendados,prevAg))+
+      metCard('Perdidos',  perdidos,  'red', _delta(perdidos,prevPerd));
   }
 
   const segEl = document.getElementById('leads-seguidores-badge');
@@ -1073,11 +1095,16 @@ function _renderLeadsTable(rows){
             Calificado
           </span>
         </label>
-      </div>` : '<span style="color:var(--text3);font-size:11px">—</span>';
+      </div>` : x.calificado
+      ? `<span style="font-size:11px;font-weight:700;color:#5cb87a;background:rgba(92,184,122,0.12);border:1px solid rgba(92,184,122,0.3);padding:2px 8px;border-radius:20px">Calificado</span>`
+      : '<span style="color:var(--text3);font-size:11px">—</span>';
 
     return `
     <tr style="${rowStyle}">
-      <td style="color:var(--text3);font-size:10px;text-align:center;width:32px">${idx+1}</td>
+      <td style="text-align:center;width:40px;padding:4px 2px">
+        <div style="font-size:10px;color:var(--text3);line-height:1.2">${idx+1}</div>
+        <button class="btn-icon" onclick="delLead('${x.id}')" style="color:var(--red);font-size:14px;line-height:1;padding:0;margin-top:2px;display:block;width:100%" title="Eliminar lead">×</button>
+      </td>
       <td style="color:var(--text3);font-size:12px;white-space:nowrap">${formatearFecha(x.created_at)}</td>
       <td style="color:var(--text);font-weight:600">${x.nombre||'—'}</td>
       <td><a href="https://instagram.com/${(x.instagram||'').replace('@','')}" target="_blank"
@@ -1091,8 +1118,6 @@ function _renderLeadsTable(rows){
           title="${x.ultima_accion||''}">${x.ultima_accion||'—'}</td>
       <td><span class="trunc" title="${x.notas||''}">${x.notas||'—'}</span></td>
       <td>${x.source==='manychat'?'<span class="api-badge">MC</span>':'<span style="color:var(--text3);font-size:11px">manual</span>'}</td>
-      <td><button class="btn-icon" onclick="delLead('${x.id}')"
-                  style="font-size:12px;padding:2px 8px;color:var(--text3)">× eliminar</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="13" style="color:var(--text3);text-align:center;padding:24px">Sin leads para este filtro</td></tr>';
 }
@@ -1103,15 +1128,10 @@ function _renderFunnel(leads){
 
   const total      = leads.length;
   const agendados  = leads.filter(l=>l.estado==='Agendado').length;
-  const shows      = leads.filter(l=>l.show===true).length;
-  const cerrados   = leads.filter(l=>l.estado==='Cerrado'||l.estado==='Seña').length;
   const calificados= leads.filter(l=>l.calificado===true).length;
 
   const pct = (num, den) => den > 0 ? ((num/den)*100).toFixed(1)+'%' : '—';
   const agendamiento   = pct(agendados,   total);
-  const showRate       = pct(shows,       agendados);
-  const closeRate      = pct(cerrados,    total);
-  const closeOnCalls   = pct(cerrados,    shows);
   const calificadasPct = pct(calificados, agendados);
 
   function semaforo(numStr, verde, amarillo){
@@ -1125,12 +1145,6 @@ function _renderFunnel(leads){
   const metrics = [
     { label:'% Agendamiento',   val:agendamiento,   verde:30, amarillo:15,
       sub:`${agendados} de ${total} leads` },
-    { label:'% Show Rate',      val:showRate,        verde:70, amarillo:50,
-      sub:`${shows} asistieron de ${agendados} agendados` },
-    { label:'% Close Rate',     val:closeRate,       verde:20, amarillo:10,
-      sub:`${cerrados} cerrados de ${total} leads` },
-    { label:'% Close / Calls',  val:closeOnCalls,    verde:40, amarillo:20,
-      sub:`${cerrados} cerrados de ${shows} llamadas` },
     { label:'% Calificadas',    val:calificadasPct,  verde:60, amarillo:40,
       sub:`${calificados} calificados de ${agendados} agendados` },
   ];
@@ -1141,16 +1155,16 @@ function _renderFunnel(leads){
       <div style="
         background:linear-gradient(135deg,rgba(20,19,18,0.97),rgba(12,11,11,0.99));
         border:1px solid rgba(60,58,55,0.2);
-        border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden;
+        border-radius:var(--r);padding:8px 10px;position:relative;overflow:hidden;
         box-shadow:0 0 0 1px rgba(0,0,0,0.3),0 2px 8px rgba(0,0,0,0.45)">
         <div style="position:absolute;bottom:0;left:0;right:0;height:2px;
                     background:linear-gradient(90deg,transparent,${color},transparent);opacity:.6"></div>
         <div style="position:absolute;top:0;left:0;right:0;height:1px;
                     background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)"></div>
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;
-                    letter-spacing:.08em;margin-bottom:8px">${m.label}</div>
-        <div style="font-family:'Inter',sans-serif;font-weight:700;font-size:26px;letter-spacing:-0.025em;color:${color};line-height:1;margin-bottom:6px">${m.val}</div>
-        <div style="font-size:10px;color:var(--text3);line-height:1.4">${m.sub}</div>
+        <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;
+                    letter-spacing:.08em;margin-bottom:4px">${m.label}</div>
+        <div style="font-family:'Inter',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.025em;color:${color};line-height:1;margin-bottom:3px">${m.val}</div>
+        <div style="font-size:9px;color:var(--text3);line-height:1.3">${m.sub}</div>
       </div>`;
   }).join('');
 }
@@ -1191,15 +1205,18 @@ async function fetchLeads(){
     }
     const data = await res.json();
     const raw = Array.isArray(data) ? data : (data?.leads || data?.data || []);
-    leadsCache = window.leadsCache = raw.map(l=>({
-      ...l,
-      estado:     l.estado     || 'Primer Contacto',
-      show:       l.show       === true,
-      calificado: l.calificado === true,
-    }));
-    _applyLeadsFilter();
+    leadsCache = window.leadsCache = raw
+      .filter(l => !_pendingDeletes.has(String(l.id)))   // nunca reinsertar eliminados
+      .map(l=>({
+        ...l,
+        estado:     l.estado     || 'Primer Contacto',
+        show:       l.show       === true,
+        calificado: l.calificado === true,
+      }));
   }catch(e){
     console.error('[fetchLeads]',e);
+  }finally{
+    _applyLeadsFilter();
   }
 }
 
@@ -1268,15 +1285,104 @@ async function saveLead(){
   }
 }
 
-async function delLead(id){
-  if(!confirm('¿Eliminar lead?')) return;
-  const res=await apiFetch(`${API_URL}/leads/${id}`,{method:'DELETE'});
-  if(!res.ok){const e=await res.json().catch(()=>({}));console.error('[delete lead]',e);toast('✗ Error al eliminar');return;}
-  await fetchLeads();
+function vaciarPipeline(){
+  if(!confirm(`¿Vaciar todo el pipeline? Se eliminarán los ${leadsCache.length} leads de la vista. Esta acción no se puede deshacer.`)) return;
+  const ids=[...leadsCache.map(l=>l.id)];
+  leadsCache=window.leadsCache=[];
+  _applyLeadsFilter();
+  // Intentar eliminar en el servidor (best-effort, sin bloquear UI)
+  ids.forEach(id=>{
+    apiFetch(`${API_URL}/leads/${id}`,{method:'DELETE'}).catch(()=>{});
+  });
+  toast(`✓ Pipeline vaciado`);
 }
+async function delLead(id){
+  if(!confirm('¿Seguro que querés eliminar este lead?')) return;
+  if(!id){ console.warn('[delLead] id vacío'); return; }
+  const sid=String(id);
+
+  // 1. Marcar como eliminado → el polling NO lo va a reinsertar aunque el server falle
+  _pendingDeletes.add(sid);
+
+  // 2. Quitar del cache local inmediatamente → UI reactivo sin esperar API
+  leadsCache=window.leadsCache=leadsCache.filter(l=>String(l.id)!==sid);
+  _applyLeadsFilter();
+
+  // 3. Intentar DELETE en el servidor con logs claros
+  console.log('[delLead] Deleting lead:', sid);
+  try{
+    const res=await apiFetch(`${API_URL}/leads/${sid}`,{method:'DELETE'});
+    console.log('[delLead] DELETE response:', res.status, res.ok);
+    if(res.ok){
+      console.log('[delLead] Lead eliminado en servidor ✓');
+      // id puede salir de _pendingDeletes; el server ya no lo tiene
+      _pendingDeletes.delete(sid);
+    } else {
+      const body=await res.text().catch(()=>'');
+      console.warn('[delLead] Server respondió',res.status,body);
+      toast('⚠ Lead eliminado localmente — el servidor respondió '+res.status+'. Recargá para sincronizar.');
+      // dejamos el id en _pendingDeletes → el polling no lo restaurará en esta sesión
+    }
+  }catch(e){
+    console.warn('[delLead] Error de red:', e.message);
+    toast('⚠ Lead eliminado localmente — sin conexión al servidor.');
+    // dejamos el id en _pendingDeletes → el polling no lo restaurará en esta sesión
+  }
+}
+// Alias global para compatibilidad con cualquier botón que llame deleteLead
+window.deleteLead=function(id){ return delLead(id); };
 
 // ========== CLIENTES ==========
 function _clientsRow(x,i){
+  const ig=(x.instagram||'').replace(/^@/,'');
+  const _xid=String(x.id);
+  const proxCuota=(S.cuotas||[]).filter(c=>String(c.clienteId)===_xid&&!c.pagado).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0];
+  const proxCuotaTd=proxCuota
+    ?`<td style="font-size:11px;color:#d46060;white-space:nowrap">${proxCuota.fecha}</td>`
+    :`<td style="font-size:11px;color:var(--text3)">—</td>`;
+  const isPIF=(x.pp||'').toUpperCase()==='PIF';
+  const cuota2=(S.cuotas||[]).find(c=>String(c.clienteId)===_xid&&c.numero===2);
+  const cuota3=(S.cuotas||[]).find(c=>String(c.clienteId)===_xid&&c.numero===3);
+  const selectStyle='background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--gold-light);font-size:11px;padding:2px 4px;cursor:pointer';
+  const cuota2Td=isPIF
+    ?`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`
+    :`<td onclick="event.stopPropagation()" style="text-align:center">
+        <select onchange="_toggleOrCreateCuota('${x.id}',2,this.value)" style="${selectStyle}">
+          <option value="pendiente" ${!cuota2?.pagado?'selected':''}>Pendiente</option>
+          <option value="pago" ${cuota2?.pagado?'selected':''}>Pagó</option>
+        </select>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${cuota2?.monto?fmtMoney(+cuota2.monto):''}</div>
+      </td>`;
+  const cuota3Td=isPIF
+    ?`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`
+    :cuota2?.pagado
+      ?`<td onclick="event.stopPropagation()" style="text-align:center">
+          <select onchange="_toggleOrCreateCuota('${x.id}',3,this.value)" style="${selectStyle}">
+            <option value="pendiente" ${!cuota3?.pagado?'selected':''}>Pendiente</option>
+            <option value="pago" ${cuota3?.pagado?'selected':''}>Pagó</option>
+          </select>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px">${cuota3?.monto?fmtMoney(+cuota3.monto):''}</div>
+        </td>`
+      :`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`;
+  const inputStyle='width:72px;padding:2px 5px;font-size:11px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--gold-light);text-align:center';
+  const c2ccTd=isPIF
+    ?`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`
+    :cuota2
+      ?`<td onclick="event.stopPropagation()" style="text-align:center">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:2px">CC C2</div>
+          <input type="number" value="${+cuota2.cash_collected||''}" min="0" step="any" placeholder="0"
+            onchange="updateCuotaCC('${cuota2.id}',this.value)" style="${inputStyle}">
+        </td>`
+      :`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`;
+  const c3ccTd=isPIF
+    ?`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`
+    :cuota3
+      ?`<td onclick="event.stopPropagation()" style="text-align:center">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:2px">CC C3</div>
+          <input type="number" value="${+cuota3.cash_collected||''}" min="0" step="any" placeholder="0"
+            onchange="updateCuotaCC('${cuota3.id}',this.value)" style="${inputStyle}">
+        </td>`
+      :`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`;
   return `<tr>
     <td>${x.inicio||'—'}</td>
     <td style="color:var(--text);font-weight:500">${x.nombre}</td>
@@ -1285,8 +1391,16 @@ function _clientsRow(x,i){
     <td><span class="badge bg">${x.pp||'—'}</span></td>
     <td style="font-size:12px;color:var(--text2)">${x.proxpaso||'—'}</td>
     <td>${clientBadge(x.estado)}</td>
-    <td>
+    <td>${ig?`<a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);font-size:12px;text-decoration:none">@${ig}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
+    <td onclick="event.stopPropagation()"><input type="number" value="${+x.cash_collected||0}" min="0" step="any" onchange="updateClientCC('${x.id}',this.value)" style="width:80px;padding:2px 5px;font-size:12px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--gold-light)" title="Cash Collected inicial"></td>
+    ${proxCuotaTd}
+    ${cuota2Td}
+    ${cuota3Td}
+    ${c2ccTd}
+    ${c3ccTd}
+    <td style="white-space:nowrap">
       ${x.road?`<a href="${x.road}" target="_blank" class="roadmap-link">🗺️</a>`:''}
+      <button class="btn-icon" onclick="abrirEditCliente('${x.id}')" style="font-size:13px;margin-right:2px" title="Editar">✏</button>
       <button class="btn-icon" onclick="delClient(${i})">×</button>
     </td>
   </tr>`;
@@ -1330,10 +1444,12 @@ function renderClients(){
   const subEl=document.getElementById('clients-sub');
   if(subEl) subEl.textContent=`${S.clients.length} cliente${S.clients.length!==1?'s':''} en programa · ${deltaNewStr}`;
 
-  const clientsRowsFor=(arr)=>arr.map(x=>_clientsRow(x,S.clients.indexOf(x))).join('')||
-    '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:16px">Sin clientes en esta categoría</td></tr>';
+  _renderMoneyCounters();
 
-  const thead=`<thead><tr><th>Fecha</th><th>Cliente</th><th>Inicio</th><th>Final</th><th>PP</th><th>Próximo paso</th><th>Estado</th><th></th></tr></thead>`;
+  const clientsRowsFor=(arr)=>arr.map(x=>_clientsRow(x,S.clients.indexOf(x))).join('')||
+    '<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:16px">Sin clientes en esta categoría</td></tr>';
+
+  const thead=`<thead><tr><th>Fecha</th><th>Cliente</th><th>Inicio</th><th>Final</th><th>PP</th><th>Próximo paso</th><th>Estado</th><th>Instagram</th><th>Cobrado</th><th>Próx. cuota</th><th style="text-align:center">Cuota 2</th><th style="text-align:center">Cuota 3</th><th style="text-align:center">CC C2</th><th style="text-align:center">CC C3</th><th></th></tr></thead>`;
 
   const sectionsEl=document.getElementById('clients-sections');
   if(sectionsEl){
@@ -1366,6 +1482,7 @@ function renderClients(){
         </div>
       </div>`;
   }
+  renderCuotas();
 }
 function toggleClientSection(id){
   const body=document.getElementById(id);
@@ -1376,10 +1493,269 @@ function toggleClientSection(id){
   if(arrow) arrow.textContent=open?'▶':'▼';
 }
 function saveClient(){
-  S.clients.push({id:uid(),nombre:v('cl-nombre'),inicio:v('cl-inicio'),fin:v('cl-fin'),pp:v('cl-pp'),mod:v('cl-mod'),proxpago:v('cl-proxpago'),estado:v('cl-estado'),proxpaso:v('cl-proxpaso'),road:v('cl-road')});
-  save('clients');closeModal('modal-client');renderClients();toast('Cliente guardado ✓');
+  const nc={id:uid(),nombre:v('cl-nombre'),instagram:v('cl-instagram').replace(/^@/,'').toLowerCase(),inicio:v('cl-inicio'),fin:v('cl-fin'),pp:v('cl-pp'),mod:v('cl-mod'),proxpago:v('cl-proxpago'),estado:v('cl-estado'),proxpaso:v('cl-proxpaso'),road:v('cl-road')};
+  if(!nc.nombre.trim()){toast('Ingresá el nombre del cliente');return;}
+  S.clients.push(nc);
+  save('clients');
+  if(nc.pp === 'CUOTA') generarCuotasCliente(nc, 2);
+  closeModal('modal-client');renderClients();toast('Cliente guardado ✓');
 }
-function delClient(i){if(!confirm('¿Eliminar?'))return;S.clients.splice(i,1);save('clients');renderClients()}
+function delClient(i){
+  if(!confirm('¿Eliminar?'))return;
+  const c=S.clients[i];
+  if(c){
+    S.cuotas=(S.cuotas||[]).filter(q=>String(q.clienteId)!==String(c.id));
+    save('cuotas');
+    const ig=(c.instagram||'').toLowerCase();
+    S.ing=S.ing.filter(x=>{
+      if(x.concepto==='Venta Nueva'&&ig&&(x.instagram||'').toLowerCase()===ig) return false;
+      if(x.origen==='cuota'&&String(x.clienteId)===String(c.id)) return false;
+      return true;
+    });
+    save('ing');
+  }
+  S.clients.splice(i,1);
+  save('clients');
+  _renderMoneyCounters();
+  renderClients();
+  renderFin();
+}
+
+function generarCuotasCliente(nc, n){
+  if((S.cuotas||[]).some(c=>String(c.clienteId)===String(nc.id))){return;}
+  const base=nc.inicio?new Date(nc.inicio+'T00:00:00'):new Date();
+  for(let i=0;i<n;i++){
+    const f=new Date(base);
+    f.setMonth(f.getMonth()+i);
+    S.cuotas.push({
+      id:uid(),
+      clienteId:String(nc.id),
+      clienteNombre:nc.nombre,
+      clienteIg:nc.instagram||'',
+      numero:i+2,
+      fecha:f.toISOString().slice(0,10),
+      monto:0,
+      pagado:false
+    });
+  }
+  save('cuotas');
+}
+
+function renderCuotas(){
+  const el=document.getElementById('clients-cuotas-section');
+  if(!el)return;
+  const cuotas=S.cuotas||[];
+  if(!cuotas.length){el.innerHTML='';return;}
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  const rows=cuotas.map(c=>{
+    const vencida=!c.pagado&&new Date(c.fecha)<hoy;
+    const badge=c.pagado
+      ?'<span class="badge green">Pagada</span>'
+      :vencida
+        ?'<span class="badge red">Vencida</span>'
+        :'<span class="badge">Pendiente</span>';
+    return `<tr>
+      <td><input type="checkbox" ${c.pagado?'checked':''} onchange="toggleCuotaPagada('${c.id}')"></td>
+      <td style="font-weight:500">${c.clienteNombre}</td>
+      <td style="font-size:12px;color:var(--text2)">${c.clienteIg?'@'+c.clienteIg:'—'}</td>
+      <td>Cuota ${c.numero}</td>
+      <td>${c.fecha||'—'}</td>
+      <td><input type="number" value="${c.monto||0}" min="0"
+        style="width:80px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px"
+        onchange="S.cuotas.find(x=>x.id==='${c.id}').monto=+this.value;save('cuotas');_syncCuotasCounter()">
+      </td>
+      <td>${badge}</td>
+      <td><button class="btn-icon" onclick="delCuota('${c.id}')" title="Eliminar cuota">×</button></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div class="section-title" style="margin-top:24px">Cuotas</div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th></th><th>Cliente</th><th>Instagram</th><th>Cuota</th><th>Fecha</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+function delCuota(id){
+  if(!confirm('¿Eliminar esta cuota?'))return;
+  S.cuotas=(S.cuotas||[]).filter(c=>c.id!==id);
+  save('cuotas');
+  _renderMoneyCounters();
+  renderCuotas();
+}
+
+function toggleCuotaPagada(id){
+  const c=S.cuotas.find(x=>x.id===id);
+  if(!c)return;
+  c.pagado=!c.pagado;
+  save('cuotas');
+  if(c.pagado){
+    const yaExiste=S.ing.some(x=>x.cuotaId===c.id);
+    if(!yaExiste){
+      S.ing.push({id:uid(),concepto:'Cuota',tipo:'Cuota',clienteId:c.clienteId,clienteNombre:c.clienteNombre,usd:c.monto,ars:0,eur:0,fecha:new Date().toISOString().slice(0,10),origen:'cuota',cuotaId:c.id});
+      save('ing');
+    }
+  } else {
+    S.ing=S.ing.filter(x=>x.cuotaId!==c.id);
+    c.cash_collected=0;
+    save('ing');save('cuotas');
+  }
+  renderDash();
+  renderFin();
+  renderCuotas();
+  renderClients();
+  _renderMoneyCounters();
+}
+
+function _toggleOrCreateCuota(clientId,numero,val){
+  const _cid=String(clientId);
+  const wantPagado=(val==='pago');
+  let cuota=(S.cuotas||[]).find(c=>String(c.clienteId)===_cid&&c.numero===numero);
+  if(!cuota){
+    const client=S.clients.find(c=>String(c.id)===_cid);
+    if(!client) return;
+    cuota={id:uid(),clienteId:_cid,clienteNombre:client.nombre,clienteIg:client.instagram||'',numero,fecha:new Date().toISOString().slice(0,10),monto:0,pagado:false};
+    if(!S.cuotas) S.cuotas=[];
+    S.cuotas.push(cuota);
+    save('cuotas');
+  }
+  if(val!==undefined&&cuota.pagado===wantPagado) return;
+  toggleCuotaPagada(cuota.id);
+}
+
+
+function getCashCollected(filterFn){
+  const fromClients=(S.clients||[]).reduce((a,c)=>{
+    if(filterFn&&!filterFn(c.inicio))return a;
+    return a+(+c.cash_collected||0);
+  },0);
+  const fromCuotas=(S.cuotas||[]).reduce((a,c)=>{
+    if(filterFn&&!filterFn(c.fecha))return a;
+    return a+(+c.cash_collected||0);
+  },0);
+  return fromClients+fromCuotas;
+}
+function updateClientCC(id,val){
+  const c=S.clients.find(x=>x.id===id);
+  if(!c)return;
+  c.cash_collected=+val||0;
+  save('clients');
+  _renderMoneyCounters();renderDash();renderFin();
+}
+function updateCuotaCC(id,val){
+  const c=(S.cuotas||[]).find(x=>x.id===id);
+  if(!c)return;
+  c.cash_collected=+val||0;
+  save('cuotas');
+  _renderMoneyCounters();renderDash();renderFin();renderClients();
+}
+function getCuotasMetrics(){
+  const totalCobrado      =S.clients.reduce((a,c)=>a+(+c.cash_collected||0),0);
+  const ingVentas         =S.ing.filter(x=>x.concepto==='Venta Nueva').reduce((a,x)=>a+(+x.usd||0),0);
+  const cuotasUnpaid      =(S.cuotas||[]).filter(c=>!c.pagado);
+  const cuotasPendientes  =new Set(cuotasUnpaid.map(c=>c.clienteId)).size;
+  const dineroCobrar      =cuotasUnpaid.reduce((a,c)=>a+(+c.monto||0),0);
+  const cobradoCuotas     =(S.ing||[]).filter(x=>x.origen==='cuota').reduce((a,x)=>a+(+x.usd||0),0);
+  const cobradoEste       =(S.ing||[]).filter(x=>x.origen==='cuota'&&_gfInRange(x.fecha)).reduce((a,x)=>a+(+x.usd||0),0);
+  const cobradoPrev       =(S.ing||[]).filter(x=>x.origen==='cuota'&&_gfPrevInRange(x.fecha)).reduce((a,x)=>a+(+x.usd||0),0);
+  const pctCobranza       =(cobradoCuotas+dineroCobrar)>0?Math.round(cobradoCuotas/(cobradoCuotas+dineroCobrar)*100):0;
+  return {totalCobrado,ingVentas,cuotasPendientes,dineroCobrar,cobradoCuotas,cobradoEste,cobradoPrev,pctCobranza};
+}
+
+
+
+function _renderMoneyCounters(){
+  const el=document.getElementById('clients-money-counters');
+  if(!el)return;
+  const m=getCuotasMetrics();
+  const cc=(label,val,cls='',delta='')=>{
+    const dHtml=delta?`<div class="metric-delta ${delta.startsWith('+')?'up':'down'}" style="font-size:10px">${delta} vs anterior</div>`:'';
+    return `<div class="metric-card" style="padding:8px 12px;min-width:0">
+      <div class="metric-label" style="font-size:10px;margin-bottom:2px">${label}</div>
+      <div class="metric-value ${cls}" style="font-size:15px">${val}</div>${dHtml}</div>`;
+  };
+  el.style.cssText='margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+  el.innerHTML=
+    cc('Clientes con cuotas',m.cuotasPendientes)+
+    cc('Dinero a cobrar en cuotas',fmtMoney(m.dineroCobrar),m.dineroCobrar>0?'red':'')+
+    cc('Cobrado por cuotas',fmtMoney(m.cobradoCuotas),'green',_delta(m.cobradoEste,m.cobradoPrev))+
+    cc('% Cobranza',m.pctCobranza+'%',m.pctCobranza>=80?'green':m.pctCobranza>=50?'':'red');
+}
+
+function getCallsMetrics(shows,closes,calls,usePrev=false){
+  const filterFn=usePrev?_gfPrevInRange:_gfInRange;
+  const showRate      =calls>0  ?Math.round(shows/calls*100)  :0;
+  const closeRate     =calls>0  ?Math.round(closes/calls*100) :0;
+  const closeShowRate =shows>0  ?Math.round(closes/shows*100) :0;
+  const facturacion   =S.ing.filter(x=>filterFn(x.fecha)&&x.concepto==='Venta Nueva').reduce((a,x)=>a+(+x.usd||0),0);
+  const cobradoCuotas =S.ing.filter(x=>filterFn(x.fecha)&&x.origen==='cuota').reduce((a,x)=>a+(+x.usd||0),0);
+  const cashCollected =getCashCollected(filterFn);
+  const noCerradas    =Math.max(0,shows-closes);
+  const aov           =closes>0 ?facturacion/closes:0;
+  const cashPorAgenda =calls>0  ?facturacion/calls:0;
+  const cashPorShow   =shows>0  ?facturacion/shows:0;
+  return {showRate,closeRate,closeShowRate,facturacion,cobradoCuotas,cashCollected,noCerradas,aov,cashPorAgenda,cashPorShow};
+}
+
+function _renderCallsMetrics2(shows,closes,calls){
+  const el=document.getElementById('calls-metrics2');
+  if(!el)return;
+  const m=getCallsMetrics(shows,closes,calls);
+  const prevCalls=callsCache.filter(c=>_gfPrevInRange(c.created_at));
+  const pShows=prevCalls.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+  const pCloses=prevCalls.filter(c=>['Cierre','Cierre PIF','Cierre Cuotas'].includes(c.estado||'')).length;
+  const mp=getCallsMetrics(pShows,pCloses,prevCalls.length,true);
+  el.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px';
+  el.innerHTML=
+    metCardSm('Show rate',m.showRate+'%',m.showRate>=70?'green':m.showRate>=50?'':'red',_delta(m.showRate,mp.showRate))+
+    metCardSm('Close rate',m.closeRate+'%',m.closeRate>=30?'green':m.closeRate>=15?'':'red',_delta(m.closeRate,mp.closeRate))+
+    metCardSm('Close/Shows',m.closeShowRate+'%',m.closeShowRate>=40?'green':m.closeShowRate>=20?'':'red',_delta(m.closeShowRate,mp.closeShowRate))+
+    metCardSm('Facturación',fmtMoney(m.facturacion),'green',_delta(m.facturacion,mp.facturacion))+
+    metCardSm('Cobrado cuotas',fmtMoney(m.cobradoCuotas),'green',_delta(m.cobradoCuotas,mp.cobradoCuotas))+
+    metCardSm('Cash Collected',fmtMoney(m.cashCollected),'green',_delta(m.cashCollected,mp.cashCollected))+
+    metCardSm('AOV',fmtMoney(m.aov),'',_delta(m.aov,mp.aov))+
+    metCardSm('Cash/Agenda',fmtMoney(m.cashPorAgenda),'',_delta(m.cashPorAgenda,mp.cashPorAgenda))+
+    metCardSm('Cash/Show',fmtMoney(m.cashPorShow),'',_delta(m.cashPorShow,mp.cashPorShow));
+}
+
+function _syncCuotasCounter(){
+  _renderMoneyCounters();
+}
+
+function abrirEditCliente(id){
+  const c=S.clients.find(x=>x.id===id);
+  if(!c){toast('Cliente no encontrado');return;}
+  document.getElementById('ec-cli-id').value=id;
+  document.getElementById('ec-cli-nombre').value=c.nombre||'';
+  document.getElementById('ec-cli-instagram').value=c.instagram||'';
+  document.getElementById('ec-cli-inicio').value=c.inicio||'';
+  document.getElementById('ec-cli-fin').value=c.fin||'';
+  document.getElementById('ec-cli-estado').value=c.estado||'Al día';
+  document.getElementById('ec-cli-proxpaso').value=c.proxpaso||'';
+  document.getElementById('modal-edit-cliente').classList.add('open');
+}
+
+async function saveEditCliente(){
+  const id=document.getElementById('ec-cli-id').value;
+  const c=S.clients.find(x=>x.id===id);
+  if(!c){toast('Cliente no encontrado');return;}
+  const cambios={
+    nombre:   document.getElementById('ec-cli-nombre').value.trim(),
+    instagram:document.getElementById('ec-cli-instagram').value.trim().replace(/^@/,'').toLowerCase(),
+    inicio:   document.getElementById('ec-cli-inicio').value,
+    fin:      document.getElementById('ec-cli-fin').value,
+    estado:   document.getElementById('ec-cli-estado').value,
+    proxpaso: document.getElementById('ec-cli-proxpaso').value.trim(),
+  };
+  if(!cambios.nombre){toast('⚠ Nombre obligatorio');return;}
+  Object.assign(c,cambios);
+  save('clients');
+  try{
+    const res=await apiFetch(`${API_URL}/clientes/${id}`,{method:'PATCH',body:JSON.stringify(cambios)});
+    if(!res.ok) console.warn('[saveEditCliente] HTTP',res.status);
+  }catch(e){console.warn('[saveEditCliente]',e.message);}
+  closeModal('modal-edit-cliente');
+  renderClients();
+  toast('Cliente actualizado ✓');
+}
 
 // ========== FINANZAS ==========
 function renderFin(){
@@ -1391,24 +1767,40 @@ function renderFin(){
   const totalGas =gas.reduce((a,x)=>a+(+x.usd||0),0);
   const totalIngP=ingP.reduce((a,x)=>a+(+x.usd||0),0);
   const totalGasP=gasP.reduce((a,x)=>a+(+x.usd||0),0);
-  const ganancia =totalIng-totalGas;
-  const gananciaP=totalIngP-totalGasP;
-  const margen   =totalIng>0?((ganancia/totalIng)*100).toFixed(1):0;
+  const finCC=getCashCollected(_gfInRange), finCCP=getCashCollected(_gfPrevInRange);
+  const ganancia =finCC-totalGas;
+  const gananciaP=finCCP-totalGasP;
+  const margen   =finCC>0?((ganancia/finCC)*100).toFixed(1):0;
 
   document.getElementById('fin-metrics').innerHTML=
     metCard('Ingresos',fmtMoney(totalIng),'green',_delta(totalIng,totalIngP))+
     metCard('Egresos',fmtMoney(totalGas),'red',_delta(totalGas,totalGasP))+
-    metCard('Ganancia',fmtMoney(ganancia),ganancia>=0?'green':'red',_delta(ganancia,gananciaP))+
+    metCard('Cash Collected',fmtMoney(finCC),'green',_delta(finCC,finCCP))+
+    metCard('Ganancia Total',fmtMoney(ganancia),ganancia>=0?'green':'red',_delta(ganancia,gananciaP))+
     metCard('Margen',margen+'%',+margen>=30?'green':+margen>=15?'':'red');
 
-  document.getElementById('ing-table').innerHTML=ing.map(x=>`
-    <tr>
-      <td style="color:var(--text)">${x.concepto||'—'}</td>
+  document.getElementById('ing-table').innerHTML=ing.map(x=>{
+    let cc=null;
+    if(x.concepto==='Venta Nueva'&&x.instagram){
+      const cli=S.clients.find(c=>(c.instagram||'').toLowerCase()===(x.instagram||'').toLowerCase());
+      if(cli&&(+cli.cash_collected||0)>0) cc=+cli.cash_collected;
+    } else if(x.origen==='cuota'&&x.cuotaId){
+      const cuota=(S.cuotas||[]).find(c=>c.id===x.cuotaId);
+      if(cuota&&(+cuota.cash_collected||0)>0) cc=+cuota.cash_collected;
+    }
+    const ccCell=cc!=null?`<td style="color:var(--gold-light);font-weight:600">${fmtMoney(cc)}</td>`:`<td style="color:var(--text3)">—</td>`;
+    const nombreIng=x.nombre||x.clienteNombre||(x.instagram?S.clients.find(c=>(c.instagram||'').toLowerCase()===(x.instagram||'').toLowerCase())?.nombre:null)||'—';
+    const idx=S.ing.indexOf(x);
+    return `<tr>
+      <td style="color:var(--text)">${x.tipoPago||x.concepto||'—'}</td>
+      <td style="color:var(--text2);font-size:12px">${nombreIng}<button class="btn-icon" onclick="editIngNombre(${idx})" style="font-size:11px;margin-left:4px" title="Editar nombre">✏</button></td>
       <td>${x.fecha||'—'}</td>
       <td style="color:var(--gold-light)">${fmtMoney(+x.usd||0)}</td>
-      <td><span class="badge bgr">${x.tipo||'—'}</span></td>
-      <td><button class="btn-icon" onclick="delIng(${S.ing.indexOf(x)})">×</button></td>
-    </tr>`).join('')||'<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:20px">Sin ingresos en este período</td></tr>';
+      ${ccCell}
+      <td><span class="badge bgr">${x.tipoPago||x.tipo||'—'}</span></td>
+      <td><button class="btn-icon" onclick="delIng(${idx})">×</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px">Sin ingresos</td></tr>';
 
   document.getElementById('gas-table').innerHTML=gas.map(x=>`
     <tr>
@@ -1417,7 +1809,7 @@ function renderFin(){
       <td style="color:#d46060">${fmtMoney(+x.usd||0)}</td>
       <td><span class="badge br">${x.tipo||'—'}</span></td>
       <td><button class="btn-icon" onclick="delGas(${S.gas.indexOf(x)})">×</button></td>
-    </tr>`).join('')||'<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:20px">Sin egresos en este período</td></tr>';
+    </tr>`).join('')||'<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:20px">Sin egresos</td></tr>';
 
   renderRenovaciones();
   renderActivityLog();
@@ -1432,6 +1824,13 @@ function saveGas(){
 }
 function delIng(i){if(!confirm('¿Eliminar?'))return;S.ing.splice(i,1);save('ing');renderFin()}
 function delGas(i){if(!confirm('¿Eliminar?'))return;S.gas.splice(i,1);save('gas');renderFin()}
+function editIngNombre(i){
+  const x=S.ing[i];if(!x)return;
+  const nuevo=prompt('Nombre:',x.nombre||x.clienteNombre||'');
+  if(nuevo===null)return;
+  x.nombre=nuevo.trim();
+  save('ing');renderFin();
+}
 
 // ========== EXPORT / IMPORT ==========
 function renderExp(){
@@ -1508,6 +1907,21 @@ function _getClienteSeleccionado(){
   return localStorage.getItem('clienteSeleccionado')||'';
 }
 
+const _ALIASES_KEY='crm_client_aliases';
+function _getAliases(){try{return JSON.parse(localStorage.getItem(_ALIASES_KEY)||'{}')}catch{return {}}}
+function _saveAlias(cid,alias){const a=_getAliases();if(alias)a[cid]=alias;else delete a[cid];localStorage.setItem(_ALIASES_KEY,JSON.stringify(a));}
+function _displayName(cid,role){const a=_getAliases();return a[cid]?`${a[cid]}  ·  ${cid}`+(role?` (${role})`:''):`${cid}`+(role?` (${role})`:'')}
+
+function editClienteAlias(){
+  const cid=_getClienteSeleccionado();
+  if(!cid) return;
+  const actual=_getAliases()[cid]||'';
+  const nuevo=prompt(`Apodo para ${cid}:\n(Dejá vacío para quitar el apodo)`,actual);
+  if(nuevo===null) return;
+  _saveAlias(cid,nuevo.trim());
+  renderClienteSelector();
+}
+
 function renderClienteSelector(){
   const clientes=_getClientes();
   const selected=_getClienteSeleccionado();
@@ -1517,9 +1931,22 @@ function renderClienteSelector(){
   if(clientes.length===0){ wrap.style.display='none'; return; }
   sel.innerHTML=clientes.map(c=>`
     <option value="${c.cliente_id}" ${c.cliente_id===selected?'selected':''}>
-      ${c.cliente_id}${c.role?' ('+c.role+')':''}
+      ${_displayName(c.cliente_id,c.role)}
     </option>`).join('');
+  // Mostrar botón de editar apodo solo si hay un cliente seleccionado
+  let btn=document.getElementById('cs-alias-btn');
+  if(!btn){
+    btn=document.createElement('button');
+    btn.id='cs-alias-btn';
+    btn.title='Editar apodo del cliente';
+    btn.onclick=editClienteAlias;
+    btn.style.cssText='background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;line-height:1;flex-shrink:0';
+    btn.textContent='✎';
+    wrap.appendChild(btn);
+  }
   wrap.style.display='flex';
+  wrap.style.alignItems='center';
+  wrap.style.gap='4px';
 }
 
 function onClienteChange(clienteId){
@@ -1704,11 +2131,12 @@ async function initApp(user){
 })();
 
 // ========== LLAMADAS ==========
-const CALL_ESTADOS = ['Cierre','Cierre PIF','Seguimiento Post Call','Re agenda','No Cierre','No asistió'];
+const CALL_ESTADOS = ['Cierre PIF','Cierre Cuotas','Seguimiento Post Call','Re agenda','No Cierre','No asistió'];
 
 const CALL_ESTADO_COLOR = {
   'Cierre':                {bg:'rgba(61,138,90,0.12)', border:'rgba(61,138,90,0.25)',  text:'#5cb87a'},
   'Cierre PIF':            {bg:'rgba(61,138,90,0.22)', border:'rgba(61,138,90,0.45)',  text:'#7de0a0'},
+  'Cierre Cuotas':         {bg:'rgba(61,138,90,0.12)', border:'rgba(61,138,90,0.25)',  text:'#5cb87a'},
   'Seguimiento Post Call': {bg:'rgba(61,106,170,0.12)',border:'rgba(61,106,170,0.25)', text:'#6090d4'},
   'Re agenda':             {bg:'rgba(196,136,42,0.12)',border:'rgba(196,136,42,0.25)', text:'#e0a848'},
   'No Cierre':             {bg:'rgba(184,72,72,0.12)', border:'rgba(184,72,72,0.25)',  text:'#d46060'},
@@ -1719,6 +2147,7 @@ const CALL_ESTADOS_MOTIVO = new Set(['No Cierre']);
 const CALL_TO_LEAD_ESTADO = {
   'Cierre':                'Cerrado',
   'Cierre PIF':            'Cerrado',
+  'Cierre Cuotas':         'Cerrado',
   'Seguimiento Post Call': 'Seguimiento Post Call',
   'Re agenda':             'Re agendado',
   'No Cierre':             'Perdido Post Call',
@@ -1753,35 +2182,72 @@ function _filtrarCalls(){
 function setCallsFilter(filtro,el){ _gfSet(filtro); }
 function onCallsMesChange(){ const s=document.getElementById('calls-mes-select'); _gfSetMes(s?s.value:''); }
 
-function _applyCallsFilter(){
+async function _applyCallsFilter(){
   const filtradas=_filtrarCalls();
   const total=filtradas.length;
+
   const badge=document.getElementById('calls-count-badge');
   if(badge) badge.textContent=total;
+
   const LABEL={dia:'hoy',semana:'últimos 7 días',mes:'últimos 30 días',año:'último año'};
   const lbl=document.getElementById('calls-filter-label');
   if(lbl){
     const parts=_gf.mes!==''?[['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+_gf.mes]]:[LABEL[_gf.period]||''];
     lbl.textContent=parts.filter(Boolean).join(' · ');
   }
-  const prev      =callsCache.filter(c=>_gfPrevInRange(c.created_at));
-  const hechas    =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
-  const hechasP   =prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
-  const reagendas =filtradas.filter(c=>(c.estado||'').toLowerCase()==='re agenda').length;
-  const cierres   =filtradas.filter(c=>['Cierre','Cierre PIF'].includes(c.estado||'')).length;
-  const cierresP  =prev.filter(c=>['Cierre','Cierre PIF'].includes(c.estado||'')).length;
-  const metricsEl=document.getElementById('calls-metrics');
-  if(metricsEl){
-    metricsEl.innerHTML=
-      metCard('Total llamadas',total,'',_delta(total,prev.length))+
-      metCard('Llamadas hechas',hechas,'',_delta(hechas,hechasP))+
-      metCard('Cierres',cierres,'green',_delta(cierres,cierresP))+
-      `<div class="metric-card" onclick="abrirAgendados()" style="cursor:pointer" title="Ver lista">
-        <div class="metric-label">Re agendas</div>
-        <div class="metric-value">${reagendas}</div>
-       </div>`;
-  }
+
+  // Re-agendas siempre desde cache local
+  const reagendas=filtradas.filter(c=>(c.estado||'').toLowerCase()==='re agenda').length;
+
+  // Tabla: render inmediato con datos locales, sin esperar API
   _renderCallsTable(filtradas);
+
+  // Cards: intentar desde API, fallback a cálculo local
+  const metricsEl=document.getElementById('calls-metrics');
+  if(!metricsEl) return;
+
+  const PERIOD_TO_RANGE={dia:'day',semana:'week',mes:'month',año:'month'};
+  const apiRange=PERIOD_TO_RANGE[_gf.period]||'month';
+
+  const data=await fetchMetrics(apiRange);
+
+  if(data){
+    const c=data.current||{}, p=data.previous||{};
+    // Cierres siempre desde callsCache local para no mezclar con estados de leads
+    const cierres =filtradas.filter(x=>['Cierre','Cierre PIF','Cierre Cuotas'].includes(x.estado||'')).length;
+    const cierresP=callsCache.filter(x=>_gfPrevInRange(x.created_at)&&['Cierre','Cierre PIF','Cierre Cuotas'].includes(x.estado||'')).length;
+    const noCerradas=Math.max(0,(c.shows||0)-cierres);
+    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px';
+    metricsEl.innerHTML=
+      metCardSm('Total llamadas',c.calls||0,'',_delta(c.calls||0,p.calls||0))+
+      metCardSm('Shows (asistió)',c.shows||0,'',_delta(c.shows||0,p.shows||0))+
+      metCardSm('Cierres',cierres,'green',_delta(cierres,cierresP))+
+      metCardSm('No cerradas',noCerradas,noCerradas>0?'red':'')+
+      `<div class="metric-card" style="padding:8px 12px;cursor:pointer" onclick="abrirAgendados()" title="Ver lista">
+        <div class="metric-label" style="font-size:10px;margin-bottom:2px">Re agendas</div>
+        <div class="metric-value" style="font-size:15px">${reagendas}</div>
+       </div>`;
+    _renderCallsMetrics2(c.shows||0, cierres, c.calls||0);
+  } else {
+    // Fallback local si la API no responde
+    const prev   =callsCache.filter(c=>_gfPrevInRange(c.created_at));
+    const hechas =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+    const hechasP=prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+    const cierres =filtradas.filter(c=>['Cierre','Cierre PIF','Cierre Cuotas'].includes(c.estado||'')).length;
+    const cierresP=prev.filter(c=>['Cierre','Cierre PIF','Cierre Cuotas'].includes(c.estado||'')).length;
+    const noCerradas=Math.max(0,hechas-cierres);
+    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px';
+    metricsEl.innerHTML=
+      metCardSm('Total llamadas',total,'',_delta(total,prev.length))+
+      metCardSm('Llamadas hechas',hechas,'',_delta(hechas,hechasP))+
+      metCardSm('Cierres',cierres,'green',_delta(cierres,cierresP))+
+      metCardSm('No cerradas',noCerradas,noCerradas>0?'red':'')+
+      `<div class="metric-card" style="padding:8px 12px;cursor:pointer" onclick="abrirAgendados()" title="Ver lista">
+        <div class="metric-label" style="font-size:10px;margin-bottom:2px">Re agendas</div>
+        <div class="metric-value" style="font-size:15px">${reagendas}</div>
+       </div>`;
+    _renderCallsMetrics2(hechas, cierres, total);
+  }
 }
 
 async function fetchCalls(){
@@ -1797,9 +2263,11 @@ async function fetchCalls(){
     const data=await res.json();
     console.log('CALLS:',data);
     window.callsCache=callsCache=Array.isArray(data)?data:(data?.calls||data?.data||[]);
-    _applyCallsFilter();
   }catch(e){console.error('Error fetchCalls:',e);}
-  finally{if(loader) loader.style.display='none';}
+  finally{
+    if(loader) loader.style.display='none';
+    _applyCallsFilter();
+  }
 }
 function renderCallsPage(){_applyCallsFilter();fetchCalls();}
 
@@ -1820,8 +2288,14 @@ function _renderCallsTable(rows){
 
     const estado=r.estado||r.estado_llamada||'';
     const col=CALL_ESTADO_COLOR[estado]||{bg:'rgba(60,58,55,0.5)',border:'rgba(80,78,74,0.3)',text:'#7a7870'};
+    const isCierre=['Cierre','Cierre PIF','Cierre Cuotas'].includes(estado);
+    let pagoHtml='';
+    if(isCierre){
+      const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
+      if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
+    }
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>`;
+      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}`;
 
     const infoPrevia=r.info_previa
       ?`<span class="trunc" style="max-width:110px;display:inline-block;cursor:pointer;color:var(--text2)"
@@ -1857,11 +2331,12 @@ function _renderCallsTable(rows){
       <td><span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span></td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${reporteCell}</td>
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="12" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas en este período</td></tr>';
+  }).join('')||'<tr><td colspan="13" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
@@ -2039,12 +2514,11 @@ async function saveEditCall(){
       }
     }
 
-    if(['Cierre','Cierre PIF'].includes(estado)){
+    if(['Cierre','Cierre PIF','Cierre Cuotas'].includes(estado)){
       const ig2=(call?.instagram||'').toLowerCase();
       const leadForCierre=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig2);
       _mostrarPopupCierre(call?.id||id, leadForCierre||{nombre:call?.nombre||'',instagram:call?.instagram||''});
     }
-
     closeModal('modal-edit-call');
     toast('✓ Llamada actualizada');
     await fetchCalls();
@@ -2058,9 +2532,19 @@ async function saveEditCall(){
 
 async function deleteCall(id){
   if(!confirm('¿Eliminar esta llamada?')) return;
+  const call=callsCache.find(c=>String(c.id)===String(id));
   try{
     const res=await apiFetch(`${API_URL}/call/${id}`,{method:'DELETE'});
     if(!res.ok){toast('✗ Error al eliminar');return;}
+    if(call&&['Cierre','Cierre PIF','Cierre Cuotas'].includes(call.estado||'')){
+      const ig=(call.instagram||'').toLowerCase();
+      if(ig){
+        S.ing=S.ing.filter(x=>!(x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig));
+        save('ing');
+        _renderMoneyCounters();
+        renderFin();
+      }
+    }
     toast('✓ Llamada eliminada');
     fetchCalls();
   }catch(e){console.error('[deleteCall]',e);toast('✗ Error de conexión');}
@@ -2120,6 +2604,7 @@ function verInfoLead(instagram){
 function abrirAgendados(){
   const reagendados=callsCache.filter(c=>(c.estado||'').toLowerCase()==='re agenda');
   const tbody=document.getElementById('modal-agendados-body');
+  if(!tbody) return;
   tbody.innerHTML=reagendados.map(c=>{
     const ig=(c.instagram||'').replace('@','').toLowerCase();
     const lead=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
@@ -2176,7 +2661,8 @@ function renderActivityLog(){
   const el=document.getElementById('activity-log-container');
   if(!el) return;
   if(!_activityLog.length){el.innerHTML='<div style="color:var(--text3);text-align:center;padding:24px;font-size:13px">Sin actividad registrada</div>';return;}
-  el.innerHTML=_activityLog.slice(0,40).map(e=>{
+  const isAdmin=currentUserRole==='admin';
+  el.innerHTML=_activityLog.slice(0,40).map((e,i)=>{
     const ts=new Date(e.ts);
     const time=ts.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' '+ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
     return `<div class="activity-item">
@@ -2187,8 +2673,15 @@ function renderActivityLog(){
         <div style="font-size:10px;color:var(--text3);margin-top:2px">${e.usuario}</div>
       </div>
       <div class="activity-time">${time}</div>
+      ${isAdmin?`<button class="btn-icon" onclick="delActivityEntry(${i})" style="color:var(--red);margin-left:8px;flex-shrink:0" title="Eliminar registro">×</button>`:''}
     </div>`;
   }).join('');
+}
+function delActivityEntry(i){
+  if(!confirm('¿Eliminar este registro de actividad?'))return;
+  _activityLog.splice(i,1);
+  sv('crm_activity_log',_activityLog);
+  renderActivityLog();
 }
 
 // ========== RENOVACIONES ==========
@@ -2212,6 +2705,7 @@ function renderRenovaciones(){
   if(!clients.length){el.innerHTML='<div style="color:var(--text3);text-align:center;padding:24px;font-size:13px">No hay clientes próximos a renovar</div>';return;}
   el.innerHTML=clients.map(c=>{
     const label=c.diff<0?`Vencido hace ${Math.abs(c.diff)} días`:c.diff===0?'Renueva hoy':`En ${c.diff} día${c.diff!==1?'s':''}`;
+    const idx=S.clients.indexOf(c);
     return `<div class="reno-card ${c.tipo}">
       <div style="flex:1">
         <div style="font-weight:600;color:var(--text);font-size:13px">${c.nombre||'—'}</div>
@@ -2220,6 +2714,7 @@ function renderRenovaciones(){
       </div>
       ${c.cash_collected?`<div style="font-size:13px;font-weight:700;color:var(--gold-light)">${fmtMoney(+c.cash_collected)}</div>`:''}
       <span class="reno-badge ${c.tipo}">${label}</span>
+      <button class="btn-icon" onclick="delClient(${idx})" style="color:var(--red);margin-left:8px" title="Eliminar cliente">×</button>
     </div>`;
   }).join('');
 }
@@ -2231,26 +2726,90 @@ function _mostrarPopupCierre(leadId, lead){
   if(el('cierre-nombre')) el('cierre-nombre').value=lead?.nombre||'';
   if(el('cierre-instagram')) el('cierre-instagram').value=lead?.instagram||'';
   if(el('cierre-cash')) el('cierre-cash').value='';
-  if(el('cierre-tipo-pago')) el('cierre-tipo-pago').selectedIndex=0;
+  if(el('cierre-tipo-pago')){ el('cierre-tipo-pago').value='PIF'; }
   if(el('cierre-comprobante')) el('cierre-comprobante').value='';
+  if(el('cierre-comprobante-img')) el('cierre-comprobante-img').value='';
+  if(el('cierre-comprobante-preview')){el('cierre-comprobante-preview').src='';el('cierre-comprobante-preview').style.display='none';}
+  if(el('cierre-nro-cuotas')) el('cierre-nro-cuotas').value='1';
+  if(el('cierre-cuota-section')) el('cierre-cuota-section').style.display='none';
+  if(el('cierre-programa')) el('cierre-programa').value='';
+  updateCuotaFechas();
   const hoy=new Date();
-  const seg=new Date(hoy); seg.setDate(hoy.getDate()+30);
-  const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+3);
+  const c1=new Date(hoy); c1.setDate(hoy.getDate()+30);
+  const c2=new Date(hoy); c2.setDate(hoy.getDate()+60);
   const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   if(el('cierre-fecha-inicio')) el('cierre-fecha-inicio').textContent=hoy.toLocaleDateString('es-AR');
-  if(el('cierre-segunda-cuota')) el('cierre-segunda-cuota').textContent=seg.toLocaleDateString('es-AR');
-  if(el('cierre-dia-salida')) el('cierre-dia-salida').textContent=sal.toLocaleDateString('es-AR');
+  if(el('cierre-cuota1-fecha')) el('cierre-cuota1-fecha').textContent=c1.toLocaleDateString('es-AR');
+  if(el('cierre-cuota2-fecha')) el('cierre-cuota2-fecha').textContent=c2.toLocaleDateString('es-AR');
+  if(el('cierre-segunda-cuota')) el('cierre-segunda-cuota').textContent=c1.toLocaleDateString('es-AR');
+  if(el('cierre-dia-salida')) el('cierre-dia-salida').textContent='—';
   if(el('cierre-mes')) el('cierre-mes').textContent=meses[hoy.getMonth()]+' '+hoy.getFullYear();
   window._pendingCierre={leadId,lead};
   document.getElementById('modal-cierre').classList.add('open');
+}
+function toggleCierteCuotaSection(val){
+  const sec=document.getElementById('cierre-cuota-section');
+  if(sec) sec.style.display=val==='Cuotas'?'block':'none';
+  if(val==='Cuotas') updateCuotaFechas();
+}
+function _cierreUpdatePrograma(meses){
+  const el=document.getElementById('cierre-dia-salida');
+  if(!el) return;
+  if(!meses){el.textContent='—';return;}
+  const sal=new Date(); sal.setMonth(sal.getMonth()+parseInt(meses));
+  el.textContent=sal.toLocaleDateString('es-AR');
+}
+function _tryIGPreview(url){
+  const prev=document.getElementById('igr-url-preview');
+  if(!prev) return;
+  const match=(url||'').match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/);
+  if(!match){prev.style.display='none';prev.innerHTML='';return;}
+  const code=match[2];
+  prev.style.display='block';
+  prev.innerHTML=`<iframe src="https://www.instagram.com/p/${code}/embed/" width="320" height="380" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;border-radius:8px;max-width:100%;background:var(--bg2)"></iframe><div style="font-size:10px;color:var(--text3);margin-top:4px">Vista previa (requiere perfil público y conexión)</div>`;
+}
+function _previewComprobanteImg(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const prev=document.getElementById('cierre-comprobante-preview');
+    if(prev){prev.src=e.target.result;prev.style.display='block';}
+  };
+  reader.readAsDataURL(file);
+}
+function updateCuotaFechas(){
+  const n=Math.max(1,Math.min(12,parseInt(document.getElementById('cierre-nro-cuotas')?.value)||1));
+  const cont=document.getElementById('cierre-cuotas-fechas');
+  if(!cont) return;
+  const hoy=new Date();
+  const rows=[];
+  for(let i=1;i<=n;i++){
+    const d=new Date(hoy); d.setDate(hoy.getDate()+i*30);
+    rows.push(`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text3);min-width:56px">Cuota ${i}:</span>
+      <span style="color:var(--gold-light);font-weight:600;font-size:11px;min-width:80px">${d.toLocaleDateString('es-AR')}</span>
+      <input type="number" id="cierre-monto-cuota-${i}" placeholder="USD" min="0" step="any"
+        style="width:110px;padding:4px 8px;font-size:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text)">
+    </div>`);
+  }
+  cont.innerHTML=rows.join('');
 }
 async function saveCierre(){
   const nombre=(document.getElementById('cierre-nombre')?.value||'').trim();
   const instagram=(document.getElementById('cierre-instagram')?.value||'').trim().replace(/^@/,'').toLowerCase();
   const tipoPago=document.getElementById('cierre-tipo-pago')?.value||'Contado';
   const cash=parseFloat(document.getElementById('cierre-cash')?.value)||0;
+  const nroCuotas=Math.max(1,parseInt(document.getElementById('cierre-nro-cuotas')?.value)||1);
+  const montosCuota=Array.from({length:nroCuotas},(_,i)=>parseFloat(document.getElementById(`cierre-monto-cuota-${i+1}`)?.value)||0);
   const comprobante=(document.getElementById('cierre-comprobante')?.value||'').trim();
+  const comprovanteImgEl=document.getElementById('cierre-comprobante-preview');
+  const comprovanteImg=comprovanteImgEl?.src&&comprovanteImgEl.style.display!=='none'?comprovanteImgEl.src:'';
+  const esCuotas=tipoPago==='Cuotas';
+  const programaMeses=parseInt(document.getElementById('cierre-programa')?.value)||0;
   if(!nombre){toast('✗ Nombre es obligatorio');return;}
+  if(!programaMeses){toast('✗ Seleccioná el programa');return;}
+  if(esCuotas&&montosCuota.every(m=>m<=0)){toast('✗ Ingresá al menos el monto de una cuota');return;}
 
   // Chequear duplicado por instagram en localStorage
   if(instagram){
@@ -2264,22 +2823,26 @@ async function saveCierre(){
   }
 
   const hoy=new Date();
-  const seg=new Date(hoy); seg.setDate(hoy.getDate()+30);
-  const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+3);
+  const c1=new Date(hoy); c1.setDate(hoy.getDate()+30);
+  const c2=new Date(hoy); c2.setDate(hoy.getDate()+60);
+  const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+programaMeses);
   const clienteData={
     id:uid(),
     nombre,
     instagram,
     inicio:hoy.toISOString().slice(0,10),
     fin:sal.toISOString().slice(0,10),
-    pp:tipoPago,
+    pp:esCuotas?'CUOTA':tipoPago,
     mod:'—',
-    proxpago:seg.toISOString().slice(0,10),
+    proxpago:c1.toISOString().slice(0,10),
     estado:'Al día',
     proxpaso:'Onboarding',
     road:'',
     cash_collected:cash,
-    comprobante
+    programa:programaMeses+' meses',
+    ...(esCuotas?{nroCuotas}:{}),
+    comprobante,
+    comprovanteImg
   };
 
   // Intentar crear en Railway; si no existe endpoint, guardamos local
@@ -2302,12 +2865,20 @@ async function saveCierre(){
   }
 
   if(cash>0){
-    S.ing.push({id:uid(),concepto:'Venta Nueva',fecha:hoy.toISOString().slice(0,10),tipo:'Venta Nueva',usd:cash,nombre,instagram});
+    S.ing.push({id:uid(),concepto:'Venta Nueva',fecha:hoy.toISOString().slice(0,10),tipo:'Venta Nueva',tipoPago,usd:cash,ars:0,eur:0,nombre,instagram});
     save('ing');
   }
   S.clients.push(clienteData);
   save('clients');
+  if(esCuotas){
+    for(let i=0;i<nroCuotas;i++){
+      const f=new Date(hoy); f.setDate(hoy.getDate()+(i+1)*30);
+      S.cuotas.push({id:uid(),clienteId:String(clienteData.id),clienteNombre:nombre,clienteIg:instagram,numero:i+2,fecha:f.toISOString().slice(0,10),monto:montosCuota[i]||0,pagado:false});
+    }
+    save('cuotas');
+  }
   _logActivity('Cliente creado',{nombre,instagram},'Desde cierre de lead');
+  if(typeof renderClients==='function') renderClients();
   closeModal('modal-cierre');
   window._pendingCierre=null;
   toast('✓ Cliente creado y venta registrada');
@@ -2385,48 +2956,78 @@ setInterval(_pollTeam,60000);
 // ========== INSTAGRAM MODULE ==========
 const _IG_KEY='crm_ig_'+(_cid||'default');
 const _igDefaults={
-  account:'@tucuenta',followers:0,followersGrowth:0,engagement:0,reach:0,ctr:0,watchTime:0,reels:[]
+  account:'@tucuenta',followers:0,followersGrowth:0,watchTime:0,reels:[],carruseles:[]
 };
 let _igData=ld(_IG_KEY,_igDefaults);
-// Asegurar que reels sea array
 if(!Array.isArray(_igData.reels)) _igData.reels=[];
+if(!Array.isArray(_igData.carruseles)) _igData.carruseles=[];
 function _saveIG(){sv(_IG_KEY,_igData);}
 
 let _igSelectedReel=null;
 
+let _igSelectedCarrusel=null;
+
 function renderIG(){
   const ig=_igData;
+  const reels=ig.reels||[];
+  const cars=ig.carruseles||[];
+  const n=reels.length, nc=cars.length;
+  const avg=(arr,key)=>arr.length?Math.round(arr.reduce((a,r)=>a+(+r[key]||0),0)/arr.length):0;
+  const avgEng=arr=>arr.length?+(arr.reduce((a,r)=>{
+    const v=+r.views||0; return v>0?a+((+r.likes||0)+(+r.comments||0)+(+r.saves||0))/v*100:a;
+  },0)/arr.length).toFixed(1):0;
+  const totalFollowersReels=reels.reduce((a,r)=>a+(+r.followersFromReel||0),0);
+  const totalFollowersCars=cars.reduce((a,c)=>a+(+c.followersFromCarrusel||0),0);
+  const totalFollowers=(ig.followers||0)+totalFollowersReels+totalFollowersCars;
+  const fmtK=v=>v>=1000?(v/1000).toFixed(1)+'K':String(v);
   const metricsEl=document.getElementById('ig-metrics');
   if(!metricsEl) return;
   metricsEl.innerHTML=`
-    <div class="ig-stat-card" style="cursor:pointer" onclick="openModal('modal-ig-cuenta')" title="Editar métricas de cuenta">
-      <div class="ig-stat-label">Seguidores <span style="font-size:8px;opacity:.4">✎</span></div>
-      <div class="ig-stat-value">${ig.followers?fmt(ig.followers):'—'}</div>
+    <div class="ig-stat-card" style="cursor:pointer" onclick="openModal('modal-ig-cuenta')" title="Editar datos de cuenta">
+      <div class="ig-stat-label">Seguidores totales <span style="font-size:8px;opacity:.4">✎</span></div>
+      <div class="ig-stat-value">${totalFollowers?fmt(totalFollowers):'—'}</div>
       <div class="ig-stat-sub" style="color:#5cb87a">${ig.followersGrowth?'+'+ig.followersGrowth+'% este mes':'Ingresar datos →'}</div>
     </div>
     <div class="ig-stat-card">
-      <div class="ig-stat-label">Engagement</div>
-      <div class="ig-stat-value">${ig.engagement?ig.engagement+'%':'—'}</div>
-      <div class="ig-stat-sub">promedio últimos reels</div>
+      <div class="ig-stat-label">Views prom. reels</div>
+      <div class="ig-stat-value">${n?fmtK(avg(reels,'views')):'—'}</div>
+      <div class="ig-stat-sub">por reel · ${n} reels</div>
     </div>
     <div class="ig-stat-card">
-      <div class="ig-stat-label">Reach</div>
-      <div class="ig-stat-value">${ig.reach?fmt(ig.reach):'—'}</div>
-      <div class="ig-stat-sub">cuentas alcanzadas</div>
+      <div class="ig-stat-label">Eng. prom. reels</div>
+      <div class="ig-stat-value">${n?avgEng(reels)+'%':'—'}</div>
+      <div class="ig-stat-sub">likes+coment+guard / views</div>
     </div>
     <div class="ig-stat-card">
-      <div class="ig-stat-label">CTR</div>
-      <div class="ig-stat-value">${ig.ctr?ig.ctr+'%':'—'}</div>
-      <div class="ig-stat-sub">link en bio</div>
+      <div class="ig-stat-label">Seguidores de reels</div>
+      <div class="ig-stat-value">${totalFollowersReels?fmtK(totalFollowersReels):'—'}</div>
+      <div class="ig-stat-sub">total acumulado</div>
     </div>
     <div class="ig-stat-card">
-      <div class="ig-stat-label">Watch Time</div>
+      <div class="ig-stat-label">Views prom. carruseles</div>
+      <div class="ig-stat-value">${nc?fmtK(avg(cars,'views')):'—'}</div>
+      <div class="ig-stat-sub">por carrusel · ${nc} carruseles</div>
+    </div>
+    <div class="ig-stat-card">
+      <div class="ig-stat-label">Eng. prom. carruseles</div>
+      <div class="ig-stat-value">${nc?avgEng(cars)+'%':'—'}</div>
+      <div class="ig-stat-sub">likes+coment+guard / views</div>
+    </div>
+    <div class="ig-stat-card">
+      <div class="ig-stat-label">Seguidores de carruseles</div>
+      <div class="ig-stat-value">${totalFollowersCars?fmtK(totalFollowersCars):'—'}</div>
+      <div class="ig-stat-sub">total acumulado</div>
+    </div>
+    <div class="ig-stat-card" style="cursor:pointer" onclick="openModal('modal-ig-cuenta')" title="Editar Watch Time">
+      <div class="ig-stat-label">Watch Time prom <span style="font-size:8px;opacity:.4">✎</span></div>
       <div class="ig-stat-value">${ig.watchTime?ig.watchTime+'s':'—'}</div>
-      <div class="ig-stat-sub">promedio por reel</div>
+      <div class="ig-stat-sub">desde Instagram Insights</div>
     </div>`;
 
   _igSelectedReel=null;
+  _igSelectedCarrusel=null;
   _renderIGReels();
+  _renderIGCarruseles();
 }
 
 function _renderIGReels(){
@@ -2439,10 +3040,15 @@ function _renderIGReels(){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px">Sin reels cargados. Usá "+ Agregar reel" para registrar uno.</div>';
     return;
   }
-  grid.innerHTML=_igData.reels.map(r=>`
+  grid.innerHTML=_igData.reels.map(r=>{
+    const igMatch=r.url?(r.url.match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/)):null;
+    const thumb=igMatch
+      ?`<iframe src="https://www.instagram.com/p/${igMatch[2]}/embed/" style="position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none" scrolling="no" frameborder="0" allowtransparency="true"></iframe>`
+      :`<div class="ig-reel-play">▶</div>`;
+    return `
     <div class="ig-reel-card" onclick="_abrirIGReel('${r.id}')">
       <div class="ig-reel-thumb">
-        <div class="ig-reel-play">▶</div>
+        ${thumb}
         <div class="ig-reel-views">${fmtK(r.views)} views</div>
       </div>
       <div class="ig-reel-info">
@@ -2451,11 +3057,16 @@ function _renderIGReels(){
         <div class="ig-reel-stats">
           <div class="ig-reel-stat">❤ <span>${fmtK(r.likes)}</span></div>
           <div class="ig-reel-stat">💬 <span>${r.comments}</span></div>
+          <div class="ig-reel-stat" title="Comentarios únicos">👤 <span>${r.comentariosUnicos??Math.round((r.comments||0)/2)}</span></div>
           <div class="ig-reel-stat">🔖 <span>${fmtK(r.saves)}</span></div>
           <div class="ig-reel-stat">📤 <span>${r.shares}</span></div>
         </div>
+        <div style="margin-top:6px;text-align:right">
+          <button class="btn-icon" onclick="deleteIGReel('${r.id}',event)" style="color:var(--red)" title="Eliminar reel">×</button>
+        </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function _abrirIGReel(id){
@@ -2474,26 +3085,31 @@ function _abrirIGReel(id){
     <div class="ig-detail-stat"><div class="ig-detail-val">${r.views>=1000?(r.views/1000).toFixed(1)+'K':r.views}</div><div class="ig-detail-lbl">Views</div></div>
     <div class="ig-detail-stat"><div class="ig-detail-val">${r.likes}</div><div class="ig-detail-lbl">Likes</div></div>
     <div class="ig-detail-stat"><div class="ig-detail-val">${r.comments}</div><div class="ig-detail-lbl">Comentarios</div></div>
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.comentariosUnicos??Math.round((r.comments||0)/2)}</div><div class="ig-detail-lbl">Únicos</div></div>
     <div class="ig-detail-stat"><div class="ig-detail-val">${r.saves}</div><div class="ig-detail-lbl">Guardados</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.shares}</div><div class="ig-detail-lbl">Compartidos</div></div>`;
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.shares}</div><div class="ig-detail-lbl">Compartidos</div></div>
+    ${r.followersFromReel?`<div class="ig-detail-stat"><div class="ig-detail-val" style="color:#5cb87a">${r.followersFromReel}</div><div class="ig-detail-lbl">Seguidores</div></div>`:''}`;
   detail.querySelector('.ig-retention-fill').style.cssText=`width:${r.retention||0}%;background:${retColor}`;
   detail.querySelector('.ig-retention-pct').textContent=(r.retention||0)+'%';
 }
 
 function openIGReelModal(){
   // Limpiar campos antes de abrir
-  ['igr-titulo','igr-url','igr-fecha','igr-views','igr-likes','igr-comments','igr-saves','igr-shares','igr-retention'].forEach(id=>{
+  ['igr-titulo','igr-url','igr-fecha','igr-views','igr-likes','igr-comments','igr-saves','igr-shares','igr-retention','igr-followers'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.value=el.type==='number'?'0':'';}
   });
   const fecha=document.getElementById('igr-fecha');
   if(fecha) fecha.value=new Date().toISOString().slice(0,10);
+  const prev=document.getElementById('igr-url-preview');
+  if(prev){prev.style.display='none';prev.innerHTML='';}
   openModal('modal-ig-reel');
 }
 
 function saveIGReel(){
   const titulo=(document.getElementById('igr-titulo')?.value||'').trim();
   if(!titulo){toast('✗ Ingresá el título del reel');return;}
+  const comments=parseInt(document.getElementById('igr-comments')?.value)||0;
   const reel={
     id:'ig'+uid().slice(0,8),
     title:titulo,
@@ -2501,10 +3117,12 @@ function saveIGReel(){
     date:document.getElementById('igr-fecha')?.value||new Date().toISOString().slice(0,10),
     views:parseInt(document.getElementById('igr-views')?.value)||0,
     likes:parseInt(document.getElementById('igr-likes')?.value)||0,
-    comments:parseInt(document.getElementById('igr-comments')?.value)||0,
+    comments,
+    comentariosUnicos:Math.round(comments/2),
     saves:parseInt(document.getElementById('igr-saves')?.value)||0,
     shares:parseInt(document.getElementById('igr-shares')?.value)||0,
     retention:Math.min(100,Math.max(0,parseInt(document.getElementById('igr-retention')?.value)||0)),
+    followersFromReel:parseInt(document.getElementById('igr-followers')?.value)||0,
   };
   _igData.reels.unshift(reel);
   _saveIG();
@@ -2520,14 +3138,14 @@ function deleteIGReel(id,e){
   _saveIG();
   const detail=document.getElementById('ig-reel-detail');
   if(detail) detail.style.display='none';
-  _renderIGReels();
+  renderIG();
   toast('✓ Reel eliminado');
 }
 
 function openIGCuentaModal(){
   const ig=_igData;
-  ['ig-c-account','ig-c-followers','ig-c-growth','ig-c-engagement','ig-c-reach','ig-c-ctr','ig-c-watchtime'].forEach((fid,i)=>{
-    const keys=['account','followers','followersGrowth','engagement','reach','ctr','watchTime'];
+  ['ig-c-account','ig-c-followers','ig-c-growth','ig-c-watchtime'].forEach((fid,i)=>{
+    const keys=['account','followers','followersGrowth','watchTime'];
     const el=document.getElementById(fid);
     if(el) el.value=ig[keys[i]]||'';
   });
@@ -2538,12 +3156,116 @@ function saveIGCuenta(){
   _igData.account=(document.getElementById('ig-c-account')?.value||'').trim()||'@tucuenta';
   _igData.followers=parseInt(document.getElementById('ig-c-followers')?.value)||0;
   _igData.followersGrowth=parseFloat(document.getElementById('ig-c-growth')?.value)||0;
-  _igData.engagement=parseFloat(document.getElementById('ig-c-engagement')?.value)||0;
-  _igData.reach=parseInt(document.getElementById('ig-c-reach')?.value)||0;
-  _igData.ctr=parseFloat(document.getElementById('ig-c-ctr')?.value)||0;
   _igData.watchTime=parseFloat(document.getElementById('ig-c-watchtime')?.value)||0;
   _saveIG();
   closeModal('modal-ig-cuenta');
   renderIG();
   toast('✓ Métricas de cuenta actualizadas');
+}
+
+// ===== CARRUSELES =====
+function _renderIGCarruseles(){
+  const grid=document.getElementById('ig-carruseles-grid');
+  if(!grid) return;
+  const detail=document.getElementById('ig-carrusel-detail');
+  if(detail) detail.style.display='none';
+  const fmtK=n=>n>=1000?(n/1000).toFixed(1)+'K':String(n);
+  if(!_igData.carruseles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px">Sin carruseles cargados. Usá "+ Agregar carrusel" para registrar uno.</div>';
+    return;
+  }
+  grid.innerHTML=_igData.carruseles.map(r=>{
+    const igMatch=r.url?(r.url.match(/instagram\.com\/(p|reel)\/([A-Za-z0-9_-]+)/)):null;
+    const thumb=igMatch
+      ?`<iframe src="https://www.instagram.com/p/${igMatch[2]}/embed/" style="position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none" scrolling="no" frameborder="0" allowtransparency="true"></iframe>`
+      :`<div class="ig-reel-play">▶</div>`;
+    return `
+    <div class="ig-reel-card" onclick="_abrirIGCarrusel('${r.id}')">
+      <div class="ig-reel-thumb">
+        ${thumb}
+        <div class="ig-reel-views">${fmtK(r.views)} views</div>
+      </div>
+      <div class="ig-reel-info">
+        <div class="ig-reel-title" title="${r.title}">${r.title}</div>
+        ${r.url?`<div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px"><a href="${r.url}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue)">Ver en Instagram ↗</a></div>`:''}
+        <div class="ig-reel-stats">
+          <div class="ig-reel-stat">❤ <span>${fmtK(r.likes)}</span></div>
+          <div class="ig-reel-stat">💬 <span>${r.comments}</span></div>
+          <div class="ig-reel-stat">🔖 <span>${fmtK(r.saves)}</span></div>
+          <div class="ig-reel-stat">📤 <span>${r.shares}</span></div>
+        </div>
+        <div style="margin-top:6px;text-align:right">
+          <button class="btn-icon" onclick="deleteIGCarrusel('${r.id}',event)" style="color:var(--red)" title="Eliminar carrusel">×</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _abrirIGCarrusel(id){
+  const r=_igData.carruseles.find(x=>x.id===id);
+  if(!r) return;
+  _igSelectedCarrusel=r;
+  const detail=document.getElementById('ig-carrusel-detail');
+  if(!detail) return;
+  detail.style.display='block';
+  document.getElementById('ig-carrusel-detail-title').textContent=r.title;
+  document.getElementById('ig-carrusel-detail-date').textContent=r.date+(r.url?' · ':'');
+  const urlEl=document.getElementById('ig-carrusel-detail-url');
+  if(urlEl){urlEl.style.display=r.url?'inline':'none';urlEl.href=r.url||'#';}
+  const retColor=r.retention>=70?'var(--green)':r.retention>=50?'var(--amber)':'var(--red)';
+  detail.querySelector('.ig-carrusel-detail-stats').innerHTML=`
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.views>=1000?(r.views/1000).toFixed(1)+'K':r.views}</div><div class="ig-detail-lbl">Views</div></div>
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.likes}</div><div class="ig-detail-lbl">Likes</div></div>
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.comments}</div><div class="ig-detail-lbl">Comentarios</div></div>
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.saves}</div><div class="ig-detail-lbl">Guardados</div></div>
+    <div class="ig-detail-stat"><div class="ig-detail-val">${r.shares}</div><div class="ig-detail-lbl">Compartidos</div></div>
+    ${r.followersFromCarrusel?`<div class="ig-detail-stat"><div class="ig-detail-val" style="color:#5cb87a">${r.followersFromCarrusel}</div><div class="ig-detail-lbl">Seguidores</div></div>`:''}`;
+  detail.querySelector('.ig-carrusel-retention-fill').style.cssText=`width:${r.retention||0}%;background:${retColor}`;
+  detail.querySelector('.ig-carrusel-retention-pct').textContent=(r.retention||0)+'%';
+}
+
+function openIGCarruselModal(){
+  ['igc-titulo','igc-url','igc-fecha','igc-views','igc-likes','igc-comments','igc-saves','igc-shares','igc-retention','igc-followers'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.value=el.type==='number'?'0':'';}
+  });
+  const fecha=document.getElementById('igc-fecha');
+  if(fecha) fecha.value=new Date().toISOString().slice(0,10);
+  openModal('modal-ig-carrusel');
+}
+
+function saveIGCarrusel(){
+  const titulo=(document.getElementById('igc-titulo')?.value||'').trim();
+  if(!titulo){toast('✗ Ingresá el título del carrusel');return;}
+  const comments=parseInt(document.getElementById('igc-comments')?.value)||0;
+  const car={
+    id:'igc'+Date.now().toString(36),
+    title:titulo,
+    url:(document.getElementById('igc-url')?.value||'').trim(),
+    date:document.getElementById('igc-fecha')?.value||new Date().toISOString().slice(0,10),
+    views:parseInt(document.getElementById('igc-views')?.value)||0,
+    likes:parseInt(document.getElementById('igc-likes')?.value)||0,
+    comments,
+    saves:parseInt(document.getElementById('igc-saves')?.value)||0,
+    shares:parseInt(document.getElementById('igc-shares')?.value)||0,
+    retention:Math.min(100,Math.max(0,parseInt(document.getElementById('igc-retention')?.value)||0)),
+    followersFromCarrusel:parseInt(document.getElementById('igc-followers')?.value)||0,
+  };
+  _igData.carruseles.unshift(car);
+  _saveIG();
+  closeModal('modal-ig-carrusel');
+  renderIG();
+  toast('✓ Carrusel agregado');
+}
+
+function deleteIGCarrusel(id,e){
+  e.stopPropagation();
+  if(!confirm('¿Eliminar este carrusel?')) return;
+  _igData.carruseles=_igData.carruseles.filter(r=>r.id!==id);
+  _saveIG();
+  const detail=document.getElementById('ig-carrusel-detail');
+  if(detail) detail.style.display='none';
+  renderIG();
+  toast('✓ Carrusel eliminado');
 }

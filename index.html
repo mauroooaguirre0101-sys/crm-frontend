@@ -372,11 +372,14 @@
   <div class="card">
     <div class="section-header">
       <h3>Pipeline <span id="leads-count-badge" class="badge bgy" style="margin-left:6px">0</span></h3>
-      <span id="leads-filter-label" style="font-size:11px;color:var(--text3)"></span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="leads-filter-label" style="font-size:11px;color:var(--text3)"></span>
+        <button class="btn btn-outline" onclick="vaciarPipeline()" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:rgba(184,72,72,0.4)">Vaciar pipeline</button>
+      </div>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th style="color:var(--text3);font-size:10px;width:32px">#</th>
+        <th style="color:var(--text3);font-size:10px;width:40px">#</th>
         <th>Fecha</th>
         <th>Nombre</th>
         <th>Instagram</th>
@@ -388,7 +391,6 @@
         <th>Última acción</th>
         <th>Notas</th>
         <th>Fuente</th>
-        <th></th>
       </tr></thead>
       <tbody id="leads-table"></tbody>
     </table></div>
@@ -400,6 +402,7 @@
   <div class="page-title">Clientes</div>
   <div class="page-sub" id="clients-sub">0 clientes en programa</div>
   <div class="metric-grid metric-grid-4" id="clients-metrics" style="margin-bottom:20px"></div>
+  <div id="clients-money-counters" style="margin-bottom:20px"></div>
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
     <button class="btn btn-gold" onclick="openModal('modal-client')">+ Nuevo cliente</button>
   </div>
@@ -434,7 +437,7 @@
         <button class="btn btn-gold" onclick="openModal('modal-ing')">+ Ingreso</button>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Concepto</th><th>Fecha</th><th>Monto</th><th>Tipo</th><th></th></tr></thead>
+        <thead><tr><th>Concepto</th><th>Nombre</th><th>Fecha</th><th>Monto</th><th>Cash Collected</th><th>Tipo</th><th></th></tr></thead>
         <tbody id="ing-table"></tbody>
       </table></div>
     </div>
@@ -512,6 +515,7 @@
   <div class="page-sub">Gestión de llamadas · Solo closers y admins</div>
 
   <div class="metric-grid metric-grid-4" id="calls-metrics"></div>
+  <div class="metric-grid metric-grid-4" id="calls-metrics2" style="margin-top:12px"></div>
 
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
     <div class="tabs" id="calls-filter-tabs" style="margin-bottom:0">
@@ -554,6 +558,7 @@
         <th>Responde</th>
         <th id="calls-th-link">Link</th>
         <th>Reporte</th>
+        <th style="color:var(--text3);font-size:11px">Registro</th>
         <th></th>
       </tr></thead>
       <tbody id="calls-table"></tbody>
@@ -580,6 +585,43 @@
       </div>
     </div>
     <div id="ig-reels-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:4px 0"></div>
+  </div>
+
+  <!-- Carruseles grid -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-header">
+      <h3>Carruseles</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--text3)">Hacé click en un carrusel para ver el detalle</span>
+        <button class="btn btn-gold" onclick="openIGCarruselModal()">+ Agregar carrusel</button>
+      </div>
+    </div>
+    <div id="ig-carruseles-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:4px 0"></div>
+  </div>
+
+  <!-- Carrusel detail panel -->
+  <div id="ig-carrusel-detail" class="card" style="display:none;margin-top:16px">
+    <div class="section-header" style="margin-bottom:16px">
+      <div>
+        <div id="ig-carrusel-detail-title" style="font-size:15px;font-weight:700;color:var(--text)"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">
+          <span id="ig-carrusel-detail-date"></span>
+          <a id="ig-carrusel-detail-url" href="#" target="_blank" style="color:var(--blue);margin-left:6px;display:none">Ver en Instagram ↗</a>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="if(_igSelectedCarrusel)deleteIGCarrusel(_igSelectedCarrusel.id,event)" style="color:var(--red);border-color:rgba(184,72,72,0.2)">Eliminar</button>
+        <button class="btn btn-outline" onclick="document.getElementById('ig-carrusel-detail').style.display='none'">Cerrar</button>
+      </div>
+    </div>
+    <div class="ig-carrusel-detail-stats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Retención</div>
+      <div style="background:rgba(255,255,255,0.05);border-radius:100px;height:8px;overflow:hidden;margin-bottom:6px">
+        <div class="ig-carrusel-retention-fill" style="height:100%;border-radius:100px;transition:width .4s"></div>
+      </div>
+      <div class="ig-carrusel-retention-pct" style="font-size:13px;font-weight:700;color:var(--text2)"></div>
+    </div>
   </div>
 
   <!-- Reel detail panel -->
@@ -1007,7 +1049,10 @@
 <div class="modal-bg" id="modal-client" onclick="closeBg(event,this)">
 <div class="modal">
   <div class="modal-title">+ Nuevo cliente</div>
-  <div class="form-group"><label class="form-label">Nombre y apellido</label><input type="text" id="cl-nombre"></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre y apellido</label><input type="text" id="cl-nombre"></div>
+    <div class="form-group"><label class="form-label">Instagram</label><input type="text" id="cl-instagram" placeholder="@usuario"></div>
+  </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="cl-inicio"></div>
     <div class="form-group"><label class="form-label">Fecha de finalización</label><input type="date" id="cl-fin"></div>
@@ -1086,7 +1131,9 @@
   <div class="form-group"><label class="form-label">Título / Descripción <span style="color:var(--red)">*</span></label>
     <input type="text" id="igr-titulo" placeholder="Ej: Cómo conseguí mis primeros 10 clientes"></div>
   <div class="form-group"><label class="form-label">URL del reel (opcional)</label>
-    <input type="text" id="igr-url" placeholder="https://www.instagram.com/reel/..."></div>
+    <input type="text" id="igr-url" placeholder="https://www.instagram.com/reel/..." oninput="_tryIGPreview(this.value)">
+    <div id="igr-url-preview" style="display:none;margin-top:10px;text-align:center"></div>
+  </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Fecha de publicación</label><input type="date" id="igr-fecha"></div>
     <div class="form-group"><label class="form-label">Views</label><input type="number" id="igr-views" min="0" value="0"></div>
@@ -1096,9 +1143,10 @@
     <div class="form-group"><label class="form-label">Comentarios</label><input type="number" id="igr-comments" min="0" value="0"></div>
     <div class="form-group"><label class="form-label">Guardados</label><input type="number" id="igr-saves" min="0" value="0"></div>
   </div>
-  <div class="form-grid form-grid-2">
+  <div class="form-grid form-grid-3">
     <div class="form-group"><label class="form-label">Compartidos</label><input type="number" id="igr-shares" min="0" value="0"></div>
     <div class="form-group"><label class="form-label">Retención % (0–100)</label><input type="number" id="igr-retention" min="0" max="100" value="0"></div>
+    <div class="form-group"><label class="form-label">Seguidores traídos</label><input type="number" id="igr-followers" min="0" value="0"></div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-ig-reel')">Cancelar</button>
@@ -1106,27 +1154,76 @@
   </div>
 </div></div>
 
+<!-- MODAL IG — CARRUSEL -->
+<div class="modal-bg" id="modal-ig-carrusel" onclick="closeBg(event,this)">
+<div class="modal" style="width:540px">
+  <div class="modal-title">+ Agregar carrusel</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Pegá la URL del carrusel e ingresá las métricas manualmente desde Instagram Insights.</div>
+  <div class="form-group"><label class="form-label">Título / Descripción <span style="color:var(--red)">*</span></label>
+    <input type="text" id="igc-titulo" placeholder="Ej: 5 errores que cometen los coaches"></div>
+  <div class="form-group"><label class="form-label">URL del carrusel (opcional)</label>
+    <input type="text" id="igc-url" placeholder="https://www.instagram.com/p/...">
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha de publicación</label><input type="date" id="igc-fecha"></div>
+    <div class="form-group"><label class="form-label">Views</label><input type="number" id="igc-views" min="0" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Likes</label><input type="number" id="igc-likes" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Comentarios</label><input type="number" id="igc-comments" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Guardados</label><input type="number" id="igc-saves" min="0" value="0"></div>
+  </div>
+  <div class="form-grid form-grid-3">
+    <div class="form-group"><label class="form-label">Compartidos</label><input type="number" id="igc-shares" min="0" value="0"></div>
+    <div class="form-group"><label class="form-label">Retención % (0–100)</label><input type="number" id="igc-retention" min="0" max="100" value="0"></div>
+    <div class="form-group"><label class="form-label">Seguidores traídos</label><input type="number" id="igc-followers" min="0" value="0"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ig-carrusel')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveIGCarrusel()">Guardar carrusel</button>
+  </div>
+</div></div>
+
 <!-- MODAL IG — EDITAR CUENTA -->
 <div class="modal-bg" id="modal-ig-cuenta" onclick="closeBg(event,this)">
-<div class="modal" style="width:480px">
-  <div class="modal-title">✎ Métricas de cuenta</div>
-  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Ingresá los datos actuales de la cuenta desde Instagram Insights.</div>
+<div class="modal" style="width:420px">
+  <div class="modal-title">✎ Datos de cuenta</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Las métricas de reels se calculan automáticamente. Solo ingresá los datos de la cuenta.</div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Handle (@ usuario)</label><input type="text" id="ig-c-account" placeholder="@tucuenta"></div>
     <div class="form-group"><label class="form-label">Seguidores totales</label><input type="number" id="ig-c-followers" min="0" value="0"></div>
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Crecimiento este mes %</label><input type="number" id="ig-c-growth" step="0.1" value="0"></div>
-    <div class="form-group"><label class="form-label">Engagement promedio %</label><input type="number" id="ig-c-engagement" step="0.1" value="0"></div>
-  </div>
-  <div class="form-grid form-grid-3">
-    <div class="form-group"><label class="form-label">Reach</label><input type="number" id="ig-c-reach" min="0" value="0"></div>
-    <div class="form-group"><label class="form-label">CTR % (link bio)</label><input type="number" id="ig-c-ctr" step="0.1" value="0"></div>
     <div class="form-group"><label class="form-label">Watch Time prom. (s)</label><input type="number" id="ig-c-watchtime" step="0.1" value="0"></div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-ig-cuenta')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveIGCuenta()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-bg" id="modal-edit-cliente" onclick="closeBg(event,this)">
+<div class="modal" style="width:500px">
+  <div class="modal-title">✏ Editar cliente</div>
+  <input type="hidden" id="ec-cli-id">
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre y apellido</label><input type="text" id="ec-cli-nombre"></div>
+    <div class="form-group"><label class="form-label">Instagram</label><input type="text" id="ec-cli-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="ec-cli-inicio"></div>
+    <div class="form-group"><label class="form-label">Fecha de fin</label><input type="date" id="ec-cli-fin"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="ec-cli-estado"><option>Al día</option><option>Pendiente</option><option>Vencido</option><option>Inactivo</option></select></div>
+    <div class="form-group"><label class="form-label">Próximo paso</label><input type="text" id="ec-cli-proxpaso"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-edit-cliente')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveEditCliente()">Guardar cambios</button>
   </div>
 </div></div>
 
@@ -1147,7 +1244,7 @@
       <div id="cierre-segunda-cuota" style="font-size:13px;font-weight:700;color:var(--text2)">—</div>
     </div>
     <div class="cierre-auto-item">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Fin (3m)</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Fecha Salida</div>
       <div id="cierre-dia-salida" style="font-size:13px;font-weight:700;color:var(--text2)">—</div>
     </div>
     <div class="cierre-auto-item">
@@ -1164,17 +1261,41 @@
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Tipo de pago</label>
-      <select id="cierre-tipo-pago">
-        <option>Contado</option>
+      <select id="cierre-tipo-pago" onchange="toggleCierteCuotaSection(this.value)">
         <option>Cuotas</option>
         <option>PIF</option>
         <option>Seña</option>
       </select></div>
-    <div class="form-group"><label class="form-label">Monto cobrado (USD)</label>
+    <div class="form-group"><label class="form-label">Monto cobrado hoy (USD)</label>
       <input type="number" id="cierre-cash" placeholder="0" min="0" step="any"></div>
   </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Programa <span style="color:var(--red)">*</span></label>
+      <select id="cierre-programa" onchange="_cierreUpdatePrograma(this.value)">
+        <option value="">— Seleccionar —</option>
+        <option value="3">3 meses</option>
+        <option value="4">4 meses</option>
+        <option value="6">6 meses</option>
+        <option value="12">12 meses</option>
+      </select></div>
+    <div></div>
+  </div>
+  <div id="cierre-cuota-section" style="display:none;background:rgba(212,168,50,0.04);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:12px;margin-bottom:12px">
+    <div class="form-group" style="margin-bottom:8px"><label class="form-label">Número de cuotas</label>
+      <input type="number" id="cierre-nro-cuotas" value="1" min="1" max="12" style="width:80px" oninput="updateCuotaFechas()"></div>
+    <div class="form-group" style="margin-bottom:6px"><label class="form-label">Monto por cuota (USD) <span style="color:var(--red)">*</span></label></div>
+    <div id="cierre-cuotas-fechas" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
   <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
-    <input type="text" id="cierre-comprobante" placeholder="Nº transferencia, captura, link…"></div>
+    <input type="text" id="cierre-comprobante" placeholder="Nº transferencia, captura, link…">
+    <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--border);padding:5px 10px;border-radius:var(--rs)">
+        📎 Adjuntar imagen
+        <input type="file" id="cierre-comprobante-img" accept="image/*" style="display:none" onchange="_previewComprobanteImg(this)">
+      </label>
+      <img id="cierre-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="this.style.display='none';document.getElementById('cierre-comprobante-img').value=''" title="Click para quitar">
+    </div>
+  </div>
 
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-cierre')">Cancelar</button>
@@ -1182,6 +1303,7 @@
   </div>
 </div></div>
 
+<!-- MODAL CUOTA CASH COLLECTED -->
 <!-- TOAST -->
 <div id="toast"></div>
 
