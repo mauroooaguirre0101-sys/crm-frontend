@@ -1047,29 +1047,51 @@
 
 <!-- MODAL CLIENTE -->
 <div class="modal-bg" id="modal-client" onclick="closeBg(event,this)">
-<div class="modal">
+<div class="modal" style="width:560px">
   <div class="modal-title">+ Nuevo cliente</div>
   <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Nombre y apellido</label><input type="text" id="cl-nombre"></div>
+    <div class="form-group"><label class="form-label">Nombre y apellido <span style="color:var(--red)">*</span></label><input type="text" id="cl-nombre" placeholder="Juan Pérez"></div>
     <div class="form-group"><label class="form-label">Instagram</label><input type="text" id="cl-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Plan de pago</label>
+      <select id="cl-pp" onchange="toggleClientCuotaSection(this.value)">
+        <option>PIF</option><option>Cuotas</option><option>Seña</option><option>RESELL</option><option>UPSELL</option><option>DOWNSELL</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Monto cobrado (USD)</label>
+      <input type="number" id="cl-cash" placeholder="0" min="0" step="any"></div>
+  </div>
+  <div id="cl-cuota-section" style="display:none;background:rgba(212,168,50,0.04);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:12px;margin-bottom:12px">
+    <div class="form-group" style="margin-bottom:8px"><label class="form-label">Número de cuotas</label>
+      <input type="number" id="cl-nro-cuotas" value="2" min="1" max="12" style="width:80px"></div>
+    <div class="form-group"><label class="form-label">Monto por cuota (USD)</label>
+      <input type="number" id="cl-monto-cuota" placeholder="0" min="0" step="any"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Programa (meses)</label>
+      <select id="cl-programa">
+        <option value="">— Seleccionar —</option>
+        <option value="3">3 meses</option>
+        <option value="4">4 meses</option>
+        <option value="6">6 meses</option>
+        <option value="12">12 meses</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select id="cl-estado"><option>Al día</option><option>Pendiente</option><option>Vencido</option><option>Inactivo</option></select></div>
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="cl-inicio"></div>
     <div class="form-group"><label class="form-label">Fecha de finalización</label><input type="date" id="cl-fin"></div>
   </div>
   <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Plan de pago</label>
-      <select id="cl-pp"><option>PIF</option><option>CUOTA</option><option>RESELL</option><option>UPSELL</option><option>DOWNSELL</option></select></div>
+    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" id="cl-proxpago"></div>
     <div class="form-group"><label class="form-label">Modalidad</label>
       <select id="cl-mod"><option>Único</option><option>Cuota</option><option>Fecha específica</option></select></div>
   </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" id="cl-proxpago"></div>
-    <div class="form-group"><label class="form-label">Estado</label>
-      <select id="cl-estado"><option>Al día</option><option>Pendiente</option><option>Vencido</option><option>Inactivo</option></select></div>
-  </div>
   <div class="form-group"><label class="form-label">Próximo paso</label><input type="text" id="cl-proxpaso"></div>
   <div class="form-group"><label class="form-label">Roadmap — link</label><input type="text" id="cl-road" placeholder="https://..."></div>
+  <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
+    <input type="text" id="cl-comprobante" placeholder="Nº transferencia, captura, link…"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveClient()">Guardar</button>

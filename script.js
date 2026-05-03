@@ -1560,18 +1560,71 @@ function toggleClientSection(id){
   body.style.display=open?'none':'block';
   if(arrow) arrow.textContent=open?'▶':'▼';
 }
+function toggleClientCuotaSection(val){
+  const sec=document.getElementById('cl-cuota-section');
+  if(sec) sec.style.display=(val==='Cuotas')?'block':'none';
+}
 async function saveClient(){
-  const nc={id:uid(),nombre:v('cl-nombre'),instagram:v('cl-instagram').replace(/^@/,'').toLowerCase(),inicio:v('cl-inicio'),fin:v('cl-fin'),pp:v('cl-pp'),mod:v('cl-mod'),proxpago:v('cl-proxpago'),estado:v('cl-estado'),proxpaso:v('cl-proxpaso'),road:v('cl-road'),cash_collected:0};
-  if(!nc.nombre.trim()){toast('Ingresá el nombre del cliente');return;}
+  const nombre=(document.getElementById('cl-nombre')?.value||'').trim();
+  const instagram=(document.getElementById('cl-instagram')?.value||'').replace(/^@/,'').toLowerCase();
+  const pp=document.getElementById('cl-pp')?.value||'PIF';
+  const cash=parseFloat(document.getElementById('cl-cash')?.value)||0;
+  const programa=parseInt(document.getElementById('cl-programa')?.value)||0;
+  const estado=document.getElementById('cl-estado')?.value||'Al día';
+  const inicio=document.getElementById('cl-inicio')?.value||null;
+  const mod=document.getElementById('cl-mod')?.value||null;
+  const proxpago=document.getElementById('cl-proxpago')?.value||null;
+  const proxpaso=document.getElementById('cl-proxpaso')?.value||'';
+  const road=document.getElementById('cl-road')?.value||'';
+  const comprobante=document.getElementById('cl-comprobante')?.value||'';
+  // Calcular fin según programa si no se especificó
+  let fin=document.getElementById('cl-fin')?.value||null;
+  if(!fin && inicio && programa){
+    const d=new Date(inicio+'T00:00:00');
+    d.setMonth(d.getMonth()+programa);
+    fin=d.toISOString().slice(0,10);
+  }
+  if(!nombre){toast('Ingresá el nombre del cliente');return;}
+  const payload={
+    nombre,instagram,inicio,fin,tipo_pago:pp,cash_collected:cash,
+    comprobante,estado,pp,proxpaso,road,mod,proxpago,
+    programa:programa||null,
+  };
+  let apiId=null;
   try{
-    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre:nc.nombre,instagram:nc.instagram,inicio:nc.inicio,fin:nc.fin,tipo_pago:nc.pp||'Contado',cash_collected:0,estado:nc.estado||'Al día',pp:nc.pp||null,proxpaso:nc.proxpaso||null,road:nc.road||null,mod:nc.mod||null,proxpago:nc.proxpago||null})});
-    if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)nc.id=d.id;}
-    else{const b=await res.text().catch(()=>'');console.warn('[saveClient] POST /clientes respondió',res.status,b);}
-  }catch(e){console.warn('[saveClient]',e.message);}
-  S.clients.push(nc);
-  save('clients');
-  if(nc.pp==='CUOTA') generarCuotasCliente(nc,2);
-  closeModal('modal-client');renderClients();toast('Cliente guardado ✓');
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify(payload)});
+    if(res.ok){
+      const d=await res.json().catch(()=>({}));
+      apiId=d?.id||null;
+    } else {
+      const b=await res.text().catch(()=>'');
+      console.error('[saveClient] POST /clientes respondió',res.status,b);
+      toast('Error al guardar cliente: '+res.status);
+      return;
+    }
+  }catch(e){
+    console.error('[saveClient]',e.message);
+    toast('Error de conexión al guardar cliente');
+    return;
+  }
+  const nc={id:apiId||uid(),nombre,instagram,inicio,fin,pp,mod,proxpago,estado,proxpaso,road,comprobante,cash_collected:cash,programa};
+  S.clients.push(nc);save('clients');
+  // Registrar ingreso si hay monto cobrado
+  if(cash>0){
+    const ing={concepto:'Venta Nueva',tipo:pp,tipoPago:pp,nombre,usd:cash,ars:0,eur:0,
+      fecha:new Date().toISOString().slice(0,10),origen:'manual',instagram,
+      clienteId:nc.id,clienteNombre:nombre};
+    try{
+      const r2=await apiFetch(`${API_URL}/ingresos`,{method:'POST',body:JSON.stringify(ing)});
+      if(r2.ok){const d2=await r2.json().catch(()=>({}));ing.id=d2.id||uid();}
+    }catch(e){}
+    S.ing.push(ing);save('ing');
+  }
+  if(pp==='Cuotas'){
+    const nCuotas=parseInt(document.getElementById('cl-nro-cuotas')?.value)||2;
+    generarCuotasCliente(nc,nCuotas);
+  }
+  closeModal('modal-client');renderClients();renderDash();toast('Cliente guardado ✓');
 }
 async function delClient(id){
   if(!confirm('¿Eliminar?'))return;
@@ -3043,7 +3096,7 @@ async function _pollTeam(){
   const badge=document.getElementById('team-count');
   if(badge) badge.textContent=_teamSessions.length;
 }
-setInterval(_pollTeam,60000);
+// setInterval(_pollTeam,60000); // endpoint /team no implementado
 
 // ========== INSTAGRAM MODULE ==========
 const _IG_KEY='crm_ig_'+(_cid||'default');
