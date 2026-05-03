@@ -1069,7 +1069,7 @@
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Programa (meses)</label>
-      <select id="cl-programa">
+      <select id="cl-programa" onchange="_clUpdateFin()">
         <option value="">— Seleccionar —</option>
         <option value="3">3 meses</option>
         <option value="4">4 meses</option>
@@ -1080,18 +1080,28 @@
       <select id="cl-estado"><option>Al día</option><option>Pendiente</option><option>Vencido</option><option>Inactivo</option></select></div>
   </div>
   <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="cl-inicio"></div>
+    <div class="form-group"><label class="form-label">Fecha de inicio</label><input type="date" id="cl-inicio" onchange="_clUpdateFin()"></div>
     <div class="form-group"><label class="form-label">Fecha de finalización</label><input type="date" id="cl-fin"></div>
   </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" id="cl-proxpago"></div>
-    <div class="form-group"><label class="form-label">Modalidad</label>
-      <select id="cl-mod"><option>Único</option><option>Cuota</option><option>Fecha específica</option></select></div>
+  <div id="cl-enable-cuotas-row" style="display:none;margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="cl-enable-cuotas" onchange="toggleClientEnableCuotas(this.checked)"> Habilitar cuotas
+    </label>
   </div>
-  <div class="form-group"><label class="form-label">Próximo paso</label><input type="text" id="cl-proxpaso"></div>
-  <div class="form-group"><label class="form-label">Roadmap — link</label><input type="text" id="cl-road" placeholder="https://..."></div>
+  <div id="cl-proxpago-row" class="form-group" style="display:none">
+    <label class="form-label">Próximo pago</label><input type="date" id="cl-proxpago">
+  </div>
+  <div class="form-group"><label class="form-label">Próximo paso</label><input type="text" id="cl-proxpaso" placeholder="Onboarding"></div>
   <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
-    <input type="text" id="cl-comprobante" placeholder="Nº transferencia, captura, link…"></div>
+    <input type="text" id="cl-comprobante" placeholder="Nº transferencia, captura, link…">
+    <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--border);padding:5px 10px;border-radius:var(--rs)">
+        📎 Adjuntar imagen
+        <input type="file" id="cl-comprobante-img" accept="image/*" style="display:none" onchange="_previewClientComprobanteImg(this)">
+      </label>
+      <img id="cl-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="this.style.display='none';document.getElementById('cl-comprobante-img').value=''" title="Click para quitar">
+    </div>
+  </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveClient()">Guardar</button>
@@ -1107,13 +1117,17 @@
       <select id="i-concepto"><option>Venta Nueva</option><option>Cuota</option><option>Venta Interna</option><option>Recompra</option><option>Personal</option></select></div>
     <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="i-fecha"></div>
   </div>
-  <div class="form-group"><label class="form-label">Tipo</label>
-    <select id="i-tipo"><option>Cliente</option><option>Cambio</option></select></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre del cliente</label><input type="text" id="i-nombre" placeholder="Juan Pérez"></div>
+    <div class="form-group"><label class="form-label">Tipo de pago</label>
+      <select id="i-tipo"><option>PIF</option><option>Cuotas</option><option>Seña</option><option>RESELL</option><option>UPSELL</option><option>DOWNSELL</option></select></div>
+  </div>
   <div class="form-grid form-grid-3">
     <div class="form-group"><label class="form-label">Monto USD</label><input type="number" id="i-usd" placeholder="0"></div>
     <div class="form-group"><label class="form-label">Monto ARS</label><input type="number" id="i-ars" placeholder="0"></div>
     <div class="form-group"><label class="form-label">Monto EUR</label><input type="number" id="i-eur" placeholder="0"></div>
   </div>
+  <div class="form-group"><label class="form-label">Cash collected (USD)</label><input type="number" id="i-cash" placeholder="0" min="0" step="any"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-ing')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveIng()">Guardar</button>

@@ -1561,8 +1561,44 @@ function toggleClientSection(id){
   if(arrow) arrow.textContent=open?'▶':'▼';
 }
 function toggleClientCuotaSection(val){
-  const sec=document.getElementById('cl-cuota-section');
-  if(sec) sec.style.display=(val==='Cuotas')?'block':'none';
+  const cuotaSec=document.getElementById('cl-cuota-section');
+  const enableRow=document.getElementById('cl-enable-cuotas-row');
+  const proxpagoRow=document.getElementById('cl-proxpago-row');
+  const enableChk=document.getElementById('cl-enable-cuotas');
+  if(cuotaSec) cuotaSec.style.display='none';
+  if(enableRow) enableRow.style.display='none';
+  if(proxpagoRow) proxpagoRow.style.display='none';
+  if(enableChk) enableChk.checked=false;
+  if(val==='Cuotas'){
+    if(cuotaSec) cuotaSec.style.display='block';
+    if(proxpagoRow) proxpagoRow.style.display='block';
+  } else if(val==='Seña'){
+    if(proxpagoRow) proxpagoRow.style.display='block';
+  } else if(['RESELL','UPSELL','DOWNSELL'].includes(val)){
+    if(enableRow) enableRow.style.display='block';
+  }
+  // PIF: todo oculto
+}
+function toggleClientEnableCuotas(checked){
+  const cuotaSec=document.getElementById('cl-cuota-section');
+  const proxpagoRow=document.getElementById('cl-proxpago-row');
+  if(cuotaSec) cuotaSec.style.display=checked?'block':'none';
+  if(proxpagoRow) proxpagoRow.style.display=checked?'block':'none';
+}
+function _clUpdateFin(){
+  const inicio=document.getElementById('cl-inicio')?.value;
+  const programa=parseInt(document.getElementById('cl-programa')?.value)||0;
+  const finEl=document.getElementById('cl-fin');
+  if(!finEl||!inicio||!programa) return;
+  const d=new Date(inicio+'T00:00:00');
+  d.setMonth(d.getMonth()+programa);
+  finEl.value=d.toISOString().slice(0,10);
+}
+function _previewClientComprobanteImg(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{const prev=document.getElementById('cl-comprobante-preview');if(prev){prev.src=e.target.result;prev.style.display='block';}};
+  reader.readAsDataURL(file);
 }
 async function saveClient(){
   const nombre=(document.getElementById('cl-nombre')?.value||'').trim();
@@ -1572,10 +1608,8 @@ async function saveClient(){
   const programa=parseInt(document.getElementById('cl-programa')?.value)||0;
   const estado=document.getElementById('cl-estado')?.value||'Al día';
   const inicio=document.getElementById('cl-inicio')?.value||null;
-  const mod=document.getElementById('cl-mod')?.value||null;
   const proxpago=document.getElementById('cl-proxpago')?.value||null;
-  const proxpaso=document.getElementById('cl-proxpaso')?.value||'';
-  const road=document.getElementById('cl-road')?.value||'';
+  const proxpaso=(document.getElementById('cl-proxpaso')?.value||'Onboarding').trim();
   const comprobante=document.getElementById('cl-comprobante')?.value||'';
   // Calcular fin según programa si no se especificó
   let fin=document.getElementById('cl-fin')?.value||null;
@@ -1587,7 +1621,7 @@ async function saveClient(){
   if(!nombre){toast('Ingresá el nombre del cliente');return;}
   const payload={
     nombre,instagram,inicio,fin,tipo_pago:pp,cash_collected:cash,
-    comprobante,estado,pp,proxpaso,road,mod,proxpago,
+    comprobante,estado,pp,proxpaso,proxpago,
     programa:programa||null,
   };
   let apiId=null;
@@ -1607,7 +1641,7 @@ async function saveClient(){
     toast('Error de conexión al guardar cliente');
     return;
   }
-  const nc={id:apiId||uid(),nombre,instagram,inicio,fin,pp,mod,proxpago,estado,proxpaso,road,comprobante,cash_collected:cash,programa};
+  const nc={id:apiId||uid(),nombre,instagram,inicio,fin,pp,proxpago,estado,proxpaso,comprobante,cash_collected:cash,programa};
   S.clients.push(nc);save('clients');
   // Registrar ingreso si hay monto cobrado
   if(cash>0){
@@ -1941,7 +1975,13 @@ function renderFin(){
   renderActivityLog();
 }
 async function saveIng(){
-  const item={id:uid(),concepto:v('i-concepto'),fecha:v('i-fecha'),tipo:v('i-tipo'),usd:+v('i-usd')||0,ars:+v('i-ars')||0,eur:+v('i-eur')||0};
+  const item={
+    id:uid(),concepto:v('i-concepto'),fecha:v('i-fecha'),
+    nombre:document.getElementById('i-nombre')?.value?.trim()||'',
+    tipoPago:v('i-tipo'),tipo:v('i-tipo'),
+    usd:+v('i-usd')||0,ars:+v('i-ars')||0,eur:+v('i-eur')||0,
+    cash_collected:parseFloat(document.getElementById('i-cash')?.value)||0,
+  };
   try{const res=await apiFetch(`${API_URL}/ingresos`,{method:'POST',body:JSON.stringify(item)});if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)item.id=d.id;}}catch(e){console.warn('[saveIng]',e.message);}
   S.ing.push(item);save('ing');closeModal('modal-ing');renderFin();toast('Ingreso guardado ✓');
 }
