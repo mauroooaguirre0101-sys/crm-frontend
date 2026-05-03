@@ -798,12 +798,31 @@ async function fetchClients(){
     const res=await apiFetch(`${API_URL}/clientes`);
     if(!res.ok){console.warn('[fetchClients] HTTP',res.status);return;}
     const data=await res.json();
-    S.clients=Array.isArray(data)?data:[];
-    save('clients');
-    // Limpiar cuotas huérfanas (clientes que ya no existen en la API)
+    if(!Array.isArray(data)) return;
+    if(data.length===0 && S.clients.length>0){
+      // API vacía pero hay datos locales → migrar a la API
+      for(const c of [...S.clients]){
+        try{
+          await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({
+            nombre:c.nombre,instagram:c.instagram||'',inicio:c.inicio||null,fin:c.fin||null,
+            tipo_pago:c.tipo_pago||c.pp||'Contado',cash_collected:+c.cash_collected||0,
+            comprobante:c.comprobante||'',estado:c.estado||'Al día',
+            pp:c.pp||null,proxpaso:c.proxpaso||null,road:c.road||null,
+            mod:c.mod||null,proxpago:c.proxpago||null,programa:c.programa||null
+          })});
+        }catch(e){}
+      }
+      // Re-fetch después de migrar
+      const r2=await apiFetch(`${API_URL}/clientes`);
+      if(r2.ok){const d2=await r2.json().catch(()=>[]);if(Array.isArray(d2)&&d2.length>0){S.clients=d2;save('clients');}}
+      // Si la migración falló (tabla sin columnas), NO pisar S.clients — preservar local
+    } else {
+      S.clients=data;
+      save('clients');
+    }
     if(S.cuotas?.length){
-      const clientIds=new Set(S.clients.map(c=>String(c.id)));
-      S.cuotas=S.cuotas.filter(q=>clientIds.has(String(q.clienteId)));
+      const ids=new Set(S.clients.map(c=>String(c.id)));
+      S.cuotas=S.cuotas.filter(q=>ids.has(String(q.clienteId)));
       save('cuotas');
     }
     if(document.getElementById('page-clients')?.classList.contains('active')) renderClients();
