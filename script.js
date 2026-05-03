@@ -800,6 +800,12 @@ async function fetchClients(){
     const data=await res.json();
     S.clients=Array.isArray(data)?data:[];
     save('clients');
+    // Limpiar cuotas huérfanas (clientes que ya no existen en la API)
+    if(S.cuotas?.length){
+      const clientIds=new Set(S.clients.map(c=>String(c.id)));
+      S.cuotas=S.cuotas.filter(q=>clientIds.has(String(q.clienteId)));
+      save('cuotas');
+    }
     if(document.getElementById('page-clients')?.classList.contains('active')) renderClients();
     renderDash();
   }catch(e){console.error('[fetchClients]',e);}
