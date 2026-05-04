@@ -1122,12 +1122,10 @@
     <div class="form-group"><label class="form-label">Tipo de pago</label>
       <select id="i-tipo"><option>PIF</option><option>Cuotas</option><option>Seña</option><option>RESELL</option><option>UPSELL</option><option>DOWNSELL</option></select></div>
   </div>
-  <div class="form-grid form-grid-3">
-    <div class="form-group"><label class="form-label">Monto USD</label><input type="number" id="i-usd" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">Monto ARS</label><input type="number" id="i-ars" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">Monto EUR</label><input type="number" id="i-eur" placeholder="0"></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Monto (USD)</label><input type="number" id="i-usd" placeholder="0" min="0" step="any"></div>
+    <div class="form-group"><label class="form-label">Cash collected (USD)</label><input type="number" id="i-cash" placeholder="0" min="0" step="any"></div>
   </div>
-  <div class="form-group"><label class="form-label">Cash collected (USD)</label><input type="number" id="i-cash" placeholder="0" min="0" step="any"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-ing')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveIng()">Guardar</button>
@@ -1139,20 +1137,10 @@
 <div class="modal">
   <div class="modal-title">+ Egreso</div>
   <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Concepto</label><input type="text" id="g-concepto" placeholder="Descripción del egreso"></div>
     <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="g-fecha"></div>
+    <div class="form-group"><label class="form-label">Monto (USD)</label><input type="number" id="g-usd" placeholder="0" min="0" step="any"></div>
   </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Tipo</label>
-      <select id="g-tipo"><option>Retiro A</option><option>Retiro B</option><option>Gasto Personal</option><option>Gasto Empresa</option><option>ADS</option></select></div>
-    <div class="form-group"><label class="form-label">Categoría</label>
-      <select id="g-cat"><option>Retiro</option><option>Pago</option><option>Marketing</option><option>Ventas</option><option>Producto</option><option>Operaciones</option><option>Empleados</option></select></div>
-  </div>
-  <div class="form-grid form-grid-3">
-    <div class="form-group"><label class="form-label">Monto USD</label><input type="number" id="g-usd" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">Monto ARS</label><input type="number" id="g-ars" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">Monto EUR</label><input type="number" id="g-eur" placeholder="0"></div>
-  </div>
+  <div class="form-group"><label class="form-label">Detalles</label><input type="text" id="g-concepto" placeholder="Descripción del egreso"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-gas')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveGas()">Guardar</button>

@@ -1979,14 +1979,14 @@ async function saveIng(){
     id:uid(),concepto:v('i-concepto'),fecha:v('i-fecha'),
     nombre:document.getElementById('i-nombre')?.value?.trim()||'',
     tipoPago:v('i-tipo'),tipo:v('i-tipo'),
-    usd:+v('i-usd')||0,ars:+v('i-ars')||0,eur:+v('i-eur')||0,
+    usd:+v('i-usd')||0,ars:0,eur:0,
     cash_collected:parseFloat(document.getElementById('i-cash')?.value)||0,
   };
   try{const res=await apiFetch(`${API_URL}/ingresos`,{method:'POST',body:JSON.stringify(item)});if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)item.id=d.id;}}catch(e){console.warn('[saveIng]',e.message);}
   S.ing.push(item);save('ing');closeModal('modal-ing');renderFin();toast('Ingreso guardado ✓');
 }
 async function saveGas(){
-  const item={id:uid(),concepto:v('g-concepto'),fecha:v('g-fecha'),tipo:v('g-tipo'),cat:v('g-cat'),usd:+v('g-usd')||0,ars:+v('g-ars')||0,eur:+v('g-eur')||0};
+  const item={id:uid(),concepto:v('g-concepto'),fecha:v('g-fecha'),usd:+v('g-usd')||0,ars:0,eur:0};
   try{const res=await apiFetch(`${API_URL}/egresos`,{method:'POST',body:JSON.stringify(item)});if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)item.id=d.id;}}catch(e){console.warn('[saveGas]',e.message);}
   S.gas.push(item);save('gas');closeModal('modal-gas');renderFin();toast('Egreso guardado ✓');
 }
