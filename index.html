@@ -9,8 +9,254 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="styles.css">
+<style>
+/* ── SPLASH ── */
+#splash{
+  position:fixed;inset:0;z-index:9999;
+  background:#0a0b0f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .55s ease;
+  overflow:hidden;
+}
+#splash.hiding{opacity:0;pointer-events:none}
+
+.sp-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 10%,rgba(224,181,74,.055) 0%,transparent 65%),
+    radial-gradient(ellipse 55% 70% at 85% 90%,rgba(96,144,212,.04) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+/* ── Chart wrapper ── */
+.sp-chart-wrap{
+  position:relative;
+  width:480px;height:200px;
+  animation:sp-in .5s ease both;
+}
+@media(max-width:520px){.sp-chart-wrap{transform:scale(.7);transform-origin:center top}}
+
+/* Grid lines */
+.sp-grid{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding-bottom:1px;
+  pointer-events:none;
+}
+.sp-gridline{width:100%;height:1px;background:rgba(255,255,255,.04)}
+
+/* Bars */
+.sp-bars{
+  position:absolute;bottom:0;left:0;right:0;height:100%;
+  display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:0 10px;
+}
+.sp-bar{
+  flex:1;max-width:42px;border-radius:3px 3px 0 0;
+  background:linear-gradient(to top,rgba(224,181,74,.22),rgba(224,181,74,.55));
+  border:1px solid rgba(224,181,74,.28);border-bottom:none;
+  transform-origin:bottom;transform:scaleY(0);
+  animation:sp-bar-grow .45s cubic-bezier(.34,1.1,.64,1) both;
+}
+@keyframes sp-bar-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* SVG line + area */
+.sp-svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}
+
+.sp-line{
+  stroke-dasharray:541;stroke-dashoffset:541;
+  animation:sp-line-draw 1.15s ease both;
+  animation-delay:.45s;
+}
+@keyframes sp-line-draw{to{stroke-dashoffset:0}}
+
+.sp-area{opacity:0;animation:sp-area-in .4s ease both;animation-delay:1.55s}
+@keyframes sp-area-in{to{opacity:1}}
+
+.sp-end-dot{opacity:0;animation:sp-dot-pop .3s cubic-bezier(.34,1.4,.64,1) both;animation-delay:1.6s}
+@keyframes sp-dot-pop{from{opacity:0;r:1}to{opacity:1;r:5}}
+
+/* Airplane + Banner */
+.sp-plane{
+  position:absolute;
+  top:calc(50% - 290px);
+  left:0;z-index:10;
+  display:flex;align-items:center;
+  animation:sp-fly 13s linear both;
+  animation-delay:0s;
+}
+@keyframes sp-fly{
+  from{transform:translateX(-620px) rotate(-3deg)}
+  to{transform:translateX(calc(100vw + 60px)) rotate(-3deg)}
+}
+.sp-banner{
+  background:rgba(8,9,14,.93);
+  border:1.5px solid rgba(224,181,74,.70);
+  border-radius:5px;
+  padding:9px 22px;
+  white-space:nowrap;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:21px;font-weight:700;letter-spacing:3px;
+  color:#e0b54a;text-transform:uppercase;
+  box-shadow:0 0 16px rgba(224,181,74,.12),inset 0 0 10px rgba(224,181,74,.04);
+  flex-shrink:0;
+}
+.sp-banner-line{
+  width:48px;height:0;
+  border-top:1.5px dashed rgba(224,181,74,.40);
+  flex-shrink:0;
+}
+.sp-plane-svg{
+  filter:drop-shadow(0 0 10px rgba(224,181,74,.70));
+  flex-shrink:0;
+}
+
+/* Text & progress */
+.sp-text{margin-top:22px;text-align:center;animation:sp-up .7s ease both;animation-delay:.65s}
+.sp-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:19px;font-weight:700;letter-spacing:5px;
+  color:#f0eee8;text-transform:uppercase;margin-bottom:8px;
+}
+.sp-sub{font-size:9px;font-weight:600;letter-spacing:3.5px;color:#5a607a;text-transform:uppercase}
+
+.sp-pbar-wrap{margin-top:26px;width:200px;height:1px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden}
+.sp-pbar{
+  height:100%;width:0;
+  background:linear-gradient(90deg,transparent,#e0b54a,#f5d27a);
+  animation:sp-progress 2.4s cubic-bezier(.4,0,.2,1) both;
+  animation-delay:.3s;
+}
+.sp-status{
+  margin-top:13px;font-size:9px;font-weight:600;letter-spacing:2px;
+  color:#5a607a;text-transform:uppercase;
+  animation:sp-up .5s ease both;animation-delay:.3s;
+}
+
+@keyframes sp-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sp-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sp-progress{0%{width:0}20%{width:12%}55%{width:52%}80%{width:78%}100%{width:100%}}
+</style>
 </head>
 <body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-bg"></div>
+
+  <!-- Chart -->
+  <div class="sp-chart-wrap">
+    <div class="sp-grid">
+      <div class="sp-gridline"></div>
+      <div class="sp-gridline"></div>
+      <div class="sp-gridline"></div>
+      <div class="sp-gridline"></div>
+      <div class="sp-gridline"></div>
+    </div>
+    <div class="sp-bars">
+      <div class="sp-bar" style="height:80px;animation-delay:.10s"></div>
+      <div class="sp-bar" style="height:110px;animation-delay:.18s"></div>
+      <div class="sp-bar" style="height:72px;animation-delay:.26s"></div>
+      <div class="sp-bar" style="height:140px;animation-delay:.34s"></div>
+      <div class="sp-bar" style="height:100px;animation-delay:.42s"></div>
+      <div class="sp-bar" style="height:160px;animation-delay:.50s"></div>
+      <div class="sp-bar" style="height:128px;animation-delay:.58s"></div>
+      <div class="sp-bar" style="height:185px;animation-delay:.66s"></div>
+    </div>
+    <svg class="sp-svg" viewBox="0 0 480 200">
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(224,181,74,.30)"/>
+          <stop offset="100%" stop-color="rgba(224,181,74,.00)"/>
+        </linearGradient>
+        <filter id="spGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Area fill (appears after line draws) -->
+      <path class="sp-area"
+        d="M30,120 L90,90 L150,130 L210,60 L270,100 L330,40 L390,70 L450,15 L450,200 L30,200 Z"
+        fill="url(#areaGrad)"/>
+      <!-- Stock line -->
+      <polyline class="sp-line"
+        points="30,120 90,90 150,130 210,60 270,100 330,40 390,70 450,15"
+        fill="none" stroke="#e0b54a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Live dot at end of line -->
+      <circle class="sp-end-dot" cx="450" cy="15" r="5"
+        fill="#f5d27a" filter="url(#spGlow)"/>
+    </svg>
+  </div>
+
+  <!-- Airplane + Banner -->
+  <div class="sp-plane">
+    <div class="sp-banner"><span id="sp-name-val">Bienvenido</span></div>
+    <div class="sp-banner-line"></div>
+    <svg class="sp-plane-svg" width="270" height="114" viewBox="0 0 270 114">
+      <!-- Fuselage -->
+      <path d="M254,57 Q236,42 202,38 Q155,33 102,35 Q66,35 44,41 Q24,46 17,57 Q24,68 44,73 Q66,79 102,79 Q155,81 202,76 Q236,72 254,57Z" fill="#e0b54a"/>
+      <!-- 747 upper-deck hump -->
+      <path d="M202,38 Q180,21 144,20 Q114,20 92,27 Q73,32 64,37 Q102,33 155,34 Q188,34 202,38Z" fill="#f2c84a"/>
+      <!-- Nose -->
+      <path d="M252,57 L262,52 L262,62Z" fill="#f5d27a"/>
+      <!-- Cockpit shade -->
+      <path d="M235,44 Q248,49 254,57 Q248,65 235,70 Q244,65 248,57 Q244,49 235,44Z" fill="#c89428" opacity=".4"/>
+      <!-- Wing upper (swept) -->
+      <path d="M154,50 L178,8 L196,13 L169,50Z" fill="#c89428"/>
+      <!-- Wing lower -->
+      <path d="M154,64 L178,106 L196,101 L169,64Z" fill="#c89428"/>
+      <!-- Wing root -->
+      <ellipse cx="160" cy="57" rx="17" ry="10" fill="#d4a030"/>
+      <!-- Engine 1 inner upper -->
+      <rect x="163" y="24" width="26" height="10" rx="5" fill="#a06818"/>
+      <ellipse cx="163" cy="29" rx="5.5" ry="5" fill="#7a3808" opacity=".85"/>
+      <!-- Engine 2 outer upper -->
+      <rect x="178" y="12" width="22" height="9" rx="4.5" fill="#a06818"/>
+      <ellipse cx="178" cy="16.5" rx="5" ry="4.5" fill="#7a3808" opacity=".85"/>
+      <!-- Engine 3 inner lower -->
+      <rect x="163" y="80" width="26" height="10" rx="5" fill="#a06818"/>
+      <ellipse cx="163" cy="85" rx="5.5" ry="5" fill="#7a3808" opacity=".85"/>
+      <!-- Engine 4 outer lower -->
+      <rect x="178" y="93" width="22" height="9" rx="4.5" fill="#a06818"/>
+      <ellipse cx="178" cy="97.5" rx="5" ry="4.5" fill="#7a3808" opacity=".85"/>
+      <!-- Vertical tail fin -->
+      <path d="M38,57 L22,16 L34,26 L42,57Z" fill="#e0b54a"/>
+      <!-- Horizontal stabilizer upper -->
+      <path d="M34,51 L12,36 L20,34 L40,51Z" fill="#d4a030"/>
+      <!-- Horizontal stabilizer lower -->
+      <path d="M34,63 L12,78 L20,80 L40,63Z" fill="#d4a030"/>
+      <!-- Main deck windows -->
+      <g fill="rgba(8,9,18,.48)">
+        <rect x="70" y="47" width="7" height="5" rx="2"/>
+        <rect x="85" y="47" width="7" height="5" rx="2"/>
+        <rect x="100" y="47" width="7" height="5" rx="2"/>
+        <rect x="115" y="47" width="7" height="5" rx="2"/>
+        <rect x="130" y="47" width="7" height="5" rx="2"/>
+        <rect x="145" y="47" width="7" height="5" rx="2"/>
+        <rect x="160" y="47" width="7" height="5" rx="2"/>
+        <rect x="175" y="47" width="7" height="5" rx="2"/>
+        <rect x="190" y="47" width="7" height="5" rx="2"/>
+        <rect x="205" y="47" width="7" height="5" rx="2"/>
+        <rect x="220" y="47" width="7" height="5" rx="2"/>
+        <rect x="235" y="47" width="7" height="5" rx="2"/>
+      </g>
+      <!-- Upper deck windows (hump) -->
+      <g fill="rgba(8,9,18,.35)">
+        <rect x="104" y="32" width="6" height="4" rx="1.5"/>
+        <rect x="118" y="29" width="6" height="4" rx="1.5"/>
+        <rect x="132" y="27" width="6" height="4" rx="1.5"/>
+        <rect x="146" y="26" width="6" height="4" rx="1.5"/>
+        <rect x="160" y="26" width="6" height="4" rx="1.5"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="sp-text">
+    <div class="sp-title">SISTEMA DE CONTROL</div>
+    <div class="sp-sub">LEADS · CLIENTES · RESULTADOS</div>
+  </div>
+  <div class="sp-pbar-wrap"><div class="sp-pbar"></div></div>
+  <div class="sp-status">Inicializando sistema…</div>
+</div>
 
 <!-- AUTH LOADER -->
 <div id="auth-loader">
@@ -24,7 +270,7 @@
 <div id="auth-overlay" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">CR</div>
-    <div class="auth-title">CRM Pro</div>
+    <div class="auth-title">Bienvenido al CRM de control</div>
     <div class="auth-sub">Iniciá sesión para continuar</div>
     <div class="auth-error" id="auth-error"></div>
     <div class="form-group"><label class="form-label">Email</label>
@@ -37,8 +283,60 @@
   </div>
 </div>
 
+<!-- ADMIN MENU SCREEN -->
+<div id="menu-screen" style="display:none;position:fixed;inset:0;z-index:150;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:40px">
+  <div style="text-align:center">
+    <div style="font-size:44px;font-weight:900;color:var(--gold);letter-spacing:-2px;line-height:1;font-family:'Barlow Condensed',sans-serif">CR</div>
+    <div style="font-size:28px;font-weight:800;color:var(--text);margin-top:12px;letter-spacing:-.5px">Bienvenido al CRM de control</div>
+    <div style="font-size:14px;color:var(--text3);margin-top:8px">Seleccioná el módulo que querés usar</div>
+  </div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+    <div id="menu-card-crm" onclick="enterCRM()" style="background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
+      <div style="font-size:52px;margin-bottom:20px">📈</div>
+      <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Marketing &amp; Ventas</div>
+      <div style="font-size:13px;color:var(--text3);line-height:1.5">CRM, leads, clientes y finanzas</div>
+    </div>
+    <div id="menu-card-alumnos" onclick="enterAlumnos()" style="background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
+      <div style="font-size:52px;margin-bottom:20px">🎓</div>
+      <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Alumnos</div>
+      <div style="font-size:13px;color:var(--text3);line-height:1.5">Seguimiento semanal de consultoría</div>
+    </div>
+    <div id="menu-card-holding" onclick="enterHolding()" style="display:none;background:var(--surface);border:1.5px solid rgba(224,181,74,0.35);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
+      <div style="font-size:52px;margin-bottom:20px">🏢</div>
+      <div style="font-size:22px;font-weight:700;color:var(--gold);margin-bottom:8px">Clientes Holding</div>
+      <div style="font-size:13px;color:var(--text3);line-height:1.5">Facturación consolidada de todos los clientes</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOLDING SCREEN -->
+<div id="holding-screen" style="display:none;position:fixed;inset:0;z-index:300;flex-direction:column">
+  <div style="background:var(--surface);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button onclick="exitHolding()" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--line)'">← Volver al menú</button>
+      <span style="font-size:14px;font-weight:700;color:var(--gold)">🏢 Clientes Holding</span>
+    </div>
+    <button onclick="logout()" style="background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:600;font-family:inherit">Cerrar sesión</button>
+  </div>
+  <iframe id="holding-iframe" src="holding_dashboard.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+</div>
+
+<!-- ALUMNOS SCREEN -->
+<div id="alumnos-screen" style="display:none;position:fixed;inset:0;z-index:300;flex-direction:column">
+  <div style="background:var(--surface);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button onclick="exitAlumnos()" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--line)'">← Volver al menú</button>
+      <span style="font-size:14px;font-weight:600;color:var(--text)">Alumnos — Panel de seguimiento</span>
+    </div>
+    <button onclick="logout()" style="background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:600;font-family:inherit">Cerrar sesión</button>
+  </div>
+  <iframe src="dashboard_consultor.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+</div>
+
 <!-- USER HEADER -->
 <div id="user-header" style="display:none">
+  <!-- Back to menu (admin only) -->
+  <button id="btn-back-menu" onclick="backToMenu()" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 13px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:600;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--text3)'">← Menú</button>
   <!-- Cliente selector -->
   <div id="cliente-selector-wrap">
     <span class="cs-label">Cliente</span>
@@ -88,8 +386,7 @@
     <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><div class="nav-dot"></div><span class="nav-text">Llamadas</span></div>
     <div class="nav-item" id="nav-clients" onclick="nav('clients',this)"><div class="nav-dot"></div><span class="nav-text">Clientes</span></div>
     <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><div class="nav-dot"></div><span class="nav-text">Finanzas</span></div>
-    <div class="nav-section-label">Sistema</div>
-    <div class="nav-item" id="nav-exp" onclick="nav('exp',this)"><div class="nav-dot"></div><span class="nav-text">Exportar / Importar</span></div>
+    <div class="nav-item" id="nav-equipo" onclick="nav('equipo',this)"><div class="nav-dot"></div><span class="nav-text">Equipo</span></div>
   </div>
 </nav>
 
@@ -471,42 +768,15 @@
   </div>
 </section>
 
-<!-- EXPORTAR -->
-<section class="page" id="page-exp">
-  <div class="page-title">Exportar / Importar</div>
-  <div class="page-sub">Backup completo de todos tus datos del CRM</div>
-  <div class="card" style="margin-bottom:20px">
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1">
-        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px">Gestión de datos</div>
-        <div style="font-size:13px;color:var(--text2)">Exportá todos tus datos en un archivo JSON o importá un backup previo.</div>
-      </div>
-      <button class="btn btn-gold" onclick="exportData()">⬇ Exportar datos</button>
-      <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">⬆ Importar datos</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+<!-- EQUIPO -->
+<section class="page" id="page-equipo">
+  <div class="dash-header-row" style="margin-bottom:0">
+    <div class="dash-title-group">
+      <div class="page-title">Equipo</div>
+      <div class="page-sub" style="margin-bottom:0">Comisiones del equipo de ventas</div>
     </div>
   </div>
-  <div class="export-stats" id="exp-stats"></div>
-  <div class="card">
-    <div class="section-header"><h3>Integraciones futuras</h3></div>
-    <div class="integration-grid">
-      <div class="integration-card">
-        <span class="api-badge">API</span>
-        <div class="integration-title">Zapier / Make</div>
-        <div class="integration-desc">Automatizar leads desde Instagram DM, Calendly y WhatsApp con flujos sin código.</div>
-      </div>
-      <div class="integration-card">
-        <span class="api-badge">API</span>
-        <div class="integration-title">Meta Business API</div>
-        <div class="integration-desc">Importar métricas de alcance, impresiones y engagement automáticamente.</div>
-      </div>
-      <div class="integration-card">
-        <span class="api-badge scraped-badge">SCRAPED</span>
-        <div class="integration-title">Apify Scraping</div>
-        <div class="integration-desc">Análisis automático de perfiles de referentes: engagement, frecuencia, temas.</div>
-      </div>
-    </div>
-  </div>
+  <div id="equipo-content" style="margin-top:20px"></div>
 </section>
 
 <!-- LLAMADAS -->
