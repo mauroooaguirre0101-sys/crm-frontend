@@ -2175,7 +2175,7 @@ function _displayName(cid,role){
   const alias=aliases[cid];
   const roleStr=role?` (${role})`:'';
   if(alias){
-    return _isCidHidden()?`${alias}${roleStr}`:`${alias} · ${cid}${roleStr}`;
+    return _isCidHidden()?alias:`${alias} · ${cid}${roleStr}`;
   }
   return `${cid}${roleStr}`;
 }
