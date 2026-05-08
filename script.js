@@ -693,12 +693,12 @@ async function saveHist(){
 }
 async function delCont(id){
   if(!confirm('¿Eliminar?'))return;
-  try{await apiFetch(`${API_URL}/contenido/${id}`,{method:'DELETE'});}catch(e){}
+  try{const r=await apiFetch(`${API_URL}/contenido/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.content=S.content.filter(x=>x.id!==id);renderCont();
 }
 async function delHist(id){
   if(!confirm('¿Eliminar?'))return;
-  try{await apiFetch(`${API_URL}/contenido/${id}`,{method:'DELETE'});}catch(e){}
+  try{const r=await apiFetch(`${API_URL}/contenido/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.hists=S.hists.filter(x=>x.id!==id);renderCont();
 }
 
@@ -791,7 +791,7 @@ async function saveAng(){
 }
 async function delAng(id){
   if(!confirm('¿Eliminar?'))return;
-  try{await apiFetch(`${API_URL}/angulos/${id}`,{method:'DELETE'});}catch(e){}
+  try{const r=await apiFetch(`${API_URL}/angulos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.angulos=S.angulos.filter(x=>x.id!==id);renderAng();
 }
 
@@ -821,7 +821,7 @@ async function saveRef(){
 }
 async function delRef(id){
   if(!confirm('¿Eliminar?'))return;
-  try{await apiFetch(`${API_URL}/referentes/${id}`,{method:'DELETE'});}catch(e){}
+  try{const r=await apiFetch(`${API_URL}/referentes/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.refs=S.refs.filter(x=>x.id!==id);renderRef();
 }
 
@@ -864,7 +864,7 @@ async function saveMet(){
 }
 async function delMet(id){
   if(!confirm('¿Eliminar?'))return;
-  try{await apiFetch(`${API_URL}/metricas/${id}`,{method:'DELETE'});}catch(e){}
+  try{const r=await apiFetch(`${API_URL}/metricas/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.mets=S.mets.filter(x=>x.id!==id);renderMet();
 }
 
@@ -1751,7 +1751,10 @@ async function delClient(id){
   if(!confirm('¿Eliminar?'))return;
   const i=S.clients.findIndex(x=>String(x.id)===String(id));
   const c=i>=0?S.clients[i]:null;
-  try{await apiFetch(`${API_URL}/clientes/${id}`,{method:'DELETE'});}catch(e){console.warn('[delClient]',e.message);}
+  try{
+    const r=await apiFetch(`${API_URL}/clientes/${id}`,{method:'DELETE'});
+    if(!r.ok) throw new Error();
+  }catch(e){toast('✗ Error al eliminar cliente');return;}
   if(c){
     S.cuotas=(S.cuotas||[]).filter(q=>String(q.clienteId)!==String(c.id));
     save('cuotas');
@@ -2077,8 +2080,8 @@ async function saveGas(){
   try{const res=await apiFetch(`${API_URL}/egresos`,{method:'POST',body:JSON.stringify(item)});if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)item.id=d.id;}}catch(e){console.warn('[saveGas]',e.message);}
   S.gas.push(item);save('gas');closeModal('modal-gas');renderFin();toast('Egreso guardado ✓');
 }
-async function delIng(id){if(!confirm('¿Eliminar?'))return;try{await apiFetch(`${API_URL}/ingresos/${id}`,{method:'DELETE'});}catch(e){}S.ing=S.ing.filter(x=>x.id!==id);save('ing');renderFin();}
-async function delGas(id){if(!confirm('¿Eliminar?'))return;try{await apiFetch(`${API_URL}/egresos/${id}`,{method:'DELETE'});}catch(e){}S.gas=S.gas.filter(x=>x.id!==id);save('gas');renderFin();}
+async function delIng(id){if(!confirm('¿Eliminar?'))return;try{const r=await apiFetch(`${API_URL}/ingresos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}S.ing=S.ing.filter(x=>x.id!==id);save('ing');renderFin();}
+async function delGas(id){if(!confirm('¿Eliminar?'))return;try{const r=await apiFetch(`${API_URL}/egresos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}S.gas=S.gas.filter(x=>x.id!==id);save('gas');renderFin();}
 function editIngNombre(id){
   const x=S.ing.find(x=>x.id===id);if(!x)return;
   const nuevo=prompt('Nombre:',x.nombre||x.clienteNombre||'');
