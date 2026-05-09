@@ -3413,6 +3413,18 @@ function _initTeam(){
   _teamSessions.splice(0,_teamSessions.length,{email,rol,nombre,lastSeen:new Date().toISOString()});
   const badge=document.getElementById('team-count');
   if(badge) badge.textContent=_teamSessions.length;
+  _heartbeat();
+  _pollTeam();
+  setInterval(_heartbeat, 2*60*1000);
+  setInterval(_pollTeam, 2*60*1000);
+}
+
+async function _heartbeat(){
+  const email=localStorage.getItem('userEmail')||'';
+  const rol=currentUserRole||'setter';
+  const raw=email.split('@')[0]||email;
+  const nombre=raw.replace(/[._]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  try{await apiFetch(`${API_URL}/team/heartbeat`,{method:'POST',body:JSON.stringify({rol,nombre})});}catch{}
 }
 
 function toggleTeamPanel(){
@@ -3462,13 +3474,15 @@ async function _pollTeam(){
     const res=await apiFetch(`${API_URL}/team`);
     if(res.ok){
       const d=await res.json();
-      if(Array.isArray(d)&&d.length) _teamSessions.splice(0,_teamSessions.length,...d);
+      if(Array.isArray(d)&&d.length){
+        _teamSessions.splice(0,_teamSessions.length,...d);
+        const badge=document.getElementById('team-count');
+        if(badge) badge.textContent=_teamSessions.length;
+        if(_teamPanelOpen) renderTeamPanel();
+      }
     }
   }catch{}
-  const badge=document.getElementById('team-count');
-  if(badge) badge.textContent=_teamSessions.length;
 }
-// setInterval(_pollTeam,60000); // endpoint /team no implementado
 
 // ========== INSTAGRAM MODULE ==========
 const _IG_KEY='crm_ig_'+(_cid||'default');
