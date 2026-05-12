@@ -1488,6 +1488,23 @@ async function delLead(id){
 window.deleteLead=function(id){ return delLead(id); };
 
 // ========== CLIENTES ==========
+function _clientOrigenBadge(x){
+  // 1. Use stored origen if available
+  let o=x.origen||null;
+  // 2. Fallback: search leadsCache by instagram, then by name
+  if(!o&&leadsCache?.length){
+    const ig=(x.instagram||'').toLowerCase();
+    let lead=ig?leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig):null;
+    if(!lead){
+      const nom=(x.nombre||'').toLowerCase();
+      lead=nom?leadsCache.find(l=>(l.nombre||'').toLowerCase()===nom):null;
+    }
+    o=lead?.origen||null;
+  }
+  if(!o) return '<span style="color:var(--text3);font-size:11px">—</span>';
+  return `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(224,181,74,.1);border:1px solid rgba(224,181,74,.2);color:var(--gold);white-space:nowrap">${o}</span>`;
+}
+
 function _clientsRow(x,i){
   const ig=(x.instagram||'').replace(/^@/,'');
   const _xid=String(x.id);
@@ -1547,6 +1564,7 @@ function _clientsRow(x,i){
     <td style="font-size:12px;color:var(--text2)">${x.proxpaso||'—'}</td>
     <td>${clientBadge(x.estado)}</td>
     <td>${ig?`<a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);font-size:12px;text-decoration:none">@${ig}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
+    <td style="text-align:center">${_clientOrigenBadge(x)}</td>
     <td onclick="event.stopPropagation()"><input type="number" value="${+x.cash_collected||0}" min="0" step="any" onchange="updateClientCC('${x.id}',this.value)" style="width:80px;padding:2px 5px;font-size:12px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--gold-light)" title="Cash Collected inicial"></td>
     ${proxCuotaTd}
     ${cuota2Td}
@@ -1604,7 +1622,7 @@ function renderClients(){
   const clientsRowsFor=(arr)=>arr.map(x=>_clientsRow(x,S.clients.indexOf(x))).join('')||
     '<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:16px">Sin clientes en esta categoría</td></tr>';
 
-  const thead=`<thead><tr><th>Fecha</th><th>Cliente</th><th>Inicio</th><th>Final</th><th>PP</th><th>Próximo paso</th><th>Estado</th><th>Instagram</th><th>Cobrado</th><th>Próx. cuota</th><th style="text-align:center">Cuota 2</th><th style="text-align:center">Cuota 3</th><th style="text-align:center">CC C2</th><th style="text-align:center">CC C3</th><th></th></tr></thead>`;
+  const thead=`<thead><tr><th>Fecha</th><th>Cliente</th><th>Inicio</th><th>Final</th><th>PP</th><th>Próximo paso</th><th>Estado</th><th>Instagram</th><th>Origen</th><th>Cobrado</th><th>Próx. cuota</th><th style="text-align:center">Cuota 2</th><th style="text-align:center">Cuota 3</th><th style="text-align:center">CC C2</th><th style="text-align:center">CC C3</th><th></th></tr></thead>`;
 
   const sectionsEl=document.getElementById('clients-sections');
   if(sectionsEl){
