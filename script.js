@@ -237,8 +237,8 @@ function nav(id,el){
   if(id!=='leads'&&_leadsInterval){clearInterval(_leadsInterval);_leadsInterval=null;}
   const renders={dash:renderDash,acc:renderSOPS,found:renderFound,cont:renderCont,
     ang:renderAng,ref:renderRef,met:renderMet,leads:renderLeads,calls:renderCallsPage,
-    clients:renderClients,fin:renderFin,equipo:renderEquipo,ig:renderIG};
-  if(renders[id])renders[id]();
+    clients:renderClients,fin:renderFin,ig:renderIG};
+  if(id==='equipo') fetchEquipoMembers(); else if(renders[id])renders[id]();
   setTimeout(_gfSyncTabs, 0);
 }
 
@@ -3831,17 +3831,14 @@ async function deleteIGCarrusel(id,e){
 // ========== EQUIPO ==========
 let _equipo = { period: 'semana', mes: '' };
 
-function equipoGetRules(){
-  const cid = localStorage.getItem('clienteSeleccionado')||'default';
-  return ld(`crm_comm_${cid}`, {setter:[],closer:[]});
-}
-function equipoSaveRules(rules){
-  const cid = localStorage.getItem('clienteSeleccionado')||'default';
-  sv(`crm_comm_${cid}`, rules);
-}
+let _equipoMembers=[];
+let _equipoExpanded=new Set();
+let _equipoAddingRole=null;
+let _equipoRuleTimer=null;
+
 function calcCommission(revenue, rules){
-  const gteRules = rules.filter(r=>r.cond==='gte').sort((a,b)=>b.val-a.val);
-  const ltRules  = rules.filter(r=>r.cond==='lt').sort((a,b)=>a.val-b.val);
+  const gteRules=(rules||[]).filter(r=>r.cond==='gte').sort((a,b)=>b.val-a.val);
+  const ltRules =(rules||[]).filter(r=>r.cond==='lt').sort((a,b)=>a.val-b.val);
   for(const r of gteRules){ if(revenue>=r.val) return {pct:r.pct,rule:r}; }
   for(const r of ltRules){  if(revenue<r.val)  return {pct:r.pct,rule:r}; }
   return {pct:0,rule:null};
@@ -3862,63 +3859,147 @@ function _eqInRange(dateStr){
 }
 function equipoSetPeriod(p){ _equipo.period=p; _equipo.mes=''; renderEquipo(); }
 function equipoSetMes(m){ _equipo.mes=m; if(m!=='') _equipo.period=''; renderEquipo(); }
-function equipoAddRule(role){
-  const rules=equipoGetRules();
-  rules[role].push({id:uid(),cond:'gte',val:0,pct:0});
-  equipoSaveRules(rules); renderEquipo();
+
+async function fetchEquipoMembers(){
+  try{
+    const res=await apiFetch(`${API_URL}/equipo/members`);
+    if(res.ok) _equipoMembers=await res.json();
+  }catch(e){}
+  renderEquipo();
 }
-function equipoDeleteRule(role,id){
-  const rules=equipoGetRules();
-  rules[role]=rules[role].filter(r=>r.id!==id);
-  equipoSaveRules(rules); renderEquipo();
+function equipoToggleExpand(id){ _equipoExpanded.has(id)?_equipoExpanded.delete(id):_equipoExpanded.add(id); renderEquipo(); }
+function equipoShowAddForm(role){ _equipoAddingRole=role; renderEquipo(); setTimeout(()=>document.getElementById('eq-new-nombre')?.focus(),50); }
+function equipoHideAddForm(){ _equipoAddingRole=null; renderEquipo(); }
+async function equipoConfirmAddMember(){
+  const nombre=(document.getElementById('eq-new-nombre')?.value||'').trim();
+  const role=_equipoAddingRole;
+  if(!nombre){toast('Ingresá un nombre');return;}
+  try{
+    const res=await apiFetch(`${API_URL}/equipo/members`,{method:'POST',body:JSON.stringify({nombre,role})});
+    if(!res.ok){toast('✗ Error al agregar');return;}
+    const m=await res.json();
+    _equipoMembers.push(m);
+    _equipoExpanded.add(m.id);
+    _equipoAddingRole=null;
+    renderEquipo();
+    toast(`${role} agregado ✓`);
+  }catch(e){toast('✗ Error de conexión');}
 }
-function equipoUpdateRule(role,id,field,val){
-  const rules=equipoGetRules();
-  const rule=rules[role].find(r=>r.id===id);
-  if(!rule) return;
-  if(field==='val'||field==='pct') rule[field]=parseFloat(val)||0;
-  else rule[field]=val;
-  equipoSaveRules(rules);
+async function equipoDeleteMember(id){
+  if(!confirm('¿Eliminar este miembro del equipo?'))return;
+  try{
+    const res=await apiFetch(`${API_URL}/equipo/members/${id}`,{method:'DELETE'});
+    if(!res.ok){toast('✗ Error al eliminar');return;}
+    _equipoMembers=_equipoMembers.filter(m=>m.id!==id);
+    _equipoExpanded.delete(id);
+    renderEquipo();
+  }catch(e){toast('✗ Error de conexión');}
+}
+async function equipoMemberAddRule(memberId){
+  const m=_equipoMembers.find(x=>x.id===memberId); if(!m) return;
+  const rules=[...(m.rules||[]),{id:uid(),cond:'gte',val:0,pct:0}];
+  await _equipoSaveMemberRules(memberId,rules);
+}
+async function equipoMemberDeleteRule(memberId,ruleId){
+  const m=_equipoMembers.find(x=>x.id===memberId); if(!m) return;
+  const rules=(m.rules||[]).filter(r=>r.id!==ruleId);
+  await _equipoSaveMemberRules(memberId,rules);
+}
+function equipoMemberUpdateRule(memberId,ruleId,field,val){
+  const m=_equipoMembers.find(x=>x.id===memberId); if(!m) return;
+  const rule=(m.rules||[]).find(r=>r.id===ruleId); if(!rule) return;
+  if(field==='val'||field==='pct') rule[field]=parseFloat(val)||0; else rule[field]=val;
+  clearTimeout(_equipoRuleTimer);
+  _equipoRuleTimer=setTimeout(()=>_equipoSaveMemberRules(memberId,m.rules),600);
+}
+async function _equipoSaveMemberRules(memberId,rules){
+  const m=_equipoMembers.find(x=>x.id===memberId); if(!m) return;
+  m.rules=rules;
+  try{ await apiFetch(`${API_URL}/equipo/members/${memberId}`,{method:'PATCH',body:JSON.stringify({rules})}); }catch(e){}
+  renderEquipo();
 }
 
 function renderEquipo(){
   const container=document.getElementById('equipo-content');
   if(!container) return;
-  const rules=equipoGetRules();
   const revenue=S.ing.filter(x=>_eqInRange(x.fecha)).reduce((a,x)=>a+(+x.usd||0),0);
   const periodCalls=callsCache.filter(c=>_eqInRange(c.created_at));
   const agendasCount=periodCalls.length;
   const pifCount   =periodCalls.filter(c=>(c.estado||'')==='Cierre PIF').length;
   const cuotasCount=periodCalls.filter(c=>(c.estado||'')==='Cierre Cuotas').length;
-  const setterComm=calcCommission(revenue,rules.setter);
-  const closerComm=calcCommission(revenue,rules.closer);
-  const setterAmt=revenue*(setterComm.pct/100);
-  const closerAmt=revenue*(closerComm.pct/100);
-  const totalTeam=setterAmt+closerAmt;
   const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const periodLabel=_equipo.mes!==''?MESES[parseInt(_equipo.mes,10)]:'Esta semana';
 
-  function ruleRow(role,r){
+  const setters=_equipoMembers.filter(m=>m.role==='setter');
+  const closers=_equipoMembers.filter(m=>m.role==='closer');
+  const totalTeam=_equipoMembers.reduce((a,m)=>{
+    const c=calcCommission(revenue,m.rules||[]);
+    return a+revenue*(c.pct/100);
+  },0);
+
+  function ruleRow(memberId,r){
     return `<div class="eq-rule-row">
       <span class="eq-rule-if">Si facturación</span>
-      <select class="eq-rule-sel" onchange="equipoUpdateRule('${role}','${r.id}','cond',this.value)">
+      <select class="eq-rule-sel" onchange="equipoMemberUpdateRule('${memberId}','${r.id}','cond',this.value)">
         <option value="gte" ${r.cond==='gte'?'selected':''}>≥</option>
         <option value="lt"  ${r.cond==='lt' ?'selected':''}>＜</option>
       </select>
       <input class="eq-rule-inp" type="number" value="${r.val}" min="0"
-        onblur="equipoUpdateRule('${role}','${r.id}','val',this.value);renderEquipo();" onclick="this.select()">
+        onblur="equipoMemberUpdateRule('${memberId}','${r.id}','val',this.value)" onclick="this.select()">
       <span class="eq-rule-arrow">→</span>
       <input class="eq-rule-inp eq-rule-pct" type="number" value="${r.pct}" min="0" max="100" step="0.1"
-        onblur="equipoUpdateRule('${role}','${r.id}','pct',this.value);renderEquipo();" onclick="this.select()">
+        onblur="equipoMemberUpdateRule('${memberId}','${r.id}','pct',this.value)" onclick="this.select()">
       <span class="eq-rule-pct-sym">%</span>
-      <button class="eq-rule-del" onclick="equipoDeleteRule('${role}','${r.id}')">×</button>
+      <button class="eq-rule-del" onclick="equipoMemberDeleteRule('${memberId}','${r.id}')">×</button>
     </div>`;
   }
 
-  function commDetail(comm,rev,rulesArr){
-    if(!rulesArr.length) return 'Sin reglas configuradas';
-    if(!comm.rule) return 'Sin regla que aplique al monto actual';
-    return `${comm.pct}% sobre ${fmtUSD(rev)} &nbsp;·&nbsp; regla: ${comm.rule.cond==='gte'?'≥':'<'} $${fmt(comm.rule.val)}`;
+  function memberCard(m, countersHtml){
+    const comm=calcCommission(revenue,m.rules||[]);
+    const amt=revenue*(comm.pct/100);
+    const expanded=_equipoExpanded.has(m.id);
+    const roleColor=m.role==='setter'?'var(--green)':'var(--blue)';
+    const detail=!(m.rules||[]).length?'Sin reglas configuradas'
+      :!comm.rule?'Sin regla que aplique al monto actual'
+      :`${comm.pct}% sobre ${fmtUSD(revenue)} · regla: ${comm.rule.cond==='gte'?'≥':'<'} $${fmt(comm.rule.val)}`;
+    return `<div class="eq-member-card">
+      <div class="eq-member-hdr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:50%;background:${roleColor}22;border:1px solid ${roleColor}44;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${roleColor}">${m.nombre.slice(0,2).toUpperCase()}</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${m.nombre}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${m.role}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="text-align:right">
+            <div style="font-size:18px;font-weight:700;color:var(--text);font-family:'Inter',sans-serif">${fmtUSD(amt)}</div>
+            <div style="font-size:10px;color:${comm.rule?'var(--gold)':'var(--text3)'}">${comm.rule?comm.pct+'% comisión':'sin regla'}</div>
+          </div>
+          <button class="eq-add-btn" onclick="equipoToggleExpand('${m.id}')" style="padding:5px 10px">${expanded?'▲ Reglas':'▼ Reglas'}</button>
+          <button class="eq-rule-del" onclick="equipoDeleteMember('${m.id}')" style="font-size:16px;opacity:.4" title="Eliminar">×</button>
+        </div>
+      </div>
+      ${countersHtml?`<div class="eq-counters" style="margin:10px 0 0">${countersHtml}</div>`:''}
+      ${expanded?`<div class="eq-member-rules">
+        <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">
+          Reglas de comisión
+          <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">· ${detail}</span>
+        </div>
+        ${(m.rules||[]).length===0?'<div class="eq-empty-rules">Sin reglas. Agregá una para calcular comisiones.</div>':''}
+        ${(m.rules||[]).map(r=>ruleRow(m.id,r)).join('')}
+        <button class="eq-add-btn" style="margin-top:8px" onclick="equipoMemberAddRule('${m.id}')">+ Agregar regla</button>
+      </div>`:''}
+    </div>`;
+  }
+
+  function addForm(role){
+    return `<div class="eq-add-form">
+      <input id="eq-new-nombre" class="eq-rule-inp" placeholder="Nombre del ${role}…" style="width:200px"
+        onkeydown="if(event.key==='Enter')equipoConfirmAddMember();if(event.key==='Escape')equipoHideAddForm()">
+      <button class="btn btn-gold" style="padding:6px 14px;font-size:12px" onclick="equipoConfirmAddMember()">Guardar</button>
+      <button class="btn btn-outline" style="padding:6px 12px;font-size:12px" onclick="equipoHideAddForm()">Cancelar</button>
+    </div>`;
   }
 
   container.innerHTML=`
@@ -3929,35 +4010,27 @@ function renderEquipo(){
 .eq-mes-sel:focus{outline:none;border-color:var(--gold-border);}
 .eq-top-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px;}
 @media(max-width:700px){.eq-top-grid{grid-template-columns:1fr;}}
-.eq-kpi{background:var(--metric);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px 16px;box-shadow:var(--shadow-md);position:relative;overflow:hidden;transition:transform .15s,border-color .15s;}
-.eq-kpi:hover{border-color:var(--line-strong);transform:translateY(-1px)}
+.eq-kpi{background:var(--metric);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px 16px;box-shadow:var(--shadow-md);position:relative;overflow:hidden;}
 .eq-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);}
 .eq-kpi-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
 .eq-kpi-val{font-family:'Inter',sans-serif;font-weight:700;font-size:26px;color:var(--text);line-height:1.1;letter-spacing:-0.025em;}
 .eq-kpi-val.gold{color:var(--gold);}
 .eq-kpi-val.red{color:var(--red);}
 .eq-kpi-sub{font-size:12px;color:var(--text3);margin-top:6px;}
-.eq-kpi-sub.matched{color:var(--gold);opacity:.85;}
-.eq-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
-@media(max-width:600px){.eq-cards{grid-template-columns:1fr;}}
-.eq-card{background:var(--metric);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-md);position:relative;overflow:hidden;}
-.eq-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);}
-.eq-card-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
-.eq-card-title::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold);}
-.eq-card-comm-val{font-family:'Inter',sans-serif;font-weight:700;font-size:28px;color:var(--text);line-height:1.1;letter-spacing:-0.025em;margin-bottom:4px;}
-.eq-card-comm-detail{font-size:12px;color:var(--text3);margin-bottom:16px;}
-.eq-card-comm-detail.matched{color:var(--gold);opacity:.85;}
-.eq-counters{display:flex;gap:10px;margin-top:4px;}
+.eq-section{margin-bottom:22px;}
+.eq-section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.eq-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.eq-section-title::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;}
+.eq-section-title.setter::before{background:var(--green);}
+.eq-section-title.closer::before{background:var(--blue);}
+.eq-member-card{background:var(--metric);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow-md);margin-bottom:10px;}
+.eq-member-hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.eq-member-rules{background:var(--surface-2);border-radius:var(--rs);padding:14px 16px;margin-top:14px;border:1px solid var(--line);}
+.eq-add-form{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--metric);border:1px dashed rgba(224,181,74,.2);border-radius:var(--r);margin-bottom:10px;flex-wrap:wrap;}
+.eq-counters{display:flex;gap:10px;}
 .eq-counter{flex:1;background:var(--surface-3);border:1px solid var(--line);border-radius:var(--rs);padding:10px 12px;text-align:center;}
-.eq-counter-val{font-size:22px;font-weight:700;margin-bottom:2px;font-family:'Inter',sans-serif;letter-spacing:-0.02em;}
+.eq-counter-val{font-size:20px;font-weight:700;margin-bottom:2px;font-family:'Inter',sans-serif;letter-spacing:-0.02em;}
 .eq-counter-label{color:var(--text3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
-.eq-counter.pif .eq-counter-val{color:var(--green);}
-.eq-counter.cuotas .eq-counter-val{color:var(--blue);}
-.eq-rules-wrap{background:var(--metric);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-md);}
-.eq-rules-header{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;font-weight:600;margin-bottom:22px;letter-spacing:-0.01em;}
-.eq-rules-role{margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid var(--line);}
-.eq-rules-role:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
-.eq-rules-role-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .eq-add-btn{background:transparent;border:1px dashed rgba(224,181,74,.25);color:var(--text3);border-radius:var(--rs);padding:4px 12px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;transition:.15s;}
 .eq-add-btn:hover{border-color:var(--gold-border);color:var(--gold);}
 .eq-rule-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
@@ -3971,6 +4044,7 @@ function renderEquipo(){
 .eq-rule-del{background:transparent;border:none;color:var(--text3);font-size:19px;cursor:pointer;padding:0 4px;line-height:1;transition:.15s;opacity:.5;}
 .eq-rule-del:hover{color:var(--red);opacity:1;}
 .eq-empty-rules{color:var(--text3);font-size:13px;font-style:italic;padding:4px 0;}
+.eq-empty-section{color:var(--text3);font-size:13px;padding:16px;text-align:center;background:var(--surface-2);border-radius:var(--rs);border:1px dashed var(--line);margin-bottom:10px;}
 </style>
 <div class="eq-wrap">
   <h1 class="page-title">Equipo</h1>
@@ -3998,63 +4072,47 @@ function renderEquipo(){
       ${revenue>0?`<div class="eq-kpi-sub">${((totalTeam/revenue)*100).toFixed(1)}% de la facturación</div>`:''}
     </div>
     <div class="eq-kpi">
-      <div class="eq-kpi-label">Margen Neto (post-comisiones)</div>
+      <div class="eq-kpi-label">Margen Neto</div>
       <div class="eq-kpi-val gold">${fmtUSD(revenue-totalTeam)}</div>
       ${revenue>0?`<div class="eq-kpi-sub">${(((revenue-totalTeam)/revenue)*100).toFixed(1)}% del total facturado</div>`:''}
     </div>
   </div>
 
-  <div class="eq-cards">
-    <div class="eq-card">
-      <div class="eq-card-title">Setter</div>
-      <div class="metric-label">Comisión Generada</div>
-      <div class="eq-card-comm-val">${fmtUSD(setterAmt)}</div>
-      <div class="eq-card-comm-detail ${setterComm.rule?'matched':''}">${commDetail(setterComm,revenue,rules.setter)}</div>
-      <div class="eq-counters">
-        <div class="eq-counter" style="border-color:rgba(224,181,74,.15)">
-          <div class="eq-counter-val" style="color:var(--gold)">${agendasCount}</div>
-          <div class="eq-counter-label">Agendas</div>
-        </div>
-      </div>
+  <div class="eq-section">
+    <div class="eq-section-hdr">
+      <div class="eq-section-title setter">Setters <span style="color:var(--text3);font-weight:400">(${setters.length})</span></div>
+      <button class="eq-add-btn" onclick="equipoShowAddForm('setter')">+ Agregar setter</button>
     </div>
-    <div class="eq-card">
-      <div class="eq-card-title">Closer</div>
-      <div class="metric-label">Comisión Generada</div>
-      <div class="eq-card-comm-val">${fmtUSD(closerAmt)}</div>
-      <div class="eq-card-comm-detail ${closerComm.rule?'matched':''}">${commDetail(closerComm,revenue,rules.closer)}</div>
-      <div class="eq-counters">
-        <div class="eq-counter pif">
-          <div class="eq-counter-val">${pifCount}</div>
-          <div class="eq-counter-label">Cierre PIF</div>
-        </div>
-        <div class="eq-counter cuotas">
-          <div class="eq-counter-val">${cuotasCount}</div>
-          <div class="eq-counter-label">Cierre Cuotas</div>
-        </div>
-      </div>
-    </div>
+    ${_equipoAddingRole==='setter'?addForm('setter'):''}
+    ${setters.length===0&&_equipoAddingRole!=='setter'?'<div class="eq-empty-section">No hay setters. Agregá uno con el botón de arriba.</div>':''}
+    ${setters.map(m=>{
+      const cntHtml=`<div class="eq-counter" style="border-color:rgba(224,181,74,.15)">
+        <div class="eq-counter-val" style="color:var(--gold)">${agendasCount}</div>
+        <div class="eq-counter-label">Agendas</div>
+      </div>`;
+      return memberCard(m,cntHtml);
+    }).join('')}
   </div>
 
-  <div class="eq-rules-wrap">
-    <div class="eq-rules-header">⚙ Configurar Comisiones</div>
-    <div class="eq-rules-role">
-      <div class="eq-rules-role-title">
-        Setter
-        <button class="eq-add-btn" onclick="equipoAddRule('setter')">+ Agregar regla</button>
-      </div>
-      ${rules.setter.length===0
-        ?'<div class="eq-empty-rules">Sin reglas. Agrega una para calcular comisiones automáticamente.</div>'
-        :rules.setter.map(r=>ruleRow('setter',r)).join('')}
+  <div class="eq-section">
+    <div class="eq-section-hdr">
+      <div class="eq-section-title closer">Closers <span style="color:var(--text3);font-weight:400">(${closers.length})</span></div>
+      <button class="eq-add-btn" onclick="equipoShowAddForm('closer')">+ Agregar closer</button>
     </div>
-    <div class="eq-rules-role">
-      <div class="eq-rules-role-title">
-        Closer
-        <button class="eq-add-btn" onclick="equipoAddRule('closer')">+ Agregar regla</button>
-      </div>
-      ${rules.closer.length===0
-        ?'<div class="eq-empty-rules">Sin reglas. Agrega una para calcular comisiones automáticamente.</div>'
-        :rules.closer.map(r=>ruleRow('closer',r)).join('')}
-    </div>
+    ${_equipoAddingRole==='closer'?addForm('closer'):''}
+    ${closers.length===0&&_equipoAddingRole!=='closer'?'<div class="eq-empty-section">No hay closers. Agregá uno con el botón de arriba.</div>':''}
+    ${closers.map(m=>{
+      const cntHtml=`
+        <div class="eq-counter" style="border-color:rgba(92,184,122,.2)">
+          <div class="eq-counter-val" style="color:var(--green)">${pifCount}</div>
+          <div class="eq-counter-label">Cierre PIF</div>
+        </div>
+        <div class="eq-counter" style="border-color:rgba(96,144,212,.2)">
+          <div class="eq-counter-val" style="color:var(--blue)">${cuotasCount}</div>
+          <div class="eq-counter-label">Cierre Cuotas</div>
+        </div>`;
+      return memberCard(m,cntHtml);
+    }).join('')}
   </div>
 </div>`;
 }
