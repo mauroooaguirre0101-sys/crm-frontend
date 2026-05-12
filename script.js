@@ -3342,6 +3342,7 @@ async function saveCierre(){
   const c1=new Date(hoy); c1.setDate(hoy.getDate()+30);
   const c2=new Date(hoy); c2.setDate(hoy.getDate()+60);
   const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+programaMeses);
+  const origenLead=window._pendingCierre?.lead?.origen||null;
   const clienteData={
     id:uid(),
     nombre,
@@ -3358,12 +3359,13 @@ async function saveCierre(){
     programa:programaMeses+' meses',
     ...(esCuotas?{nroCuotas}:{}),
     comprobante,
-    comprovanteImg
+    comprovanteImg,
+    origen:origenLead
   };
 
   // Intentar crear en Railway; si no existe endpoint, guardamos local
   try{
-    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:cash,comprobante,estado:'Al día',pp:clienteData.pp,proxpaso:clienteData.proxpaso,road:clienteData.road,mod:clienteData.mod,proxpago:clienteData.proxpago,programa:clienteData.programa})});
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:cash,comprobante,estado:'Al día',pp:clienteData.pp,proxpaso:clienteData.proxpaso,road:clienteData.road,mod:clienteData.mod,proxpago:clienteData.proxpago,programa:clienteData.programa,origen:origenLead})});
     if(res.ok){
       const data=await res.json().catch(()=>({}));
       if(data?.id) clienteData.id=data.id;
