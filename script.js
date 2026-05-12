@@ -1489,20 +1489,19 @@ window.deleteLead=function(id){ return delLead(id); };
 
 // ========== CLIENTES ==========
 function _clientOrigenBadge(x){
-  // 1. Use stored origen if available
-  let o=x.origen||null;
-  // 2. Fallback: search leadsCache by instagram, then by name
-  if(!o&&leadsCache?.length){
+  // Search leadsCache by instagram first, then by name → use etiqueta
+  let etiqueta=null;
+  if(leadsCache?.length){
     const ig=(x.instagram||'').toLowerCase();
     let lead=ig?leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig):null;
     if(!lead){
       const nom=(x.nombre||'').toLowerCase();
       lead=nom?leadsCache.find(l=>(l.nombre||'').toLowerCase()===nom):null;
     }
-    o=lead?.origen||null;
+    etiqueta=lead?.etiqueta||null;
   }
-  if(!o) return '<span style="color:var(--text3);font-size:11px">—</span>';
-  return `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(224,181,74,.1);border:1px solid rgba(224,181,74,.2);color:var(--gold);white-space:nowrap">${o}</span>`;
+  if(!etiqueta) return '<span style="color:var(--text3);font-size:11px">—</span>';
+  return `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(224,181,74,.1);border:1px solid rgba(224,181,74,.2);color:var(--gold);white-space:nowrap">${etiqueta}</span>`;
 }
 
 function _clientsRow(x,i){
