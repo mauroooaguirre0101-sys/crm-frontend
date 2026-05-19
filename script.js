@@ -6326,6 +6326,11 @@ function _renderFormsEditor(){
       optsPart = `<div style="margin-top:6px;font-size:11.5px;color:var(--text3)">Escala del ${q.min||1} al ${q.max||10}</div>`;
     }
 
+    const deleteBtn = isEdit
+      ? `<button onclick="_formsRemoveQuestion(${i})"
+           style="width:24px;height:24px;border-radius:50%;background:rgba(212,96,96,.15);border:1px solid rgba(212,96,96,.3);color:var(--red);font-size:15px;line-height:1;cursor:pointer;flex-shrink:0;margin-top:1px" title="Eliminar pregunta">×</button>`
+      : '';
+
     return `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:14px 16px">
       <div style="display:flex;gap:10px;align-items:flex-start">
         <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--text3);background:var(--surface-3);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-top:2px;white-space:nowrap">${q.id}</span>
@@ -6334,6 +6339,7 @@ function _renderFormsEditor(){
           <div style="margin-top:4px;font-size:10.5px;color:var(--text3)">${tipoLabel[q.tipo]||q.tipo}${q.maxlength?' · máx '+q.maxlength+' chars':''}</div>
           ${optsPart}
         </div>
+        ${deleteBtn}
       </div>
     </div>`;
   }).join('');
@@ -6378,6 +6384,13 @@ function _formsRemoveOpcion(qIdx, oIdx){
   const q = _formsQCache[_formsTab][qIdx];
   if(!q.opciones || q.opciones.length <= 1) return;
   q.opciones.splice(oIdx, 1);
+  _renderFormsEditor();
+}
+
+function _formsRemoveQuestion(qIdx){
+  const qs = _formsQCache[_formsTab];
+  if(!qs || qs.length <= 1) return;
+  qs.splice(qIdx, 1);
   _renderFormsEditor();
 }
 
