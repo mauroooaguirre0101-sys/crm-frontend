@@ -6230,11 +6230,13 @@ document.addEventListener('click', e=>{
 
 // ========== FORMULARIOS ==========
 let _formsTab = 'onboarding';
+let _formsEditMode = false;
 let _formsQCache = {};
 let _formsRespCache = {};
 
 function switchFormsTab(tipo){
   _formsTab = tipo;
+  _formsEditMode = false;
   document.querySelectorAll('[id^="forms-tab-"]').forEach(b=>{
     b.classList.toggle('active', b.id === 'forms-tab-'+tipo);
   });
@@ -6245,6 +6247,7 @@ function switchFormsTab(tipo){
 async function renderForms(){
   const pg = document.getElementById('page-forms');
   if(!pg) return;
+  _formsEditMode = false;
   const body = document.getElementById('forms-body');
   const rbody = document.getElementById('forms-responses-body');
   if(body) body.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:16px 0">Cargando…</div>';
@@ -6252,15 +6255,17 @@ async function renderForms(){
 
   const cid = getCid();
   try {
-    const [tOnb, tRep, rAll] = await Promise.all([
+    const [tOnb, tRep] = await Promise.all([
       fetch(`${API_URL}/form-template?cliente_id=${encodeURIComponent(cid)}&tipo=onboarding`).then(r=>r.json()),
       fetch(`${API_URL}/form-template?cliente_id=${encodeURIComponent(cid)}&tipo=reporte_semanal`).then(r=>r.json()),
-      apiFetch(`${API_URL}/form-responses`).then(r=>r.ok?r.json():[]).catch(()=>[]),
     ]);
-    _formsQCache.onboarding = (tOnb.questions||[]).map(q=>({...q}));
-    _formsQCache.reporte_semanal = (tRep.questions||[]).map(q=>({...q}));
-    _formsRespCache.onboarding = (rAll||[]).filter(r=>r.tipo==='onboarding');
-    _formsRespCache.reporte_semanal = (rAll||[]).filter(r=>r.tipo==='reporte_semanal');
+    _formsQCache.onboarding = (tOnb.questions||[]).map(q=>({...q,opciones:q.opciones?[...q.opciones]:undefined}));
+    _formsQCache.reporte_semanal = (tRep.questions||[]).map(q=>({...q,opciones:q.opciones?[...q.opciones]:undefined}));
+
+    let rAll = [];
+    try { rAll = await apiFetch(`${API_URL}/form-responses`).then(r=>r.ok?r.json():[]); } catch{}
+    _formsRespCache.onboarding = rAll.filter(r=>r.tipo==='onboarding');
+    _formsRespCache.reporte_semanal = rAll.filter(r=>r.tipo==='reporte_semanal');
   } catch(e) {
     if(body) body.innerHTML = `<div style="color:var(--red);font-size:13px">Error al cargar: ${e.message}</div>`;
     return;
@@ -6269,40 +6274,111 @@ async function renderForms(){
   _renderFormsResponses();
 }
 
+function _formsEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function _renderFormsEditor(){
   const body = document.getElementById('forms-body');
   if(!body) return;
   const questions = (_formsQCache[_formsTab]||[]);
-  if(!questions.length){
-    body.innerHTML='<div style="color:var(--text3);font-size:13px;padding:8px 0">Sin preguntas cargadas.</div>';
-    return;
-  }
-  const tipoLabel = _formsTab==='onboarding' ? 'Onboarding' : 'Reporte Semanal';
   const cid = getCid();
   const baseUrl = window.location.origin;
   const formUrl = _formsTab==='onboarding'
     ? `${baseUrl}/onboarding.html?cliente_id=${encodeURIComponent(cid)}&tipo=onboarding`
     : `${baseUrl}/formulario_semanal.html?cliente_id=${encodeURIComponent(cid)}`;
+  const isEdit = _formsEditMode;
+  const isAdmin = currentUserRole === 'admin';
+
+  const tipoLabel = {radio:'Opción múltiple', checkbox:'Casillas', textarea:'Texto largo', text:'Texto corto', scale:'Escala'};
+
+  const qRows = questions.map((q,i)=>{
+    const hasOpts = (q.tipo==='radio'||q.tipo==='checkbox') && Array.isArray(q.opciones);
+
+    const titlePart = isEdit
+      ? `<input type="text" value="${_formsEsc(q.titulo)}"
+           oninput="_formsQCache['${_formsTab}'][${i}].titulo=this.value"
+           style="width:100%;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:7px;padding:7px 10px;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none"
+           onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">`
+      : `<div style="font-size:13.5px;font-weight:600;color:var(--text);line-height:1.4">${_formsEsc(q.titulo)}</div>`;
+
+    let optsPart = '';
+    if(hasOpts){
+      if(isEdit){
+        const optInputs = q.opciones.map((o,j)=>`
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" value="${_formsEsc(o)}"
+              oninput="_formsQCache['${_formsTab}'][${i}].opciones[${j}]=this.value"
+              style="flex:1;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;font-family:inherit;outline:none"
+              onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">
+            <button onclick="_formsRemoveOpcion(${i},${j})"
+              style="width:22px;height:22px;border-radius:50%;background:rgba(212,96,96,.15);border:1px solid rgba(212,96,96,.3);color:var(--red);font-size:14px;line-height:1;cursor:pointer;flex-shrink:0">×</button>
+          </div>`).join('');
+        optsPart = `<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+          ${optInputs}
+          <button onclick="_formsAddOpcion(${i})"
+            style="align-self:flex-start;margin-top:2px;font-size:11px;padding:4px 10px;border-radius:6px;background:rgba(224,181,74,.08);border:1px dashed rgba(224,181,74,.4);color:var(--gold);cursor:pointer">+ Agregar opción</button>
+        </div>`;
+      } else {
+        optsPart = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+          ${q.opciones.map(o=>`<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--surface-3);border:1px solid var(--line);color:var(--text2)">${_formsEsc(o)}</span>`).join('')}
+        </div>`;
+      }
+    } else if(q.tipo==='scale'){
+      optsPart = `<div style="margin-top:6px;font-size:11.5px;color:var(--text3)">Escala del ${q.min||1} al ${q.max||10}</div>`;
+    }
+
+    return `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:14px 16px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--text3);background:var(--surface-3);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-top:2px;white-space:nowrap">${q.id}</span>
+        <div style="flex:1">
+          ${titlePart}
+          <div style="margin-top:4px;font-size:10.5px;color:var(--text3)">${tipoLabel[q.tipo]||q.tipo}${q.maxlength?' · máx '+q.maxlength+' chars':''}</div>
+          ${optsPart}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const editBtn = isAdmin && !isEdit
+    ? `<button onclick="_formsEditMode=true;_renderFormsEditor()"
+        style="font-size:12px;padding:7px 16px;border-radius:8px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer;font-weight:600">✏️ Editar preguntas</button>`
+    : '';
+
+  const saveRow = isEdit ? `
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button onclick="_formsEditMode=false;renderForms()"
+        style="font-size:12px;padding:7px 16px;border-radius:8px;background:transparent;border:1px solid var(--line-strong);color:var(--text3);cursor:pointer">Cancelar</button>
+      <button id="forms-save-btn" onclick="saveFormTemplate()"
+        style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,var(--gold),#c89732);color:#000;font-weight:700;border:none;cursor:pointer">Guardar cambios</button>
+    </div>` : '';
 
   body.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="font-size:11px;color:var(--text3)">Link público del formulario:</div>
-      <code style="font-size:10.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--gold);word-break:break-all;flex:1">${formUrl}</code>
-      <button onclick="_copyFormsLink()" style="font-size:11px;padding:4px 10px;border-radius:6px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer;white-space:nowrap">Copiar</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:7px 12px">
+        <span style="font-size:10.5px;color:var(--text3);white-space:nowrap">Link público:</span>
+        <code style="font-size:11px;color:var(--gold);word-break:break-all;flex:1">${formUrl}</code>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="_copyFormsLink()"
+          style="font-size:12px;padding:7px 14px;border-radius:8px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer;white-space:nowrap">Copiar link</button>
+        ${editBtn}
+      </div>
     </div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px">Preguntas — ${tipoLabel}</div>
-    <div id="forms-q-list" style="display:flex;flex-direction:column;gap:8px">
-      ${questions.map((q,i)=>`
-        <div style="display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
-          <span style="font-size:10px;font-weight:700;color:var(--text3);min-width:28px">${q.id}</span>
-          <input type="text" value="${(q.titulo||'').replace(/"/g,'&quot;')}"
-            oninput="_formsQCache['${_formsTab}'][${i}].titulo=this.value"
-            style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--line-strong);color:var(--text);font-size:13px;font-family:inherit;padding:2px 4px;outline:none"
-            onfocus="this.style.borderBottomColor='var(--gold)'" onblur="this.style.borderBottomColor='var(--line-strong)'">
-          <span style="font-size:10px;color:var(--text3);white-space:nowrap">${q.tipo}</span>
-        </div>`).join('')}
-    </div>
-    <div style="margin-top:6px;font-size:11px;color:var(--text3)">Editá el texto de las preguntas y presioná "Guardar cambios".</div>`;
+    <div style="display:flex;flex-direction:column;gap:8px">${qRows||'<div style="color:var(--text3);font-size:13px">Sin preguntas.</div>'}</div>
+    ${saveRow}`;
+}
+
+function _formsAddOpcion(qIdx){
+  const q = _formsQCache[_formsTab][qIdx];
+  if(!q.opciones) q.opciones = [];
+  q.opciones.push('Nueva opción');
+  _renderFormsEditor();
+}
+
+function _formsRemoveOpcion(qIdx, oIdx){
+  const q = _formsQCache[_formsTab][qIdx];
+  if(!q.opciones || q.opciones.length <= 1) return;
+  q.opciones.splice(oIdx, 1);
+  _renderFormsEditor();
 }
 
 function _copyFormsLink(){
@@ -6326,9 +6402,10 @@ async function saveFormTemplate(){
     });
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||'Error'); }
     toast('Formulario guardado ✓');
+    _formsEditMode = false;
+    _renderFormsEditor();
   } catch(e) {
     toast('✗ Error al guardar: '+e.message);
-  } finally {
     if(btn){ btn.disabled=false; btn.textContent='Guardar cambios'; }
   }
 }
@@ -6354,12 +6431,12 @@ function _renderFormsResponses(){
         const preview = Object.entries(resp).slice(0,2).map(([k,v])=>{
           const label = qMap[k]||k;
           const val = Array.isArray(v)?v.join(', '):String(v||'');
-          return `<span style="color:var(--text3)">${label}:</span> ${val.slice(0,60)}${val.length>60?'…':''}`;
+          return `<span style="color:var(--text3)">${_formsEsc(label)}:</span> ${_formsEsc(val.slice(0,60))}${val.length>60?'…':''}`;
         }).join(' &nbsp;·&nbsp; ');
         return `
           <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 16px;cursor:pointer" onclick="_toggleFormResp('fresp-${i}')">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-              <div style="font-size:13px;font-weight:600">${name}</div>
+              <div style="font-size:13px;font-weight:600">${_formsEsc(name)}</div>
               <div style="display:flex;align-items:center;gap:12px">
                 <div style="font-size:11px;color:var(--text3)">${date}</div>
                 <button onclick="event.stopPropagation();_printFormResp(${i})" style="font-size:10.5px;padding:3px 10px;border-radius:6px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer">PDF</button>
@@ -6370,7 +6447,7 @@ function _renderFormsResponses(){
               ${Object.entries(resp).map(([k,v])=>{
                 const label = qMap[k]||k;
                 const val = Array.isArray(v)?v.join(', '):String(v||'—');
-                return `<div style="margin-bottom:10px"><div style="font-size:10.5px;font-weight:700;color:var(--text3);margin-bottom:3px">${label}</div><div style="font-size:12.5px;color:var(--text)">${val}</div></div>`;
+                return `<div style="margin-bottom:10px"><div style="font-size:10.5px;font-weight:700;color:var(--text3);margin-bottom:3px">${_formsEsc(label)}</div><div style="font-size:12.5px;color:var(--text)">${_formsEsc(val)}</div></div>`;
               }).join('')}
             </div>
           </div>`;
