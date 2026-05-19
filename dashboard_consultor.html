@@ -732,6 +732,10 @@ function renderAlumnosList(){
       '<input id="ig-'+a.id+'" value="'+(a.instagram||'')+'" placeholder="instagram (sin @)" onclick="event.stopPropagation()" oninput="this.value=this.value.replace(/^@+/,\'\')" style="flex:1;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:11.5px;font-family:inherit;outline:none">'+
       '<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();saveInstagram(\''+a.id+'\')">Guardar @</button>'+
       '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:220px">'+
+      '<input id="em-'+a.id+'" type="email" value="'+(a.email||'')+'" placeholder="email del alumno" onclick="event.stopPropagation()" style="flex:1;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:11.5px;font-family:inherit;outline:none">'+
+      '<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();saveEmail(\''+a.id+'\')">Guardar email</button>'+
+      '</div>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();copyLink(\''+a.id+'\')">🔗 Form</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();copyOnboardingLink(\''+a.id+'\')" style="border-color:rgba(92,184,122,.35);color:#5cb87a">'+(completoOnboarding?'✓ ':'')+'Onboarding</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(\''+a.id+'\')">Ver detalle</button>'+
@@ -749,6 +753,14 @@ async function saveInstagram(alumnoId){
   const res=await fetch(API_URL+'/alumnos/'+alumnoId,{method:'PATCH',headers:apiH(),body:JSON.stringify({instagram:ig})});
   if(!res.ok){toast('Error al guardar');return;}
   toast(ig?'@'+ig+' guardado ✓':'Instagram eliminado');await load();
+}
+
+async function saveEmail(alumnoId){
+  const input=document.getElementById('em-'+alumnoId);
+  const email=input.value.trim().toLowerCase();
+  const res=await fetch(API_URL+'/alumnos/'+alumnoId,{method:'PATCH',headers:apiH(),body:JSON.stringify({email})});
+  if(!res.ok){toast('Error al guardar');return;}
+  toast(email?'Email guardado ✓':'Email eliminado');await load();
 }
 
 /* ── Tendencias view ── */
