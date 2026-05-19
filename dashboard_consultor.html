@@ -398,7 +398,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <script>
 const API_URL='https://noble-determination-production.up.railway.app';
 function apiH(){return{'Content-Type':'application/json','x-cliente-id':localStorage.getItem('clienteSeleccionado')||'','x-user-email':localStorage.getItem('userEmail')||''};}
-let alumnos=[],reportes=[],sesiones=[],activeFilter='todos',expandedAlumnos=new Set(),alumnosSearch='';
+let alumnos=[],reportes=[],sesiones=[],onboardings=[],activeFilter='todos',expandedAlumnos=new Set(),alumnosSearch='';
 let dateFilter={type:'week',from:null,to:null};
 let editingSessionId=null;
 
@@ -694,6 +694,7 @@ function renderAlumnosList(){
     const total=allReps.length;
     const st=stCfg(repPeriod&&repPeriod.estado);
     const col=aColor(a.nombre+(a.apellido||''));
+    const completoOnboarding=onboardings.some(o=>o.alumno_id===a.id);
     const isOpen=expandedAlumnos.has(a.id);
     const igDisplay=a.instagram?'@'+a.instagram:'Sin instagram';
     const igColor=a.instagram?'var(--text3)':'rgba(184,72,72,0.6)';
@@ -720,6 +721,7 @@ function renderAlumnosList(){
       (nextSess?'<span style="color:var(--blue);font-size:10.5px">📅 Próx: '+new Date(nextSess.fecha+'T00:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})+'</span>':'')+
       '</div></div></div>'+
       '<div class="alumno-rep-count">'+
+      (completoOnboarding?'<span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.15);border:1px solid rgba(92,184,122,.3);color:#5cb87a;font-weight:700;white-space:nowrap">✓ Onboarding</span>':'')+
       '<span class="badge" style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+';font-size:9.5px">'+st.label+'</span>'+
       '<span class="rep-count-badge">'+total+' reporte'+(total!==1?'s':'')+'</span>'+
       '<button class="expand-btn">'+(isOpen?'▲':'▼')+'</button>'+
@@ -731,6 +733,7 @@ function renderAlumnosList(){
       '<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();saveInstagram(\''+a.id+'\')">Guardar @</button>'+
       '</div>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();copyLink(\''+a.id+'\')">🔗 Form</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();copyOnboardingLink(\''+a.id+'\')" style="border-color:rgba(92,184,122,.35);color:#5cb87a">'+(completoOnboarding?'✓ ':'')+'Onboarding</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(\''+a.id+'\')">Ver detalle</button>'+
       '<button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openAddSession(\''+a.id+'\')">📅 Próxima sesión</button>'+
       '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delAlumno(\''+a.id+'\')" style="width:auto">Eliminar</button>'+
@@ -1098,6 +1101,18 @@ function copyLink(alumnoId){
 }
 function copyGeneralFormLink(){copyLink('');}
 
+function copyOnboardingLink(alumnoId){
+  const cid=localStorage.getItem('clienteSeleccionado')||'';
+  const a=alumnos.find(x=>x.id===alumnoId);
+  const nombre=a?(a.nombre+' '+(a.apellido||'')).trim():'';
+  const ig=a?(a.instagram||''):'';
+  const url=window.location.origin+'/onboarding.html?cliente_id='+encodeURIComponent(cid)+
+    '&tipo=onboarding&alumno_id='+encodeURIComponent(alumnoId)+
+    (nombre?'&nombre='+encodeURIComponent(nombre):'')+
+    (ig?'&ig='+encodeURIComponent(ig):'');
+  navigator.clipboard.writeText(url).then(()=>toast('Link de onboarding copiado ✓')).catch(()=>prompt('Copiá este link:',url));
+}
+
 /* ── Modal: detalle alumno ── */
 function openDetail(alumnoId){
   const a=alumnos.find(x=>x.id===alumnoId);if(!a)return;
@@ -1332,14 +1347,16 @@ function toast(msg){
 }
 
 async function load(){
-  const[r1,r2,r3]=await Promise.all([
+  const[r1,r2,r3,r4]=await Promise.all([
     fetch(API_URL+'/alumnos',{headers:apiH()}),
     fetch(API_URL+'/reportes',{headers:apiH()}),
-    fetch(API_URL+'/sesiones',{headers:apiH()})
+    fetch(API_URL+'/sesiones',{headers:apiH()}),
+    fetch(API_URL+'/form-responses?tipo=onboarding',{headers:apiH()}),
   ]);
   alumnos=r1.ok?await r1.json():[];
   reportes=r2.ok?await r2.json():[];
   sesiones=r3.ok?await r3.json():[];
+  onboardings=r4.ok?await r4.json():[];
   renderAll();
   const cv=document.querySelector('.nav-item.active[data-view]');
   if(cv&&cv.dataset.view!=='semana'){

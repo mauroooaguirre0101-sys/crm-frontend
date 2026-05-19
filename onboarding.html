@@ -90,6 +90,7 @@ const params  = new URLSearchParams(window.location.search);
 const clienteId = params.get('cliente_id') || '';
 const alumnoIg  = (params.get('ig') || '').replace(/^@/, '');
 const alumnoNombre = decodeURIComponent(params.get('nombre') || '');
+const alumnoId  = params.get('alumno_id') || '';
 const formTipo  = params.get('tipo') || 'onboarding';
 
 let questions = [];
@@ -237,6 +238,7 @@ async function submitForm(){
   const payload={
     cliente_id: clienteId,
     tipo: formTipo,
+    alumno_id: alumnoId || null,
     alumno_nombre: responses['_nombre']||alumnoNombre,
     alumno_instagram: responses['_instagram']||alumnoIg,
     responses,
