@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte Semanal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0f;--surface:#141621;--surface-2:#1a1d2b;--surface-3:#222637;
+  --line:rgba(255,255,255,0.08);--line-strong:rgba(255,255,255,0.13);
+  --text:#f0eee8;--text2:#9ba0b4;--text3:#5a607a;
+  --gold:#e0b54a;--gold-border:rgba(224,181,74,0.22);
+  --green-t:#5cb87a;--blue:#6090d4;--red:#d46060;--orange:#e0a848;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.5}
+body{display:flex;align-items:flex-start;justify-content:center;padding:40px 16px 80px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:600px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.5)}
+
+.card-header{background:linear-gradient(135deg,#1a1d2b 0%,#141621 100%);padding:28px 36px 24px;border-bottom:1px solid var(--line)}
+.week-label{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.card-header h1{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.card-header p{margin-top:6px;font-size:12.5px;color:var(--text2);line-height:1.5}
+
+.progress-bar{height:2px;background:var(--surface-2)}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease;width:0%}
+
+.form-body{padding:32px 36px}
+.step{display:none}.step.active{display:block}
+
+.step-counter{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.step-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.step-subtitle{font-size:12px;color:var(--text2);margin-bottom:22px;line-height:1.5}
+
+.field{margin-bottom:18px}
+label.lbl{display:block;font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px}
+input[type="text"],textarea{width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 13px;font-size:13px;font-family:inherit;color:var(--text);transition:border-color .2s;resize:none;outline:none;line-height:1.6}
+input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
+::placeholder{color:var(--text3)}
+.char-count{text-align:right;font-size:10.5px;color:var(--text3);margin-top:3px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.radio-option{flex:1;min-width:80px;cursor:pointer}
+.radio-option input{display:none}
+.radio-label{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;border:1px solid var(--line-strong);border-radius:10px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface-2);cursor:pointer;transition:all .15s;text-align:center;line-height:1.3}
+.emoji{font-size:18px}
+.radio-option input:checked + .radio-label{border-color:var(--gold);background:rgba(224,181,74,0.1);color:var(--gold)}
+.radio-label:hover{border-color:var(--line-strong);background:var(--surface-3);color:var(--text)}
+
+.checkbox-group{display:flex;flex-direction:column;gap:6px}
+.check-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:9px;cursor:pointer;background:var(--surface-2);transition:all .15s}
+.check-option:hover{background:var(--surface-3);border-color:var(--gold-border)}
+.check-option input[type="checkbox"]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
+.check-option span{font-size:12.5px;color:var(--text2);font-weight:500}
+
+.btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.dots{display:flex;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--surface-3);transition:all .3s}
+.dot.active{background:var(--gold);width:16px;border-radius:3px}
+.dot.done{background:rgba(224,181,74,0.4)}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:10px 22px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-back{background:transparent;color:var(--text3);padding-left:0}
+.btn-back:hover{color:var(--text2)}
+.btn-next{background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);min-width:120px;justify-content:center}
+.btn-next:hover{border-color:var(--gold);color:var(--gold)}
+.btn-submit{background:linear-gradient(135deg,var(--gold) 0%,#c89732 100%);color:#000;font-weight:700;min-width:140px;justify-content:center}
+.btn-submit:hover{opacity:.9;transform:translateY(-1px)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.success-screen{display:none;text-align:center;padding:16px 0 8px}
+.success-icon{width:68px;height:68px;background:rgba(92,184,122,0.12);border:1px solid rgba(92,184,122,0.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px}
+.success-screen h2{font-size:20px;font-weight:700;margin-bottom:8px}
+.success-screen p{font-size:13px;color:var(--text2);line-height:1.6;max-width:360px;margin:0 auto}
+.success-next{margin-top:20px;padding:14px 18px;background:var(--surface-2);border-radius:10px;font-size:12px;color:var(--text2);display:inline-block;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div class="week-label" id="week-label">Cargando…</div>
+    <h1>Reporte Semanal</h1>
+    <p>Contanos cómo fue tu semana. Son 5 minutos que hacen la diferencia.</p>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+  <div class="form-body">
+
+    <!-- STEP 1 -->
+    <div class="step active" id="step-1">
+      <div class="step-counter">Paso 1 de 5</div>
+      <div class="step-title">¿Quién sos?</div>
+      <div class="step-subtitle">Para asociar tu reporte correctamente.</div>
+      <div class="two-col">
+        <div class="field"><label class="lbl">Nombre</label><input type="text" id="nombre" placeholder="ej. Martina"></div>
+        <div class="field"><label class="lbl">Apellido</label><input type="text" id="apellido" placeholder="ej. Rodríguez"></div>
+      </div>
+      <div class="field" id="instagram-field">
+        <label class="lbl">@ de Instagram <span style="color:var(--text3);font-weight:400">(para identificarte)</span></label>
+        <input type="text" id="instagram" placeholder="ej. martina.rodriguez" autocomplete="off" oninput="this.value=this.value.replace(/^@+/,'')">
+      </div>
+      <div class="field">
+        <label class="lbl" id="lbl-q1">¿Cómo calificarías tu semana en general?</label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="estado" value="muy_bien"><div class="radio-label"><span class="emoji">🚀</span>Muy bien</div></label>
+          <label class="radio-option"><input type="radio" name="estado" value="bien"><div class="radio-label"><span class="emoji">✅</span>Bien</div></label>
+          <label class="radio-option"><input type="radio" name="estado" value="regular"><div class="radio-label"><span class="emoji">😐</span>Regular</div></label>
+          <label class="radio-option"><input type="radio" name="estado" value="dificil"><div class="radio-label"><span class="emoji">⚠️</span>Difícil</div></label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <div class="dots"><div class="dot active" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div><div class="dot" id="d4"></div><div class="dot" id="d5"></div></div>
+        <button class="btn btn-next" onclick="next(1)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step" id="step-2">
+      <div class="step-counter">Paso 2 de 5</div>
+      <div class="step-title">¿Cómo está tu negocio esta semana?</div>
+      <div class="step-subtitle">Un párrafo corto es suficiente.</div>
+      <div class="field">
+        <label class="lbl" id="lbl-q2">Situación actual</label>
+        <textarea id="situacion" rows="5" maxlength="500" placeholder="Ej: Esta semana lancé mi nueva propuesta y tuve 3 reuniones con potenciales clientes…" oninput="updateCount('situacion','c-sit',500)"></textarea>
+        <div class="char-count"><span id="c-sit">0</span>/500</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-back" onclick="prev(2)">← Atrás</button>
+        <div class="dots"><div class="dot done"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <button class="btn btn-next" onclick="next(2)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step" id="step-3">
+      <div class="step-counter">Paso 3 de 5</div>
+      <div class="step-title">Objetivos de esta semana</div>
+      <div class="step-subtitle">¿Qué te propusiste lograr? ¿Qué lograste realmente?</div>
+      <div class="field">
+        <label class="lbl" id="lbl-q3">Objetivos que te planteaste</label>
+        <textarea id="objetivos" rows="3" maxlength="400" placeholder="Ej: 1. Cerrar al menos 2 ventas. 2. Terminar el landing page…" oninput="updateCount('objetivos','c-obj',400)"></textarea>
+        <div class="char-count"><span id="c-obj">0</span>/400</div>
+      </div>
+      <div class="field">
+        <label class="lbl" id="lbl-q4">¿Cuáles lograste? ¿Qué quedó pendiente?</label>
+        <textarea id="logros" rows="3" maxlength="400" placeholder="Ej: Cerré 1 venta (no las 2). El landing quedó al 80%…" oninput="updateCount('logros','c-log',400)"></textarea>
+        <div class="char-count"><span id="c-log">0</span>/400</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-back" onclick="prev(3)">← Atrás</button>
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
+        <button class="btn btn-next" onclick="next(3)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step" id="step-4">
+      <div class="step-counter">Paso 4 de 5</div>
+      <div class="step-title">Desafíos y puntos de fricción</div>
+      <div class="step-subtitle">¿Dónde te trabaste esta semana?</div>
+      <div class="field">
+        <label class="lbl" id="lbl-q5">¿Qué problemas o desafíos encontraste?</label>
+        <textarea id="problemas" rows="4" maxlength="500" placeholder="Ej: Me costó mucho hacer seguimiento a los leads. No sé cómo manejar a un cliente difícil…" oninput="updateCount('problemas','c-prob',500)"></textarea>
+        <div class="char-count"><span id="c-prob">0</span>/500</div>
+      </div>
+      <div class="field">
+        <label class="lbl" id="lbl-q6">¿En qué áreas necesitás ayuda o apoyo específico?</label>
+        <div class="checkbox-group">
+          <label class="check-option"><input type="checkbox" name="ayuda" value="ventas"><span>💼 Ventas y cierre de clientes</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="marketing"><span>📣 Marketing y adquisición</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="operaciones"><span>⚙️ Operaciones y procesos</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="finanzas"><span>💰 Finanzas y pricing</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="equipo"><span>👥 Equipo y delegación</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="producto"><span>🛠️ Producto o servicio</span></label>
+          <label class="check-option"><input type="checkbox" name="ayuda" value="mindset"><span>🧠 Foco y mentalidad</span></label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-back" onclick="prev(4)">← Atrás</button>
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div><div class="dot"></div></div>
+        <button class="btn btn-next" onclick="next(4)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step" id="step-5">
+      <div class="step-counter">Paso 5 de 5</div>
+      <div class="step-title">Seguimiento de recomendaciones</div>
+      <div class="step-subtitle">¿Pudiste aplicar lo que conversamos la semana pasada?</div>
+      <div class="field">
+        <label class="lbl" id="lbl-q7">¿Implementaste las recomendaciones de la sesión anterior?</label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="implementacion" value="todas" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">✅</span>Sí, todas</div></label>
+          <label class="radio-option"><input type="radio" name="implementacion" value="algunas" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">🔸</span>Algunas</div></label>
+          <label class="radio-option"><input type="radio" name="implementacion" value="ninguna" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">❌</span>Ninguna</div></label>
+          <label class="radio-option"><input type="radio" name="implementacion" value="primera_vez" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">👋</span>Primera vez</div></label>
+        </div>
+      </div>
+      <div class="field" id="field-porque" style="display:none">
+        <label class="lbl">¿Por qué no las pudiste implementar?</label>
+        <textarea id="porque_no" rows="3" maxlength="300" placeholder="Ej: No tuve tiempo, me surgió una urgencia…"></textarea>
+      </div>
+      <div class="field">
+        <label class="lbl" id="lbl-q8">¿Querés agregar algo más? <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+        <textarea id="extra" rows="3" maxlength="400" placeholder="Cualquier cosa que quieras que tengamos en cuenta…"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-back" onclick="prev(5)">← Atrás</button>
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div></div>
+        <button class="btn btn-submit" id="btn-submit" onclick="submitForm()">Enviar reporte ✓</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="success-screen" id="success">
+      <div class="success-icon">✓</div>
+      <h2>¡Reporte enviado!</h2>
+      <p>Recibimos tu reporte de la semana. Tu consultor lo revisará antes de la próxima sesión y podrá preparar un apoyo más personalizado para vos.</p>
+      <div class="success-next">📅 Recordá tu próxima sesión y tené a mano tus preguntas principales.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://noble-determination-production.up.railway.app';
+const params = new URLSearchParams(window.location.search);
+const clienteId = params.get('cliente_id') || '';
+const alumnoId  = params.get('alumno_id')  || '';
+
+// Week label
+(function(){
+  const now=new Date(),day=now.getDay();
+  const mon=new Date(now);mon.setDate(now.getDate()+(day===0?-6:1-day));
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const m=mon.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+  const s=sun.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('week-label').textContent='Semana del '+m+' — '+s;
+})();
+
+// Pre-fill from alumno_id — si el link es personal, ocultar el campo instagram (ya identificado)
+if(alumnoId){
+  document.getElementById('instagram-field').style.display='none';
+  fetch(API_URL+'/alumno/'+alumnoId).then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(d){
+      if(d.nombre)document.getElementById('nombre').value=d.nombre;
+      if(d.apellido)document.getElementById('apellido').value=d.apellido;
+    }
+  }).catch(function(){});
+}
+
+// Show error if no cliente_id
+if(!clienteId){
+  document.querySelector('.form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px">Link inválido. Pedile a tu consultor que te comparta el link correcto.</div>';
+}
+
+function updateProgress(step){document.getElementById('progress').style.width=((step-1)/5*100)+'%';}
+
+function next(from){
+  if(from===1&&!document.getElementById('nombre').value.trim()){document.getElementById('nombre').focus();return;}
+  showStep(from+1);
+}
+function prev(from){showStep(from-1);}
+function showStep(n){
+  document.querySelectorAll('.step').forEach(function(s){s.classList.remove('active');});
+  var el=document.getElementById('step-'+n);
+  if(el)el.classList.add('active');
+  updateProgress(n);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function updateCount(inputId,countId,max){
+  document.getElementById(countId).textContent=document.getElementById(inputId).value.length;
+}
+
+function togglePorque(radio){
+  document.getElementById('field-porque').style.display=(radio.value==='ninguna'||radio.value==='algunas')?'block':'none';
+}
+
+async function submitForm(){
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true;btn.textContent='Enviando…';
+
+  // Week range for semana field
+  const now=new Date(),day=now.getDay();
+  const mon=new Date(now);mon.setDate(now.getDate()+(day===0?-6:1-day));
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const semana=mon.toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' — '+sun.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
+
+  const payload={
+    cliente_id:clienteId,
+    alumno_id:alumnoId||null,
+    nombre:document.getElementById('nombre').value.trim(),
+    apellido:document.getElementById('apellido').value.trim(),
+    instagram:document.getElementById('instagram').value.trim().replace(/^@/,''),
+    semana:semana,
+    estado:document.querySelector('input[name="estado"]:checked')&&document.querySelector('input[name="estado"]:checked').value||'',
+    situacion:document.getElementById('situacion').value.trim(),
+    objetivos:document.getElementById('objetivos').value.trim(),
+    logros:document.getElementById('logros').value.trim(),
+    problemas:document.getElementById('problemas').value.trim(),
+    ayuda:Array.from(document.querySelectorAll('input[name="ayuda"]:checked')).map(function(c){return c.value;}),
+    implementacion:document.querySelector('input[name="implementacion"]:checked')&&document.querySelector('input[name="implementacion"]:checked').value||'',
+    porque_no:document.getElementById('porque_no').value.trim(),
+    extra:document.getElementById('extra').value.trim(),
+  };
+
+  try{
+    const res=await fetch(API_URL+'/reportes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!res.ok){const e=await res.json().catch(function(){return{};});throw new Error(e.error||'Error al enviar');}
+    document.querySelectorAll('.step').forEach(function(s){s.style.display='none';});
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('success').style.display='block';
+  }catch(err){
+    btn.disabled=false;btn.textContent='Enviar reporte ✓';
+    alert('Error al enviar el reporte: '+err.message);
+  }
+}
+
+updateProgress(1);
+
+// Load dynamic question titles from backend template
+if(clienteId){
+  fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(clienteId)+'&tipo=reporte_semanal')
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      if(!d||!Array.isArray(d.questions))return;
+      d.questions.forEach(function(q){
+        var el=document.getElementById('lbl-'+q.id);
+        if(!el||!q.titulo)return;
+        // Update text node only, keeping child elements (e.g. the "(opcional)" span)
+        var tn=Array.prototype.find.call(el.childNodes,function(n){return n.nodeType===3;});
+        if(tn)tn.textContent=q.titulo+(el.childNodes.length>1?' ':'');
+        else el.textContent=q.titulo;
+      });
+    })
+    .catch(function(){});
+}
+</script>
+</body>
+</html>

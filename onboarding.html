@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0f;--surface:#141621;--surface-2:#1a1d2b;--surface-3:#222637;
+  --line:rgba(255,255,255,0.08);--line-strong:rgba(255,255,255,0.13);
+  --text:#f0eee8;--text2:#9ba0b4;--text3:#5a607a;
+  --gold:#e0b54a;--gold-border:rgba(224,181,74,0.22);
+  --green-t:#5cb87a;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.5}
+body{display:flex;align-items:flex-start;justify-content:center;padding:40px 16px 80px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:600px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.5)}
+.card-header{background:linear-gradient(135deg,#1a1d2b 0%,#141621 100%);padding:28px 36px 24px;border-bottom:1px solid var(--line)}
+.form-tag{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.card-header h1{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.card-header p{margin-top:6px;font-size:12.5px;color:var(--text2);line-height:1.5}
+.progress-bar{height:2px;background:var(--surface-2)}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease;width:0%}
+.form-body{padding:32px 36px}
+.step{display:none}.step.active{display:block}
+.step-counter{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.step-title{font-size:17px;font-weight:700;margin-bottom:4px;line-height:1.3}
+.step-subtitle{font-size:12px;color:var(--text2);margin-bottom:22px;line-height:1.5}
+.field{margin-bottom:18px}
+label.lbl{display:block;font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px}
+input[type="text"],textarea{width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 13px;font-size:13px;font-family:inherit;color:var(--text);transition:border-color .2s;resize:none;outline:none;line-height:1.6}
+input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
+::placeholder{color:var(--text3)}
+.char-count{text-align:right;font-size:10.5px;color:var(--text3);margin-top:3px}
+.radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.radio-option{flex:1;min-width:110px;cursor:pointer}
+.radio-option input{display:none}
+.radio-label{display:flex;align-items:center;justify-content:center;padding:11px 10px;border:1px solid var(--line-strong);border-radius:10px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface-2);cursor:pointer;transition:all .15s;text-align:center;line-height:1.3}
+.radio-option input:checked + .radio-label{border-color:var(--gold);background:rgba(224,181,74,0.1);color:var(--gold)}
+.radio-label:hover{background:var(--surface-3);color:var(--text)}
+.checkbox-group{display:flex;flex-direction:column;gap:6px}
+.check-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:9px;cursor:pointer;background:var(--surface-2);transition:all .15s}
+.check-option:hover{background:var(--surface-3);border-color:var(--gold-border)}
+.check-option input[type="checkbox"]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
+.check-option span{font-size:12.5px;color:var(--text2);font-weight:500}
+.scale-row{display:flex;gap:6px;flex-wrap:wrap}
+.scale-btn{width:44px;height:44px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.scale-btn:hover{border-color:var(--gold);color:var(--gold)}
+.scale-btn.selected{border-color:var(--gold);background:rgba(224,181,74,0.12);color:var(--gold)}
+.scale-labels{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)}
+.id-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.dots{display:flex;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--surface-3);transition:all .3s}
+.dot.active{background:var(--gold);width:16px;border-radius:3px}
+.dot.done{background:rgba(224,181,74,0.4)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:10px 22px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-back{background:transparent;color:var(--text3);padding-left:0}
+.btn-back:hover{color:var(--text2)}
+.btn-next{background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);min-width:120px;justify-content:center}
+.btn-next:hover{border-color:var(--gold);color:var(--gold)}
+.btn-submit{background:linear-gradient(135deg,var(--gold) 0%,#c89732 100%);color:#000;font-weight:700;min-width:140px;justify-content:center}
+.btn-submit:hover{opacity:.9;transform:translateY(-1px)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.success-screen{display:none;text-align:center;padding:16px 0 8px}
+.success-icon{width:68px;height:68px;background:rgba(92,184,122,0.12);border:1px solid rgba(92,184,122,0.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px}
+.success-screen h2{font-size:20px;font-weight:700;margin-bottom:8px}
+.success-screen p{font-size:13px;color:var(--text2);line-height:1.6;max-width:360px;margin:0 auto}
+.loading{text-align:center;padding:60px 0;color:var(--text3)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div class="form-tag" id="form-tag">Onboarding</div>
+    <h1 id="form-title">Bienvenido</h1>
+    <p id="form-desc">Completá este formulario para que podamos conocerte mejor y personalizar tu experiencia.</p>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <div class="form-body" id="form-body">
+    <div class="loading">Cargando formulario…</div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://noble-determination-production.up.railway.app';
+const params  = new URLSearchParams(window.location.search);
+const clienteId = params.get('cliente_id') || '';
+const alumnoIg  = (params.get('ig') || '').replace(/^@/, '');
+const alumnoNombre = decodeURIComponent(params.get('nombre') || '');
+const formTipo  = params.get('tipo') || 'onboarding';
+
+let questions = [];
+let currentStep = 0; // 0 = identity, then questions by index
+let responses  = {};
+let totalSteps = 0;
+
+async function init(){
+  if(!clienteId){
+    document.getElementById('form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Link inválido. Pedile a tu consultor el link correcto.</div>';
+    return;
+  }
+  try{
+    const r = await fetch(`${API_URL}/form-template?cliente_id=${encodeURIComponent(clienteId)}&tipo=${encodeURIComponent(formTipo)}`);
+    if(!r.ok) throw new Error();
+    const d = await r.json();
+    questions = d.questions || [];
+  }catch(e){
+    document.getElementById('form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Error al cargar el formulario. Intentá de nuevo.</div>';
+    return;
+  }
+  totalSteps = questions.length + 1; // +1 for identity step
+  renderForm();
+  showStep(0);
+}
+
+function renderForm(){
+  const body = document.getElementById('form-body');
+  let html = '';
+
+  // Step 0: identity (always)
+  html += `<div class="step" id="step-0">
+    <div class="step-counter">Paso 1 de ${totalSteps}</div>
+    <div class="step-title">¿Quién sos?</div>
+    <div class="step-subtitle">Para asociar tus respuestas correctamente.</div>
+    <div class="id-row">
+      <div class="field"><label class="lbl">Nombre completo</label><input type="text" id="id-nombre" value="${esc(alumnoNombre)}" placeholder="ej. Juan García"></div>
+      <div class="field"><label class="lbl">@ de Instagram</label><input type="text" id="id-instagram" value="${esc(alumnoIg)}" placeholder="ej. juan.garcia" oninput="this.value=this.value.replace(/^@+/,'')"></div>
+    </div>
+    ${btnRow(0)}
+  </div>`;
+
+  // Dynamic steps
+  questions.forEach((q, idx)=>{
+    const step = idx + 1;
+    const fieldId = `q_${q.id}`;
+    html += `<div class="step" id="step-${step}">
+      <div class="step-counter">Paso ${step+1} de ${totalSteps}</div>
+      <div class="step-title">${escHtml(q.titulo)}</div>
+      ${q.subtitulo ? `<div class="step-subtitle">${escHtml(q.subtitulo)}</div>` : ''}
+      ${renderField(q, fieldId)}
+      ${btnRow(step)}
+    </div>`;
+  });
+
+  // Success
+  html += `<div class="success-screen" id="success">
+    <div class="success-icon">✓</div>
+    <h2>¡Formulario completado!</h2>
+    <p>Gracias por tomarte el tiempo. Tu consultor podrá prepararse mejor para ayudarte a partir de tus respuestas.</p>
+  </div>`;
+
+  body.innerHTML = html;
+  renderDots();
+}
+
+function renderField(q, id){
+  if(q.tipo==='text') return `<div class="field"><input type="text" id="${id}" placeholder="${esc(q.placeholder||'')}"></div>`;
+  if(q.tipo==='textarea') return `<div class="field"><textarea id="${id}" rows="4" maxlength="${q.maxlength||500}" placeholder="${esc(q.placeholder||'')}" oninput="updateCount('${id}','cnt_${id}',${q.maxlength||500})"></textarea><div class="char-count"><span id="cnt_${id}">0</span>/${q.maxlength||500}</div></div>`;
+  if(q.tipo==='radio') return `<div class="radio-group">${(q.opciones||[]).map(o=>`<label class="radio-option"><input type="radio" name="${id}" value="${esc(o)}"><div class="radio-label">${escHtml(o)}</div></label>`).join('')}</div>`;
+  if(q.tipo==='checkbox') return `<div class="checkbox-group">${(q.opciones||[]).map(o=>`<label class="check-option"><input type="checkbox" name="${id}" value="${esc(o)}"><span>${escHtml(o)}</span></label>`).join('')}</div>`;
+  if(q.tipo==='scale'){
+    const min=q.min||1, max=q.max||10;
+    const btns=Array.from({length:max-min+1},(_,i)=>i+min).map(n=>`<button type="button" class="scale-btn" id="${id}_${n}" onclick="selectScale('${id}',${n},${min},${max})">${n}</button>`).join('');
+    return `<div class="scale-row">${btns}</div><div class="scale-labels"><span>${min} — Nada convencido</span><span>${max} — Totalmente convencido</span></div>`;
+  }
+  return '';
+}
+
+function btnRow(step){
+  const isLast = step === totalSteps - 1;
+  const dots = `<div class="dots" id="dots-${step}"></div>`;
+  const back = step > 0 ? `<button class="btn btn-back" onclick="prevStep(${step})">← Atrás</button>` : `<div></div>`;
+  const next = isLast
+    ? `<button class="btn btn-submit" id="btn-submit" onclick="submitForm()">Enviar →</button>`
+    : `<button class="btn btn-next" onclick="nextStep(${step})">Continuar →</button>`;
+  return `<div class="btn-row">${back}${dots}${next}</div>`;
+}
+
+function renderDots(){
+  for(let s=0;s<totalSteps;s++){
+    const el = document.getElementById(`dots-${s}`);
+    if(!el) continue;
+    el.innerHTML = Array.from({length:totalSteps},(_,i)=>`<div class="dot${i===s?' active':i<s?' done':''}" id="dot-${s}-${i}"></div>`).join('');
+  }
+}
+
+function showStep(n){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(`step-${n}`);
+  if(el) el.classList.add('active');
+  document.getElementById('progress').style.width = (n / (totalSteps) * 100) + '%';
+  currentStep = n;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function nextStep(from){
+  if(from===0){
+    const nombre = document.getElementById('id-nombre').value.trim();
+    if(!nombre){ document.getElementById('id-nombre').focus(); return; }
+    responses['_nombre'] = nombre;
+    responses['_instagram'] = document.getElementById('id-instagram').value.trim().replace(/^@/,'');
+  } else {
+    collectStep(from);
+  }
+  showStep(from+1);
+}
+function prevStep(from){ showStep(from-1); }
+
+function collectStep(step){
+  const q = questions[step-1];
+  if(!q) return;
+  const id = `q_${q.id}`;
+  if(q.tipo==='text') responses[q.id] = document.getElementById(id)?.value.trim()||'';
+  else if(q.tipo==='textarea') responses[q.id] = document.getElementById(id)?.value.trim()||'';
+  else if(q.tipo==='radio'){ const c=document.querySelector(`input[name="${id}"]:checked`); responses[q.id]=c?c.value:''; }
+  else if(q.tipo==='checkbox') responses[q.id]=[...document.querySelectorAll(`input[name="${id}"]:checked`)].map(x=>x.value);
+  else if(q.tipo==='scale') responses[q.id]=responses[`_scale_${q.id}`]||'';
+}
+
+function selectScale(id, val, min, max){
+  responses[`_scale_${id.replace('q_','')}`] = val;
+  for(let i=min;i<=max;i++){ const b=document.getElementById(`${id}_${i}`); if(b) b.classList.toggle('selected',i===val); }
+}
+
+function updateCount(inputId,countId,max){
+  const el=document.getElementById(inputId); if(el) document.getElementById(countId).textContent=el.value.length;
+}
+
+async function submitForm(){
+  // Collect last step
+  collectStep(currentStep);
+  const btn = document.getElementById('btn-submit');
+  btn.disabled=true; btn.textContent='Enviando…';
+  const payload={
+    cliente_id: clienteId,
+    tipo: formTipo,
+    alumno_nombre: responses['_nombre']||alumnoNombre,
+    alumno_instagram: responses['_instagram']||alumnoIg,
+    responses,
+  };
+  try{
+    const r=await fetch(`${API_URL}/form-response`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error||'Error');
+    document.querySelectorAll('.step').forEach(s=>s.style.display='none');
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('success').style.display='block';
+  }catch(err){
+    btn.disabled=false; btn.textContent='Enviar →';
+    alert('Error al enviar: '+err.message);
+  }
+}
+
+function esc(s){ return (s||'').replace(/"/g,'&quot;'); }
+function escHtml(s){ const d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
+
+init();
+</script>
+</body>
+</html>

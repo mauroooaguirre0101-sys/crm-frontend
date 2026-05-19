@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="var s=document.createElement('script');s.src='https://unpkg.com/@supabase/supabase-js@2';document.head.appendChild(s)"></script>
 <link rel="stylesheet" href="styles.css">
 <style>
 /* ── SPLASH ── */
@@ -75,39 +75,24 @@
 .sp-end-dot{opacity:0;animation:sp-dot-pop .3s cubic-bezier(.34,1.4,.64,1) both;animation-delay:1.6s}
 @keyframes sp-dot-pop{from{opacity:0;r:1}to{opacity:1;r:5}}
 
-/* Airplane + Banner */
-.sp-plane{
-  position:absolute;
-  top:calc(50% - 290px);
-  left:0;z-index:10;
-  display:flex;align-items:center;
-  animation:sp-fly 13s linear both;
-  animation-delay:0s;
+/* Welcome drop text */
+.sp-welcome{
+  text-align:center;
+  animation:sp-welcome-drop .75s cubic-bezier(.22,1.1,.6,1) both;
+  animation-delay:.2s;
+  margin-bottom:8px;
 }
-@keyframes sp-fly{
-  from{transform:translateX(-620px) rotate(-3deg)}
-  to{transform:translateX(calc(100vw + 60px)) rotate(-3deg)}
-}
-.sp-banner{
-  background:rgba(8,9,14,.93);
-  border:1.5px solid rgba(224,181,74,.70);
-  border-radius:5px;
-  padding:9px 22px;
-  white-space:nowrap;
+.sp-welcome-name{
   font-family:'Barlow Condensed',sans-serif;
-  font-size:21px;font-weight:700;letter-spacing:3px;
+  font-size:62px;font-weight:900;letter-spacing:3px;
   color:#e0b54a;text-transform:uppercase;
-  box-shadow:0 0 16px rgba(224,181,74,.12),inset 0 0 10px rgba(224,181,74,.04);
-  flex-shrink:0;
+  text-shadow:0 0 40px rgba(224,181,74,.25);
+  display:block;
+  line-height:1;
 }
-.sp-banner-line{
-  width:48px;height:0;
-  border-top:1.5px dashed rgba(224,181,74,.40);
-  flex-shrink:0;
-}
-.sp-plane-svg{
-  filter:drop-shadow(0 0 10px rgba(224,181,74,.70));
-  flex-shrink:0;
+@keyframes sp-welcome-drop{
+  from{opacity:0;transform:translateY(-70px) scale(.9)}
+  to{opacity:1;transform:translateY(0) scale(1)}
 }
 
 /* Text & progress */
@@ -135,6 +120,42 @@
 @keyframes sp-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes sp-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes sp-progress{0%{width:0}20%{width:12%}55%{width:52%}80%{width:78%}100%{width:100%}}
+/* ── Page & section entrance animations ── */
+@keyframes page-enter-fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.page-entering{animation:page-enter-fade .28s cubic-bezier(.22,1,.36,1) both}
+
+@keyframes crm-slide{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+.crm-slide-in{animation:crm-slide .35s cubic-bezier(.22,1,.36,1) both}
+
+@keyframes section-slide{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.section-slide-in{animation:section-slide .32s cubic-bezier(.22,1,.36,1) both}
+
+/* Formatos */
+.formato-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .15s}
+.formato-card:hover{border-color:rgba(255,255,255,.18);transform:translateY(-2px)}
+.formato-embed{background:var(--surface-2);width:100%;aspect-ratio:9/16;max-height:340px;overflow:hidden;position:relative}
+.formato-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.formato-info{padding:12px 14px}
+.formato-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:6px}
+.formato-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.formato-desc{font-size:11.5px;color:var(--text3);line-height:1.4}
+/* Laboratorio */
+.lab-tab{padding:8px 18px;font-size:12px;font-weight:700;letter-spacing:.04em;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:all .15s}
+.lab-tab:hover{color:var(--text)}
+.lab-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.lab-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .15s}
+.lab-card:hover{border-color:rgba(255,255,255,.18);transform:translateY(-2px)}
+.lab-card-thumb{background:var(--surface-2);width:100%;aspect-ratio:9/16;max-height:200px;overflow:hidden;position:relative}
+.lab-card-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none}
+.lab-card-info{padding:10px 12px}
+.lab-stat-row{display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;color:var(--text3)}
+.lab-stat-val{font-weight:700;color:var(--text)}
+.lab-type-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+/* Historia cards */
+.hist-seq{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.hist-frame{width:64px;height:112px;border-radius:6px;object-fit:cover;background:var(--surface-2);border:1px solid var(--line-strong)}
+.hist-frame-add{width:64px;height:112px;border-radius:6px;border:1.5px dashed var(--line-strong);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;color:var(--text3)}
+.hist-frame-add:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -187,67 +208,9 @@
     </svg>
   </div>
 
-  <!-- Airplane + Banner -->
-  <div class="sp-plane">
-    <div class="sp-banner"><span id="sp-name-val">Bienvenido</span></div>
-    <div class="sp-banner-line"></div>
-    <svg class="sp-plane-svg" width="270" height="114" viewBox="0 0 270 114">
-      <!-- Fuselage -->
-      <path d="M254,57 Q236,42 202,38 Q155,33 102,35 Q66,35 44,41 Q24,46 17,57 Q24,68 44,73 Q66,79 102,79 Q155,81 202,76 Q236,72 254,57Z" fill="#e0b54a"/>
-      <!-- 747 upper-deck hump -->
-      <path d="M202,38 Q180,21 144,20 Q114,20 92,27 Q73,32 64,37 Q102,33 155,34 Q188,34 202,38Z" fill="#f2c84a"/>
-      <!-- Nose -->
-      <path d="M252,57 L262,52 L262,62Z" fill="#f5d27a"/>
-      <!-- Cockpit shade -->
-      <path d="M235,44 Q248,49 254,57 Q248,65 235,70 Q244,65 248,57 Q244,49 235,44Z" fill="#c89428" opacity=".4"/>
-      <!-- Wing upper (swept) -->
-      <path d="M154,50 L178,8 L196,13 L169,50Z" fill="#c89428"/>
-      <!-- Wing lower -->
-      <path d="M154,64 L178,106 L196,101 L169,64Z" fill="#c89428"/>
-      <!-- Wing root -->
-      <ellipse cx="160" cy="57" rx="17" ry="10" fill="#d4a030"/>
-      <!-- Engine 1 inner upper -->
-      <rect x="163" y="24" width="26" height="10" rx="5" fill="#a06818"/>
-      <ellipse cx="163" cy="29" rx="5.5" ry="5" fill="#7a3808" opacity=".85"/>
-      <!-- Engine 2 outer upper -->
-      <rect x="178" y="12" width="22" height="9" rx="4.5" fill="#a06818"/>
-      <ellipse cx="178" cy="16.5" rx="5" ry="4.5" fill="#7a3808" opacity=".85"/>
-      <!-- Engine 3 inner lower -->
-      <rect x="163" y="80" width="26" height="10" rx="5" fill="#a06818"/>
-      <ellipse cx="163" cy="85" rx="5.5" ry="5" fill="#7a3808" opacity=".85"/>
-      <!-- Engine 4 outer lower -->
-      <rect x="178" y="93" width="22" height="9" rx="4.5" fill="#a06818"/>
-      <ellipse cx="178" cy="97.5" rx="5" ry="4.5" fill="#7a3808" opacity=".85"/>
-      <!-- Vertical tail fin -->
-      <path d="M38,57 L22,16 L34,26 L42,57Z" fill="#e0b54a"/>
-      <!-- Horizontal stabilizer upper -->
-      <path d="M34,51 L12,36 L20,34 L40,51Z" fill="#d4a030"/>
-      <!-- Horizontal stabilizer lower -->
-      <path d="M34,63 L12,78 L20,80 L40,63Z" fill="#d4a030"/>
-      <!-- Main deck windows -->
-      <g fill="rgba(8,9,18,.48)">
-        <rect x="70" y="47" width="7" height="5" rx="2"/>
-        <rect x="85" y="47" width="7" height="5" rx="2"/>
-        <rect x="100" y="47" width="7" height="5" rx="2"/>
-        <rect x="115" y="47" width="7" height="5" rx="2"/>
-        <rect x="130" y="47" width="7" height="5" rx="2"/>
-        <rect x="145" y="47" width="7" height="5" rx="2"/>
-        <rect x="160" y="47" width="7" height="5" rx="2"/>
-        <rect x="175" y="47" width="7" height="5" rx="2"/>
-        <rect x="190" y="47" width="7" height="5" rx="2"/>
-        <rect x="205" y="47" width="7" height="5" rx="2"/>
-        <rect x="220" y="47" width="7" height="5" rx="2"/>
-        <rect x="235" y="47" width="7" height="5" rx="2"/>
-      </g>
-      <!-- Upper deck windows (hump) -->
-      <g fill="rgba(8,9,18,.35)">
-        <rect x="104" y="32" width="6" height="4" rx="1.5"/>
-        <rect x="118" y="29" width="6" height="4" rx="1.5"/>
-        <rect x="132" y="27" width="6" height="4" rx="1.5"/>
-        <rect x="146" y="26" width="6" height="4" rx="1.5"/>
-        <rect x="160" y="26" width="6" height="4" rx="1.5"/>
-      </g>
-    </svg>
+  <!-- Welcome drop text -->
+  <div class="sp-welcome">
+    <span class="sp-welcome-name" id="sp-name-val">Bienvenido</span>
   </div>
 
   <div class="sp-text">
@@ -276,7 +239,13 @@
     <div class="form-group"><label class="form-label">Email</label>
       <input type="email" id="auth-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')login()"></div>
     <div class="form-group" style="margin-top:12px"><label class="form-label">Contraseña</label>
-      <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+      <div style="position:relative">
+        <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()" style="padding-right:40px;width:100%;box-sizing:border-box">
+        <button type="button" id="auth-pass-eye" onclick="toggleAuthPass(this)"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);display:flex;align-items:center;padding:0;line-height:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div></div>
     <button class="btn btn-gold" id="auth-btn" onclick="login()" style="width:100%;margin-top:18px;justify-content:center;padding:11px">
       Iniciar sesión
     </button>
@@ -351,6 +320,18 @@
     <span class="team-count" id="team-count">1</span>
     <div class="team-panel" id="team-panel"></div>
   </div>
+  <!-- Notification bell -->
+  <div id="notif-bell" style="position:relative;display:none;cursor:pointer;margin-right:4px" onclick="toggleNotifPanel()">
+    <div style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--line-strong)'">🔔</div>
+    <div id="notif-badge" style="position:absolute;top:-3px;right:-3px;background:#d46060;color:#fff;font-size:9px;font-weight:800;border-radius:20px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 4px;display:none"></div>
+    <div id="notif-panel" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:300px;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:200;overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">Tareas asignadas</span>
+        <button onclick="clearNotifications(event)" style="font-size:10px;background:none;border:none;color:var(--text3);cursor:pointer;padding:0">Marcar como vistas</button>
+      </div>
+      <div id="notif-list" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
   <div class="user-badge" onclick="toggleUserMenu()">
     <div class="user-dot"></div>
     <span class="user-email" id="user-email-label">—</span>
@@ -374,19 +355,22 @@
     <div class="nav-section-label">Principal</div>
     <div class="nav-item active" id="nav-dash" onclick="nav('dash',this)"><div class="nav-dot"></div><span class="nav-text">Dashboard</span></div>
     <div class="nav-item" id="nav-acc" onclick="nav('acc',this)"><div class="nav-dot"></div><span class="nav-text">SOPs</span></div>
-    <div class="nav-section-label">Agencia</div>
+    <div class="nav-section-label">Marketing</div>
     <div class="nav-item" id="nav-found" onclick="nav('found',this)"><div class="nav-dot"></div><span class="nav-text">Fundaciones</span></div>
     <div class="nav-item" id="nav-cont" onclick="nav('cont',this)"><div class="nav-dot"></div><span class="nav-text">Contenido</span></div>
     <div class="nav-item" id="nav-ang" onclick="nav('ang',this)"><div class="nav-dot"></div><span class="nav-text">Ángulos</span></div>
     <div class="nav-item" id="nav-ref" onclick="nav('ref',this)"><div class="nav-dot"></div><span class="nav-text">Referentes</span></div>
-    <div class="nav-item" id="nav-met" onclick="nav('met',this)"><div class="nav-dot"></div><span class="nav-text">Métricas</span></div>
     <div class="nav-item" id="nav-ig" onclick="nav('ig',this)"><div class="nav-dot"></div><span class="nav-text">Instagram</span></div>
+    <div class="nav-item" id="nav-formatos" onclick="nav('formatos',this)"><div class="nav-dot"></div><span class="nav-text">Formatos</span></div>
+    <div class="nav-item" id="nav-lab" onclick="nav('lab',this)"><div class="nav-dot"></div><span class="nav-text">Laboratorio</span></div>
     <div class="nav-section-label">Ventas</div>
     <div class="nav-item" id="nav-leads" onclick="nav('leads',this)"><div class="nav-dot"></div><span class="nav-text">Leads</span></div>
+    <div class="nav-item" id="nav-funnel" onclick="nav('funnel',this)"><div class="nav-dot"></div><span class="nav-text">Funnel</span></div>
     <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><div class="nav-dot"></div><span class="nav-text">Llamadas</span></div>
     <div class="nav-item" id="nav-clients" onclick="nav('clients',this)"><div class="nav-dot"></div><span class="nav-text">Clientes</span></div>
     <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><div class="nav-dot"></div><span class="nav-text">Finanzas</span></div>
     <div class="nav-item" id="nav-equipo" onclick="nav('equipo',this)"><div class="nav-dot"></div><span class="nav-text">Equipo</span></div>
+    <div class="nav-item" id="nav-forms" onclick="nav('forms',this)"><div class="nav-dot"></div><span class="nav-text">Formularios</span></div>
   </div>
 </nav>
 
@@ -433,11 +417,11 @@
   <div class="metric-grid metric-grid-4" id="dash-metrics"></div>
   <div class="metric-grid metric-grid-2" id="dash-metrics2"></div>
   <div class="savings-grid" id="dash-savings"></div>
-  <div class="card" style="margin-bottom:20px">
+  <div class="card" id="dash-chart-card" style="margin-bottom:20px">
     <div class="section-header"><h3>Ingresos vs Egresos</h3></div>
     <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
   </div>
-  <div class="card">
+  <div class="card" id="dash-mov-card">
     <div class="section-header"><h3>Últimos movimientos</h3></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Concepto</th><th>Tipo</th><th>Monto</th></tr></thead>
@@ -453,13 +437,14 @@
   <div class="card">
     <div class="section-header">
       <h3>Biblioteca de SOPs</h3>
-      <button class="btn btn-gold" onclick="openModal('modal-sop')">+ Nuevo SOP</button>
+      <button class="btn btn-gold" id="btn-new-sop" onclick="openModal('modal-sop')">+ Nuevo SOP</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
         <th>Link SOP</th>
         <th>Área</th>
         <th>Detalles del SOP</th>
+        <th>Entregables</th>
         <th></th>
       </tr></thead>
       <tbody id="sops-table-body"></tbody>
@@ -488,13 +473,37 @@
 <!-- CONTENIDO -->
 <section class="page" id="page-cont">
   <div class="page-title">Contenido</div>
-  <div class="page-sub">Calendario de Contenido — Corto + Historias — Ordená tu semana</div>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+  <div class="page-sub">Calendario de Contenido — Planificá tu estrategia de contenido</div>
+
+  <!-- Counters -->
+  <div id="cont-counters" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+
+  <!-- Calendar card -->
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="tabs" id="cal-view-tabs" style="margin-bottom:0">
+        <div class="tab active" onclick="calSetView('mes',this)">Mes</div>
+        <div class="tab" onclick="calSetView('semana',this)">Semana</div>
+        <div class="tab" onclick="calSetView('dia',this)">Día</div>
+      </div>
+      <button class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="calGoToday()">Hoy</button>
+      <button class="btn-icon" style="font-size:20px;line-height:1" onclick="calPrev()">‹</button>
+      <span id="cal-label" style="font-weight:600;font-size:14px;min-width:160px;text-align:center;color:var(--text)"></span>
+      <button class="btn-icon" style="font-size:20px;line-height:1" onclick="calNext()">›</button>
+      <button class="btn btn-outline" style="padding:6px 12px;font-size:12px;margin-left:auto" onclick="fetchContenido().then(renderCont)">↻ Actualizar</button>
+      <button class="btn btn-gold" style="padding:6px 14px;font-size:13px" onclick="calOpenPanel(null,null)">+ Nueva pieza</button>
+    </div>
+    <div id="cal-grid"></div>
+  </div>
+
+  <!-- Filter tabs for tables -->
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
     <div class="tabs" id="cont-type-tabs" style="margin-bottom:0">
       <div class="tab active" onclick="contFilter('tipo','Todos',this)">Todos</div>
       <div class="tab" onclick="contFilter('tipo','Reel',this)">Reels</div>
       <div class="tab" onclick="contFilter('tipo','Carrusel',this)">Carruseles</div>
       <div class="tab" onclick="contFilter('tipo','Historia',this)">Historias</div>
+      <div class="tab" onclick="contFilter('tipo','YouTube',this)">YouTube</div>
     </div>
     <div class="tabs" id="cont-time-tabs" style="margin-bottom:0">
       <div class="tab active" onclick="contFilter('time','todo',this)">Todo</div>
@@ -502,49 +511,72 @@
       <div class="tab" onclick="contFilter('time','semana',this)">Esta semana</div>
       <div class="tab" onclick="contFilter('time','hoy',this)">Hoy</div>
     </div>
-    <button class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-cont')">+ Nueva pieza</button>
+    <button class="btn btn-outline" id="btn-cont-winner" onclick="contFilter('winner',null,this)" style="padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.03em">★ Winners</button>
   </div>
-  <div class="card" style="margin-bottom:20px">
-    <div class="section-header"><h3>Posts — Reels y Carruseles</h3></div>
+
+  <!-- Reels table -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="section-header"><h3>Reels</h3></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Formato</th><th>Tipo</th><th>Hook</th><th>CTA</th><th>Estado</th><th></th></tr></thead>
-      <tbody id="cont-table"></tbody>
+      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+      <tbody id="reel-table"></tbody>
     </table></div>
   </div>
-  <div class="card">
-    <div class="section-header">
-      <h3>Historias</h3>
-      <button class="btn btn-outline" onclick="openModal('modal-hist')">+ Nueva historia</button>
-    </div>
+
+  <!-- Carruseles table -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="section-header"><h3>Carruseles</h3></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Tipo</th><th>Hook</th><th>CTA</th><th>Estado</th><th></th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+      <tbody id="carrusel-table"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Historias table -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="section-header"><h3>Historias</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Estructura</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
       <tbody id="hist-table"></tbody>
     </table></div>
   </div>
 
-  <!-- ANALYTICS DE VENTAS POR TIPO DE CONTENIDO -->
-  <div style="margin-top:24px">
-    <div class="page-title" style="font-size:16px;margin-bottom:4px">Ventas por tipo de contenido</div>
-    <div class="page-sub" style="margin-bottom:16px">Ventas anuales generadas por Reels, Carruseles e Historias · fuente: Métricas</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-      <div class="card">
-        <div class="section-header" style="margin-bottom:12px">
-          <h3>Reels</h3>
-        </div>
-        <div class="chart-wrap" style="height:180px"><canvas id="contChartReel"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="section-header" style="margin-bottom:12px">
-          <h3>Carruseles</h3>
-        </div>
-        <div class="chart-wrap" style="height:180px"><canvas id="contChartCarrusel"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="section-header" style="margin-bottom:12px">
-          <h3>Historias</h3>
-        </div>
-        <div class="chart-wrap" style="height:180px"><canvas id="contChartHistoria"></canvas></div>
-      </div>
+  <!-- YouTube table -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="section-header"><h3>YouTube</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+      <tbody id="yt-table"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Analytics por pieza -->
+  <div style="margin-top:4px">
+    <div class="page-title" style="font-size:16px;margin-bottom:4px">Agendas y Ventas por pieza de contenido</div>
+    <div class="page-sub" style="margin-bottom:16px">Cada barra representa una pieza específica · el tooltip muestra el ángulo/dolor</div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Reels</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Agendas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartReelAgendas"></canvas></div></div>
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Ventas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartReelVentas"></canvas></div></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:rgba(180,130,60,1);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Carruseles</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Agendas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartCarruselAgendas"></canvas></div></div>
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Ventas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartCarruselVentas"></canvas></div></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#B890F0;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Historias</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Agendas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartHistAgendas"></canvas></div></div>
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Ventas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartHistVentas"></canvas></div></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:#FF5555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">YouTube</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Agendas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartYTAgendas"></canvas></div></div>
+      <div class="card"><div class="section-header" style="margin-bottom:10px"><h3>Ventas</h3></div><div class="chart-wrap" style="height:180px"><canvas id="contChartYTVentas"></canvas></div></div>
     </div>
   </div>
 </section>
@@ -556,10 +588,13 @@
   <div class="card">
     <div class="section-header">
       <h3>Ángulos de venta y contenido</h3>
-      <button class="btn btn-gold" onclick="openModal('modal-ang')">+ Ángulo</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="ang-sort-btns" style="display:flex;gap:6px"></div>
+        <button class="btn btn-gold" onclick="openModal('modal-ang')">+ Ángulo</button>
+      </div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ángulo</th><th>Tipo</th><th>1er contacto</th><th>Último contacto</th><th>Para AD</th><th>Ventas</th><th></th></tr></thead>
+      <thead><tr><th>Ángulo</th><th>Agendas</th><th>Calificados</th><th>Ventas</th><th>% Cierre</th><th>Facturación</th><th></th></tr></thead>
       <tbody id="ang-table"></tbody>
     </table></div>
   </div>
@@ -580,29 +615,13 @@
   </div>
 </section>
 
-<!-- MÉTRICAS -->
-<section class="page" id="page-met">
-  <div class="page-title">Métricas</div>
-  <div class="page-sub">Trazabilidad de Contenido</div>
-  <div class="metric-grid metric-grid-4" id="met-metrics"></div>
-  <div class="card">
-    <div class="section-header">
-      <h3>Registro de métricas</h3>
-      <button class="btn btn-gold" onclick="openModal('modal-met')">+ Cargar métrica</button>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo</th><th>Tipo</th><th>Leads</th><th>Comentarios</th><th>Ventas</th><th><span class="api-badge">API</span></th><th></th></tr></thead>
-      <tbody id="met-table"></tbody>
-    </table></div>
-  </div>
-</section>
 
 <!-- LEADS -->
 <section class="page" id="page-leads">
   <div class="page-title">Leads</div>
   <div class="page-sub">Pipeline de prospectos · <span class="api-badge">ManyChat webhook activo</span></div>
 
-  <div class="metric-grid metric-grid-4" id="leads-metrics"></div>
+  <div class="metric-grid" style="grid-template-columns:repeat(5,1fr)" id="leads-metrics"></div>
 
   <!-- Funnel metrics -->
   <div id="leads-funnel-wrap" style="margin-bottom:20px">
@@ -611,7 +630,7 @@
         <h3>Funnel de conversión</h3>
         <span style="font-size:11px;color:var(--text3)">calculado sobre todos los leads</span>
       </div>
-      <div id="leads-funnel-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
+      <div id="leads-funnel-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
     </div>
   </div>
 
@@ -635,6 +654,26 @@
       <option value="6">Julio</option><option value="7">Agosto</option>
       <option value="8">Septiembre</option><option value="9">Octubre</option>
       <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+    <!-- Filtro por estado -->
+    <select id="leads-estado-select" onchange="onLeadsEstadoChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;background:rgba(8,8,7,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="">Todos los estados</option>
+      <option>Primer contacto</option>
+      <option>Descubrimiento (Problemas-Objetivos)</option>
+      <option>Recurso de nutrición</option>
+      <option>PITCH VSL CHAT</option>
+      <option>VSL CHAT</option>
+      <option>Proponer Call</option>
+      <option>Calendly Enviado</option>
+      <option>Agendado</option>
+      <option>Cerrada</option>
+      <option>Perdido</option>
+    </select>
+    <!-- Filtro activos/perdidos -->
+    <select id="leads-vista-select" onchange="onLeadsVistaChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;background:rgba(8,8,7,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="todos">Todos</option>
+      <option value="activos">Solo activos</option>
+      <option value="perdidos">Solo perdidos</option>
     </select>
     <!-- Buscador -->
     <div style="flex:1;min-width:200px;max-width:340px;position:relative">
@@ -669,30 +708,98 @@
   <div class="card">
     <div class="section-header">
       <h3>Pipeline <span id="leads-count-badge" class="badge bgy" style="margin-left:6px">0</span></h3>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span id="leads-filter-label" style="font-size:11px;color:var(--text3)"></span>
-        <button class="btn btn-outline" onclick="vaciarPipeline()" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:rgba(184,72,72,0.4)">Vaciar pipeline</button>
-      </div>
+      <span id="leads-filter-label" style="font-size:11px;color:var(--text3)"></span>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th style="color:var(--text3);font-size:10px;width:40px">#</th>
+        <th style="color:var(--text3);font-size:10px;width:30px">#</th>
         <th>Fecha</th>
+        <th>Última modif.</th>
         <th>Nombre</th>
         <th>Instagram</th>
         <th>Origen</th>
         <th>Tipo</th>
         <th>Etiqueta</th>
         <th>Estado</th>
-        <th>Llamada</th>
         <th>Última acción</th>
         <th>Notas</th>
         <th>Fuente</th>
+        <th>Seguimientos</th>
+        <th style="width:32px"></th>
       </tr></thead>
       <tbody id="leads-table"></tbody>
     </table></div>
+    <div id="leads-pagination" style="display:none;align-items:center;justify-content:center;gap:16px;padding:12px 0 4px"></div>
   </div>
 </section>
+
+<!-- FUNNEL MÉTRICAS -->
+<section class="page" id="page-funnel">
+  <div class="page-title">Funnel de Ventas</div>
+  <div class="page-sub">Conversión por etapa · solo leads activos (excluye perdidos)</div>
+
+  <!-- Filtros -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    <div class="tabs" id="funnel-filter-tabs" style="margin-bottom:0">
+      <div class="tab" data-period="dia" onclick="setFunnelFilter('dia',this)">Día</div>
+      <div class="tab" data-period="semana" onclick="setFunnelFilter('semana',this)">Semana</div>
+      <div class="tab active" data-period="mes" onclick="setFunnelFilter('mes',this)">Mes</div>
+      <div class="tab" data-period="año" onclick="setFunnelFilter('año',this)">Año</div>
+    </div>
+    <select id="funnel-mes-select" onchange="onFunnelMesChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+      <option value="">— Filtrar por mes —</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+    <span id="funnel-total-badge" style="font-size:12px;color:var(--text3)"></span>
+  </div>
+
+  <!-- Funnel visual + perdidos -->
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-bottom:24px">
+    <!-- SVG funnel -->
+    <div class="card" style="flex:1;min-width:300px;padding:24px 20px;position:relative">
+      <div id="funnel-svg-wrap" style="width:100%"></div>
+    </div>
+    <!-- Right column -->
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:200px">
+      <!-- Perdidos panel -->
+      <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:4px">Perdidos</div>
+        <div id="funnel-perdidos-count" style="font-family:'Inter',sans-serif;font-size:36px;font-weight:900;color:#d46060;letter-spacing:-1px;line-height:1">0</div>
+        <div id="funnel-perdidos-pct" style="font-size:12px;color:var(--text3)">0% del total</div>
+      </div>
+      <!-- Etapa de pérdida -->
+      <div class="card" style="padding:20px 22px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px">Etapa de pérdida</div>
+        <div id="funnel-lost-breakdown">
+          <div style="color:var(--text3);font-size:12px;padding:4px 0">Sin datos aún</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla resumen -->
+  <div class="card" style="padding:0">
+    <table>
+      <thead><tr>
+        <th>Fase</th>
+        <th>Estados incluidos</th>
+        <th style="text-align:right">Leads</th>
+        <th style="text-align:right">% del total</th>
+        <th style="text-align:right">Calificados</th>
+        <th style="text-align:right">Descalificados</th>
+      </tr></thead>
+      <tbody id="funnel-table-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Tooltip flotante del funnel -->
+<div id="funnel-tooltip" style="display:none;position:fixed;z-index:500;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:190px;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.6)"></div>
 
 <!-- CLIENTES -->
 <section class="page" id="page-clients">
@@ -757,6 +864,15 @@
       <span id="reno-summary" style="font-size:11px;color:var(--text3)">Sin renovaciones próximas</span>
     </div>
     <div id="reno-container" style="display:flex;flex-wrap:wrap;gap:10px;padding:4px 0"></div>
+  </div>
+
+  <!-- GRÁFICO ANUAL -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-header">
+      <h3>Resumen anual</h3>
+      <span style="font-size:11px;color:var(--text3)" id="fin-annual-year"></span>
+    </div>
+    <div class="chart-wrap" style="height:240px"><canvas id="fin-annual-chart"></canvas></div>
   </div>
 
   <!-- HISTORIAL DE ACTIVIDAD -->
@@ -920,6 +1036,149 @@
   </div>
 </section>
 
+<!-- ═══ FORMATOS ═══ -->
+<section class="page" id="page-formatos">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Formatos</h1>
+      <div class="page-sub">Biblioteca de formatos de contenido</div>
+    </div>
+    <button class="btn btn-gold" onclick="openFormatoModal(null)">+ Nuevo formato</button>
+  </div>
+  <div id="formatos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:8px"></div>
+</section>
+
+<!-- ═══ LABORATORIO ═══ -->
+<section class="page" id="page-lab">
+  <div class="page-header" style="margin-bottom:12px">
+    <div>
+      <h1 class="page-title">Laboratorio de Contenido</h1>
+      <div class="page-sub">Análisis y métricas de piezas de contenido</div>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:16px">
+    <button class="lab-tab active" id="lab-tab-reel" onclick="switchLabTab('reel')">Reels</button>
+    <button class="lab-tab" id="lab-tab-carrusel" onclick="switchLabTab('carrusel')">Carruseles</button>
+    <button class="lab-tab" id="lab-tab-historia" onclick="switchLabTab('historia')">Historias</button>
+    <button class="lab-tab" id="lab-tab-youtube" onclick="switchLabTab('youtube')">YouTube</button>
+    <button class="lab-tab" id="lab-tab-archivos" onclick="switchLabTab('archivos')" style="border-left:1px solid var(--line);margin-left:8px;padding-left:16px">Archivos</button>
+    <div id="lab-analysis-controls" style="margin-left:auto;display:flex;align-items:center;gap:8px;padding-bottom:8px">
+      <select id="lab-tipo-filter" onchange="renderLabGrid()" style="font-size:11px;padding:4px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);outline:none">
+        <option value="">Todos los tipos</option>
+      </select>
+      <button class="btn btn-gold" onclick="openLabModal(null)" style="font-size:12px;padding:6px 14px">+ Agregar</button>
+    </div>
+  </div>
+  <!-- Conclusión general -->
+  <div id="lab-conclusion-wrap" style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)">Conclusión general</span>
+      <input type="date" id="lab-conc-from" style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);outline:none;color-scheme:dark">
+      <span style="font-size:10px;color:var(--text3)">→</span>
+      <input type="date" id="lab-conc-to" style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);outline:none;color-scheme:dark">
+      <button onclick="saveLabConclusion()" style="font-size:10px;padding:3px 10px;border-radius:6px;background:rgba(224,181,74,.12);border:1px solid var(--gold);color:var(--gold);cursor:pointer">Guardar</button>
+      <button onclick="clearLabConclusion()" style="font-size:10px;padding:3px 10px;border-radius:6px;background:transparent;border:1px solid var(--line-strong);color:var(--text3);cursor:pointer">Limpiar</button>
+    </div>
+    <textarea id="lab-conclusion-text" placeholder="Escribí el análisis general del período…" style="width:100%;min-height:60px;background:transparent;border:none;color:var(--text);font-size:12.5px;font-family:inherit;resize:vertical;outline:none"></textarea>
+  </div>
+  <!-- Grid -->
+  <div id="lab-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px"></div>
+  <!-- Archivo (visible solo en tab Archivos) -->
+  <div id="lab-archive-wrap" style="display:none">
+    <div id="lab-archive-list"></div>
+    <div id="lab-archive-detail" style="display:none"></div>
+  </div>
+</section>
+
+<!-- FORMULARIOS -->
+<section class="page" id="page-forms">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div class="page-title">Formularios</div>
+  </div>
+  <div class="page-sub" style="margin-bottom:20px">Editor de preguntas · Respuestas recibidas</div>
+  <div id="forms-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px">
+    <button class="lab-tab active" id="forms-tab-onboarding" onclick="switchFormsTab('onboarding')">Onboarding</button>
+    <button class="lab-tab" id="forms-tab-reporte_semanal" onclick="switchFormsTab('reporte_semanal')">Reporte Semanal</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding-bottom:8px">
+      <button class="btn btn-gold" id="forms-save-btn" onclick="saveFormTemplate()" style="font-size:12px;padding:6px 16px">Guardar cambios</button>
+    </div>
+  </div>
+  <div id="forms-body"></div>
+  <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:20px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px">Respuestas recibidas</div>
+    <div id="forms-responses-body"></div>
+  </div>
+</section>
+
+<!-- Modal Formatos -->
+<div class="modal-bg" id="modal-formato" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
+    <div class="modal-header"><span id="formato-modal-title">Nuevo formato</span><button onclick="closeModal('modal-formato')" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">×</button></div>
+    <div class="form-group"><label class="form-label">URL del Reel / Publicación</label><input type="url" id="f-url" placeholder="https://instagram.com/reel/…" oninput="previewFormato()"></div>
+    <div id="f-preview" style="margin-bottom:12px"></div>
+    <div class="form-group"><label class="form-label">Nombre del formato</label><input type="text" id="f-nombre" placeholder="Ej: Formato Reacción"></div>
+    <div class="form-group"><label class="form-label">Descripción</label><textarea id="f-desc" style="min-height:80px" placeholder="¿Cómo funciona este formato? ¿Qué lo hace efectivo?"></textarea></div>
+    <div class="form-group"><label class="form-label">Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="f-color-picker">
+        <div class="fcolor-opt active" data-color="#e0b54a" style="background:#e0b54a22;border:2px solid #e0b54a;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#e0b54a" onclick="selectFormatoColor('#e0b54a',this)">Oro</div>
+        <div class="fcolor-opt" data-color="#6090d4" style="background:#6090d422;border:2px solid transparent;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#6090d4" onclick="selectFormatoColor('#6090d4',this)">Azul</div>
+        <div class="fcolor-opt" data-color="#5cb87a" style="background:#5cb87a22;border:2px solid transparent;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#5cb87a" onclick="selectFormatoColor('#5cb87a',this)">Verde</div>
+        <div class="fcolor-opt" data-color="#9b74d4" style="background:#9b74d422;border:2px solid transparent;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#9b74d4" onclick="selectFormatoColor('#9b74d4',this)">Violeta</div>
+        <div class="fcolor-opt" data-color="#d46060" style="background:#d4606022;border:2px solid transparent;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#d46060" onclick="selectFormatoColor('#d46060',this)">Rojo</div>
+        <div class="fcolor-opt" data-color="#5bbbd4" style="background:#5bbbd422;border:2px solid transparent;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#5bbbd4" onclick="selectFormatoColor('#5bbbd4',this)">Teal</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button id="f-delete-btn" onclick="deleteFormato()" class="btn" style="margin-right:auto;background:rgba(212,96,96,.1);border:1px solid #d46060;color:#d46060;display:none">Eliminar</button>
+      <button onclick="closeModal('modal-formato')" class="btn btn-outline">Cancelar</button>
+      <button onclick="saveFormato()" class="btn btn-gold">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Laboratorio -->
+<div class="modal-bg" id="modal-lab" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><span id="lab-modal-title">Nuevo registro</span><button onclick="closeModal('modal-lab')" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">×</button></div>
+    <div id="lab-modal-body"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button id="lab-delete-btn" onclick="deleteLabItem()" class="btn" style="margin-right:auto;background:rgba(212,96,96,.1);border:1px solid #d46060;color:#d46060;display:none">Eliminar</button>
+      <button onclick="closeModal('modal-lab')" class="btn btn-outline">Cancelar</button>
+      <button onclick="saveLabItem()" class="btn btn-gold">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Archivar Laboratorio -->
+<div class="modal-bg" id="modal-lab-archivo" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-header"><span>Archivar laboratorio</span><button onclick="closeModal('modal-lab-archivo')" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">×</button></div>
+    <div class="form-group"><label class="form-label">Nombre del laboratorio</label><input class="form-input" type="text" id="lab-archivo-nombre" placeholder="Ej: Lab Semana 1 — Mayo 2025" autofocus></div>
+    <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" type="date" id="lab-archivo-fecha" style="color-scheme:dark"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Se guardará un snapshot de todas las piezas analizadas y conclusiones actuales.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeModal('modal-lab-archivo')" class="btn btn-outline">Cancelar</button>
+      <button onclick="confirmarArchivoLab()" class="btn btn-gold">Archivar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gestión de Tipos -->
+<div class="modal-bg" id="modal-lab-tipos" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+    <div class="modal-header"><span id="lab-tipos-title">Tipos</span><button onclick="closeModal('modal-lab-tipos')" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">×</button></div>
+    <div id="lab-tipos-list" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input class="form-input" type="text" id="lab-tipos-nuevo" placeholder="Nuevo tipo…" style="flex:1" onkeydown="if(event.key==='Enter') _addLabTipo()">
+      <button onclick="_addLabTipo()" class="btn btn-gold" style="padding:6px 14px;font-size:12px">Agregar</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button onclick="closeModal('modal-lab-tipos')" class="btn btn-outline">Listo</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- MODALS -->
@@ -993,7 +1252,7 @@
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Estado <span style="color:var(--red)">*</span></label>
       <select id="ec-estado" onchange="onEditCallEstadoChange()">
-        <option>Cierre</option><option>Cierre PIF</option><option>Seguimiento Post Call</option>
+        <option>Cierre</option><option>Seguimiento Post Call</option>
         <option>Re agenda</option><option>No Cierre</option><option>No asistió</option>
       </select></div>
     <div class="form-group"><label class="form-label">Seguimientos</label>
@@ -1132,6 +1391,8 @@
     </select></div>
   <div class="form-group"><label class="form-label">Detalles del SOP</label>
     <textarea id="sop-detalles" placeholder="Descripción breve de qué cubre este SOP y cuándo usarlo..." style="min-height:90px"></textarea></div>
+  <div class="form-group"><label class="form-label">Entregables</label>
+    <textarea id="sop-entregables" placeholder="¿Qué se produce al ejecutar este SOP? Ej: documento, post, reporte..." style="min-height:70px"></textarea></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-sop')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveSOP()">Guardar SOP</button>
@@ -1139,59 +1400,15 @@
 </div></div>
 
 <!-- MODAL CONTENIDO -->
-<div class="modal-bg" id="modal-cont" onclick="closeBg(event,this)">
-<div class="modal">
-  <div class="modal-title">+ Nueva pieza de contenido</div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="c-fecha"></div>
-    <div class="form-group"><label class="form-label">Tipo</label>
-      <select id="c-tipo"><option>Reel</option><option>Carrusel</option></select></div>
+<!-- CALENDAR SIDE PANEL -->
+<div id="cal-panel-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.45)" onclick="calClosePanel()"></div>
+<div id="cal-panel" style="display:none;position:fixed;right:0;top:0;bottom:0;width:440px;max-width:100vw;z-index:301;background:var(--surface-2);border-left:1px solid var(--line);overflow-y:auto;padding:24px;box-shadow:-6px 0 32px rgba(0,0,0,.4)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div id="cal-panel-title" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+    <button class="btn-icon" onclick="calClosePanel()" style="font-size:22px;line-height:1">×</button>
   </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Ángulo</label><input type="text" id="c-angulo" placeholder="Ej: Dolor del cliente"></div>
-    <div class="form-group"><label class="form-label">Formato</label><input type="text" id="c-formato" placeholder="Ej: Educativo, storytelling"></div>
-  </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">CTA</label><input type="text" id="c-cta" placeholder="Ej: Escríbeme"></div>
-    <div class="form-group"><label class="form-label">Estado</label>
-      <select id="c-estado"><option>Idea</option><option>Guión listo</option><option>Grabando</option><option>Editando</option><option>Subido</option></select></div>
-  </div>
-  <div class="form-group"><label class="form-label">Hook</label><input type="text" id="c-hook" placeholder="Primera frase impactante"></div>
-  <div class="form-group"><label class="form-label">Guión</label><textarea id="c-guion" placeholder="Escribe el guión completo..."></textarea></div>
-  <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modal-cont')">Cancelar</button>
-    <button class="btn btn-gold" onclick="saveCont()">Guardar</button>
-  </div>
-</div></div>
-
-<!-- MODAL HISTORIA -->
-<div class="modal-bg" id="modal-hist" onclick="closeBg(event,this)">
-<div class="modal">
-  <div class="modal-title">+ Nueva historia</div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="h-fecha"></div>
-    <div class="form-group"><label class="form-label">Tipo</label>
-      <select id="h-tipo">
-        <option>Contenido de valor</option><option>Encuesta</option><option>Pregunta abierta</option>
-        <option>CTA-Venta</option><option>Detrás de escena</option><option>Reposter</option>
-      </select></div>
-  </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Ángulo</label><input type="text" id="h-angulo"></div>
-    <div class="form-group"><label class="form-label">Formato</label><input type="text" id="h-formato"></div>
-  </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">CTA</label><input type="text" id="h-cta"></div>
-    <div class="form-group"><label class="form-label">Estado</label>
-      <select id="h-estado"><option>Idea</option><option>Guión listo</option><option>Grabando</option><option>Editando</option><option>Subido</option></select></div>
-  </div>
-  <div class="form-group"><label class="form-label">Hook</label><input type="text" id="h-hook"></div>
-  <div class="form-group"><label class="form-label">Guión</label><textarea id="h-guion"></textarea></div>
-  <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modal-hist')">Cancelar</button>
-    <button class="btn btn-gold" onclick="saveHist()">Guardar</button>
-  </div>
-</div></div>
+  <div id="cal-panel-body"></div>
+</div>
 
 <!-- MODAL ÁNGULO -->
 <div class="modal-bg" id="modal-ang" onclick="closeBg(event,this)">
@@ -1282,7 +1499,7 @@
   <div class="modal-title">+ Nuevo lead</div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Nombre y apellido <span style="color:var(--red)">*</span></label><input type="text" id="l-nombre" placeholder="Juan Pérez"></div>
-    <div class="form-group"><label class="form-label">Instagram <span style="color:var(--red)">*</span></label><input type="text" id="l-instagram" placeholder="@usuario"></div>
+    <div class="form-group"><label class="form-label">Instagram</label><input type="text" id="l-instagram" placeholder="@usuario"></div>
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group"><label class="form-label">Origen <span style="color:var(--red)">*</span></label>
@@ -1294,20 +1511,29 @@
     <div class="form-group"><label class="form-label">Etiqueta / Campaña</label><input type="text" id="l-etiqueta" placeholder="Ej: Reel 24/4, Historia Oferta..."></div>
     <div class="form-group"><label class="form-label">Estado</label>
       <select id="l-estado">
-        <option>Primer Contacto</option>
-        <option>Micro VSL Enviado</option>
-        <option>VSL Pre Call Enviado</option>
+        <option>Primer contacto</option>
+        <option>Descubrimiento (Problemas-Objetivos)</option>
+        <option>Recurso de nutrición</option>
+        <option>PITCH VSL CHAT</option>
+        <option>VSL CHAT</option>
+        <option>Proponer Call</option>
         <option>Calendly Enviado</option>
-        <option>En seguimiento</option>
         <option>Agendado</option>
-        <option>Cerrado</option>
-        <option>Seña</option>
-        <option>Seguimiento Post Call</option>
-        <option>Perdido Post Call</option>
+        <option>Cerrada</option>
         <option>Perdido</option>
       </select></div>
   </div>
-  <div class="form-group"><label class="form-label">Última acción</label><input type="text" id="l-accion" placeholder="Ej: Envió DM, preguntó por precio..."></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Última acción</label><input type="text" id="l-accion" placeholder="Ej: Envió DM, preguntó por precio..."></div>
+    <div class="form-group"><label class="form-label">Seguimientos realizados</label>
+      <select id="l-seguimientos">
+        <option value="0">— Ninguno —</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4 — Hacer ultimátum</option>
+      </select></div>
+  </div>
   <div class="form-group"><label class="form-label">Notas</label><textarea id="l-notas" placeholder="Info adicional..."></textarea></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-lead')">Cancelar</button>
@@ -1365,11 +1591,11 @@
   <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
     <input type="text" id="cl-comprobante" placeholder="Nº transferencia, captura, link…">
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--border);padding:5px 10px;border-radius:var(--rs)">
+      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--line);padding:5px 10px;border-radius:var(--rs)">
         📎 Adjuntar imagen
         <input type="file" id="cl-comprobante-img" accept="image/*" style="display:none" onchange="_previewClientComprobanteImg(this)">
       </label>
-      <img id="cl-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="this.style.display='none';document.getElementById('cl-comprobante-img').value=''" title="Click para quitar">
+      <img id="cl-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--line);cursor:pointer" onclick="this.style.display='none';document.getElementById('cl-comprobante-img').value=''" title="Click para quitar">
     </div>
   </div>
   <div class="modal-footer">
@@ -1583,11 +1809,11 @@
   <div class="form-group"><label class="form-label">Comprobante / Referencia</label>
     <input type="text" id="cierre-comprobante" placeholder="Nº transferencia, captura, link…">
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--border);padding:5px 10px;border-radius:var(--rs)">
+      <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;border:1px dashed var(--line);padding:5px 10px;border-radius:var(--rs)">
         📎 Adjuntar imagen
         <input type="file" id="cierre-comprobante-img" accept="image/*" style="display:none" onchange="_previewComprobanteImg(this)">
       </label>
-      <img id="cierre-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="this.style.display='none';document.getElementById('cierre-comprobante-img').value=''" title="Click para quitar">
+      <img id="cierre-comprobante-preview" style="display:none;max-height:64px;max-width:110px;border-radius:4px;border:1px solid var(--line);cursor:pointer" onclick="this.style.display='none';document.getElementById('cierre-comprobante-img').value=''" title="Click para quitar">
     </div>
   </div>
 
@@ -1600,6 +1826,23 @@
 <!-- MODAL CUOTA CASH COLLECTED -->
 <!-- TOAST -->
 <div id="toast"></div>
+
+<!-- MODAL APODO DE USUARIO -->
+<div class="modal-bg" id="modal-nickname" style="z-index:9999">
+  <div class="modal-box" style="max-width:420px;text-align:center">
+    <div class="modal-title" style="margin-bottom:6px">¿Cómo te llamamos?</div>
+    <p style="color:var(--text3);font-size:13px;margin:0 0 22px;line-height:1.5">
+      Ingresá el apodo con el que querés aparecer en el CRM.<br>Lo vas a ver cada vez que inicies sesión.
+    </p>
+    <input type="text" id="nickname-input" placeholder="Tu apodo…" maxlength="30"
+      data-no-reset="1"
+      style="font-size:16px;text-align:center;font-weight:600;letter-spacing:.02em"
+      onkeydown="if(event.key==='Enter')saveNickname()">
+    <button class="btn btn-gold" style="width:100%;margin-top:14px;font-size:14px" onclick="saveNickname()">
+      Guardar apodo
+    </button>
+  </div>
+</div>
 
 <script src="script.js"></script>
 </body>
