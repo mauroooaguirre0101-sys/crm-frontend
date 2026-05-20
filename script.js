@@ -82,6 +82,37 @@ function setSplashName(email){
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+let _audioCtx=null;
+document.addEventListener('click',()=>{
+  if(!_audioCtx){try{_audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  else if(_audioCtx.state==='suspended') _audioCtx.resume();
+},{capture:true,passive:true});
+function playCashSound(){
+  try{
+    if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const ctx=_audioCtx;
+    const play=()=>{
+      [[1047,0,0.12,0.22],[1318,0.07,0.12,0.22],[1568,0.13,0.14,0.25],[2093,0.20,0.0,0.40]].forEach(([freq,delay,attack,dur])=>{
+        const osc=ctx.createOscillator();const g=ctx.createGain();
+        osc.connect(g);g.connect(ctx.destination);
+        osc.type='sine';osc.frequency.value=freq;
+        const t=ctx.currentTime+delay;
+        g.gain.setValueAtTime(0.001,t);
+        g.gain.linearRampToValueAtTime(0.28,t+attack+0.005);
+        g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+        osc.start(t);osc.stop(t+dur+0.05);
+      });
+      const buf=ctx.createBuffer(1,ctx.sampleRate*0.06,ctx.sampleRate);
+      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.12;
+      const src=ctx.createBufferSource();src.buffer=buf;
+      const ng=ctx.createGain();src.connect(ng);ng.connect(ctx.destination);
+      ng.gain.setValueAtTime(1,ctx.currentTime);
+      ng.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.06);
+      src.start(ctx.currentTime);
+    };
+    ctx.state==='suspended'?ctx.resume().then(play):play();
+  }catch(e){}
+}
 function fmt(n){return n?n.toLocaleString('es-AR',{minimumFractionDigits:0}):'0'}
 function fmtUSD(n){return n?'$'+fmt(n):'$0'}
 
@@ -1413,8 +1444,8 @@ function renderAng(){
   const bestFac=Object.entries(angStats).sort((a,b)=>b[1].facturacion-a[1].facturacion)[0];
 
   const topCard=_angSortBy==='agendas'
-    ? metCard('Ángulo con más agendas',bestAgendas?`${bestAgendas[0]} (${bestAgendas[1].agendas})`:'—','')
-    : metCard('Ángulo con más ventas',bestVentas?`${bestVentas[0]} (${bestVentas[1].ventas})`:'—','');
+    ? metCard('Ángulo con más agendas',bestAgendas&&bestAgendas[1].agendas>0?`${bestAgendas[0]} (${bestAgendas[1].agendas})`:'—','')
+    : metCard('Ángulo con más ventas',bestVentas&&bestVentas[1].ventas>0?`${bestVentas[0]} (${bestVentas[1].ventas})`:'—','');
 
   document.getElementById('ang-metrics').innerHTML=
     topCard+
@@ -1627,6 +1658,8 @@ let leadsMes       = '';
 let leadsBusqueda       = '';
 let _leadsEstadoFiltro  = '';
 let _leadsVistaFiltro   = 'todos';
+let _leadsSortBy        = null;
+let _leadsSortDir       = 'desc';
 
 const LEAD_ESTADOS = [
   'Primer contacto',
@@ -1711,7 +1744,9 @@ function formatearFechaHora(fechaISO){
 async function actualizarSeguimientos(id, valor, selectEl){
   const n = parseInt(valor, 10) || 0;
   const lead = leadsCache.find(l=>l.id===id);
+  const leadT = leadsTableCache.find(l=>l.id===id);
   if(lead) lead.seguimientos = n;
+  if(leadT) leadT.seguimientos = n;
   const tr = selectEl?.closest('tr');
   const badge = tr?.querySelector('.seg-ultimatum');
   if(badge) badge.style.display = n >= 4 ? '' : 'none';
@@ -1726,12 +1761,34 @@ async function actualizarSeguimientos(id, valor, selectEl){
 
 async function actualizarRespondio4(id, valor, selectEl){
   const lead = leadsCache.find(l=>l.id===id);
+  const leadT = leadsTableCache.find(l=>l.id===id);
+  const now = new Date().toISOString();
+  const patch = { respondio_seguimiento_4: valor||null, updated_at: now };
+
+  if(valor==='NO' && lead && lead.estado !== 'Perdido'){
+    const estadoAnterior = lead.estado || 'Primer contacto';
+    patch.estado = 'Perdido';
+    patch.estado_anterior = estadoAnterior;
+    patch.estado_updated_at = now;
+    lead.estado_anterior = estadoAnterior;
+    lead.estado = 'Perdido';
+    lead.estado_updated_at = now;
+    if(leadT){ leadT.estado_anterior = estadoAnterior; leadT.estado = 'Perdido'; leadT.estado_updated_at = now; }
+  }
+
   if(lead) lead.respondio_seguimiento_4 = valor || null;
+  if(leadT) leadT.respondio_seguimiento_4 = valor || null;
   selectEl.style.color = valor==='NO' ? '#d46060' : valor==='SI' ? '#5cb87a' : 'var(--text3)';
   const tr = selectEl?.closest('tr');
   const lostBadge = tr?.querySelector('.seg-perdido-etapa');
   if(lostBadge) lostBadge.style.display = valor==='NO' ? '' : 'none';
-  apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify({respondio_seguimiento_4: valor||null})}).catch(()=>{});
+
+  apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify(patch)}).catch(()=>{});
+
+  if(patch.estado === 'Perdido'){
+    _renderEstadoCounters(leadsCache);
+    _applyLeadsFilter();
+  }
 }
 
 function _getFaseForEstado(estado){
@@ -1943,9 +2000,11 @@ async function actualizarEstado(id, nuevoEstado, selectEl){
     console.error('[actualizarEstado] Estado vacío'); return;
   }
   const lead = leadsCache.find(l=>l.id===id);
+  const leadT = leadsTableCache.find(l=>l.id===id);
   const estadoAnterior = lead?.estado;
   const tsNow = new Date().toISOString();
   if(lead){ lead.estado = nuevoEstado; lead.estado_updated_at = tsNow; }
+  if(leadT){ leadT.estado = nuevoEstado; leadT.estado_updated_at = tsNow; }
 
   if(selectEl){
     selectEl.blur();
@@ -2127,6 +2186,8 @@ function _renderLeadsTable(){
         <button onclick="leadsGoPage(1)" ${leadsCurrentPage>=totalPages?'disabled':''} style="padding:4px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text2);cursor:pointer;font-size:12px;${leadsCurrentPage>=totalPages?'opacity:.35;cursor:default':''}">Sig →</button>`;
     }
   }
+  const sortIcon=document.getElementById('leads-sort-icon');
+  if(sortIcon) sortIcon.textContent=_leadsSortBy==='updated_at'?(_leadsSortDir==='desc'?'↓':'↑'):'';
   tbody.innerHTML=rows.map((x,idx)=>{
     const _origIdx = pageOffset + idx;
     const estado    = x.estado||'Primer Contacto';
@@ -2155,16 +2216,15 @@ function _renderLeadsTable(){
       <td style="text-align:center;width:30px;padding:4px 2px;color:var(--text3);font-size:10px">${_origIdx+1}</td>
       <td style="color:var(--text3);font-size:12px;white-space:nowrap">${formatearFecha(x.created_at)}</td>
       <td style="color:var(--text3);font-size:11px;white-space:nowrap">${formatearFechaHora(x.estado_updated_at||x.updated_at)}</td>
-      <td style="color:var(--text);font-weight:600;cursor:text" title="Clic para editar nombre" onclick="_editLeadNombre(event,'${x.id}','${(x.nombre||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${x.nombre||'<span style="color:var(--text3);font-style:italic">Sin nombre</span>'}</td>
+      <td style="color:var(--text);font-weight:600;cursor:text" title="Clic para editar" onclick="_editLeadText(event,'${x.id}','nombre',false)">${x.nombre||'<span style="color:var(--text3);font-style:italic">Sin nombre</span>'}</td>
       <td>${x.instagram?`<a href="https://instagram.com/${(x.instagram||'').replace('@','')}" target="_blank"
              style="color:var(--blue);text-decoration:none;font-size:12px">@${x.instagram}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
-      <td>${origenBadge(x.origen)}</td>
-      <td>${tipoBadge(x.tipo)}</td>
-      <td>${(()=>{const ets=_getEtiquetas(x);return ets.length?ets.map(e=>`<span class="badge bgy" style="display:inline-block;margin:1px 2px">${e}</span>`).join(''):'<span style="color:var(--text3)">—</span>';})()}</td>
+      <td style="cursor:pointer" title="Clic para editar" onclick="_editLeadSelect(event,'${x.id}','origen')">${origenBadge(x.origen)}</td>
+      <td style="cursor:pointer" title="Clic para editar" onclick="_editLeadSelect(event,'${x.id}','tipo')">${tipoBadge(x.tipo)}</td>
+      <td style="cursor:text" title="Clic para editar etiquetas" onclick="_editLeadEtiqueta(event,'${x.id}')">${(()=>{const ets=_getEtiquetas(x);return ets.length?ets.map(e=>`<span class="badge bgy" style="display:inline-block;margin:1px 2px">${e}</span>`).join(''):'<span style="color:var(--text3)">—</span>';})()}</td>
       <td>${estadoSelect(x)}</td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-          title="${x.ultima_accion||''}">${x.ultima_accion||'—'}</td>
-      <td><span class="trunc" title="${x.notas||''}">${x.notas||'—'}</span></td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text" title="Clic para editar" onclick="_editLeadText(event,'${x.id}','ultima_accion',false)">${x.ultima_accion||'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="cursor:text" title="Clic para editar notas" onclick="_editLeadText(event,'${x.id}','notas',true)"><span class="trunc" title="${x.notas||''}">${x.notas||'<span style="color:var(--text3)">—</span>'}</span></td>
       <td>${x.source==='manychat'?'<span class="api-badge">MC</span>':'<span style="color:var(--text3);font-size:11px">manual</span>'}</td>
       <td style="text-align:center;min-width:90px">
         <select onchange="actualizarSeguimientos('${x.id}',this.value,this)"
@@ -2241,8 +2301,10 @@ function _renderFunnel(leads){
 
 async function actualizarCalificacion(id, valor, selectEl){
   const lead = leadsCache.find(l=>l.id===id);
+  const leadT = leadsTableCache.find(l=>l.id===id);
   const patch = { calificado: valor==='si', descalificado: valor==='no' };
   if(lead){ lead.calificado=patch.calificado; lead.descalificado=patch.descalificado; }
+  if(leadT){ leadT.calificado=patch.calificado; leadT.descalificado=patch.descalificado; }
   if(valor==='si'&&lead) _atribuirContenido(lead,'calificados').catch(()=>{});
   if(valor==='no'&&lead) _atribuirContenido(lead,'descalificados').catch(()=>{});
   if(selectEl){ selectEl.style.color = valor==='si'?'#5cb87a':valor==='no'?'#d46060':'var(--text3)'; selectEl.blur(); }
@@ -2259,7 +2321,9 @@ async function actualizarCampo(id, campo, valor){
   if(!['show','calificado','descalificado'].includes(campo)){ console.error('[actualizarCampo] Campo inválido:', campo); return; }
 
   const lead = leadsCache.find(l=>l.id===id);
+  const leadT = leadsTableCache.find(l=>l.id===id);
   if(lead) lead[campo] = valor;
+  if(leadT) leadT[campo] = valor;
 
   _renderFunnel(leadsCache);
 
@@ -2280,27 +2344,108 @@ async function actualizarCampo(id, campo, valor){
   }
 }
 
-function _editLeadNombre(e, id, current){
+function _leadEditBtns(saveFn){
+  const w=document.createElement('div');
+  w.style.cssText='display:flex;gap:3px;margin-top:3px;';
+  const ok=document.createElement('button');
+  ok.textContent='Guardar';
+  ok.style.cssText='background:var(--gold);border:none;border-radius:4px;color:#000;font-weight:700;font-size:11px;padding:2px 8px;cursor:pointer;';
+  const ca=document.createElement('button');
+  ca.textContent='Cancelar';
+  ca.style.cssText='background:rgba(255,255,255,0.08);border:none;border-radius:4px;color:var(--text2);font-size:11px;padding:2px 8px;cursor:pointer;';
+  ok.addEventListener('mousedown',e2=>{e2.preventDefault();saveFn();});
+  ca.addEventListener('mousedown',e2=>{e2.preventDefault();_renderLeadsTable();});
+  w.appendChild(ok);w.appendChild(ca);
+  return w;
+}
+function _editLeadText(e, id, campo, multiline){
   const cell=e.target.closest('td');
-  if(!cell) return;
-  const inp=document.createElement('input');
-  inp.value=current||'';
-  inp.style.cssText='background:transparent;border:none;border-bottom:1px solid var(--gold);color:var(--text);font-weight:600;font-size:inherit;width:100%;min-width:80px;outline:none;padding:0;';
-  cell.innerHTML='';
-  cell.appendChild(inp);
-  inp.focus();inp.select();
+  if(!cell||cell.querySelector('input,textarea'))return;
+  const lead=leadsTableCache.find(l=>l.id===id)||leadsCache.find(l=>l.id===id);
+  const valor=lead?(lead[campo]||''):'';
+  const el=multiline?document.createElement('textarea'):document.createElement('input');
+  el.value=valor;
+  if(multiline){
+    el.rows=3;
+    el.style.cssText='background:rgba(255,255,255,0.05);border:1px solid var(--gold);border-radius:4px;color:var(--text);font-size:12px;width:100%;min-width:140px;outline:none;padding:4px 6px;resize:vertical;font-family:inherit;box-sizing:border-box;';
+  } else {
+    el.style.cssText='background:transparent;border:none;border-bottom:1px solid var(--gold);color:var(--text);font-weight:600;font-size:inherit;width:100%;min-width:80px;outline:none;padding:0;';
+  }
   async function save(){
-    const nuevo=inp.value.trim();
-    if(!nuevo||nuevo===current){_renderLeadsTable();return;}
+    const nuevo=el.value.trim();
+    if(nuevo===valor.trim()){_renderLeadsTable();return;}
     try{
-      await apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify({nombre:nuevo,updated_at:new Date().toISOString()})});
-      [leadsCache,leadsTableCache].forEach(arr=>{const l=arr.find(x=>x.id===id);if(l)l.nombre=nuevo;});
-      toast('Nombre actualizado ✓');
+      await apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify({[campo]:nuevo,updated_at:new Date().toISOString()})});
+      [leadsCache,leadsTableCache].forEach(arr=>{const l=arr.find(x=>x.id===id);if(l)l[campo]=nuevo;});
+      toast('Guardado ✓');
     }catch(err){toast('✗ Error al guardar');}
     _renderLeadsTable();
   }
-  inp.addEventListener('blur',save);
-  inp.addEventListener('keydown',e2=>{if(e2.key==='Enter'){e2.preventDefault();inp.blur();}if(e2.key==='Escape')_renderLeadsTable();});
+  el.addEventListener('keydown',e2=>{
+    if(!multiline&&e2.key==='Enter'){e2.preventDefault();save();}
+    if(e2.key==='Escape')_renderLeadsTable();
+  });
+  cell.innerHTML='';cell.appendChild(el);cell.appendChild(_leadEditBtns(save));
+  el.focus();if(!multiline)el.select();
+}
+function _editLeadSelect(e, id, campo){
+  const OPTS={origen:['Inbound','Outbound'],tipo:['Ads','Organico','Outbound','Seguidor']};
+  const cell=e.target.closest('td');
+  if(!cell||cell.querySelector('select'))return;
+  const lead=leadsTableCache.find(l=>l.id===id)||leadsCache.find(l=>l.id===id);
+  const valor=lead?(lead[campo]||''):'';
+  const sel=document.createElement('select');
+  sel.style.cssText='background:var(--bg);border:1px solid var(--gold);border-radius:4px;color:var(--text);font-size:12px;outline:none;padding:3px 4px;cursor:pointer;';
+  (OPTS[campo]||[]).forEach(o=>{
+    const opt=document.createElement('option');
+    opt.value=o;opt.textContent=o;
+    if(o===valor)opt.selected=true;
+    sel.appendChild(opt);
+  });
+  async function save(){
+    const nuevo=sel.value;
+    if(nuevo===valor){_renderLeadsTable();return;}
+    try{
+      await apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify({[campo]:nuevo,updated_at:new Date().toISOString()})});
+      [leadsCache,leadsTableCache].forEach(arr=>{const l=arr.find(x=>x.id===id);if(l)l[campo]=nuevo;});
+      toast('Guardado ✓');
+    }catch(err){toast('✗ Error al guardar');}
+    _renderLeadsTable();
+  }
+  cell.innerHTML='';cell.appendChild(sel);cell.appendChild(_leadEditBtns(save));
+  sel.focus();
+}
+function _editLeadEtiqueta(e, id){
+  const cell=e.target.closest('td');
+  if(!cell||cell.querySelector('input'))return;
+  const lead=leadsTableCache.find(l=>l.id===id)||leadsCache.find(l=>l.id===id);
+  const ets=Array.isArray(lead?.etiquetas)&&lead.etiquetas.length?lead.etiquetas:(lead?.etiqueta?[lead.etiqueta]:[]);
+  const inp=document.createElement('input');
+  inp.value=ets.join(', ');
+  inp.placeholder='Ej: CTA BIO, Seguidor Nuevo';
+  inp.style.cssText='background:transparent;border:none;border-bottom:1px solid var(--gold);color:var(--text);font-size:12px;width:100%;min-width:130px;outline:none;padding:0;';
+  async function save(){
+    const nuevas=inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+    const patch={etiqueta:nuevas[0]||'',etiquetas:nuevas,updated_at:new Date().toISOString()};
+    try{
+      await apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify(patch)});
+      [leadsCache,leadsTableCache].forEach(arr=>{const l=arr.find(x=>x.id===id);if(l){l.etiqueta=patch.etiqueta;l.etiquetas=patch.etiquetas;}});
+      toast('Etiquetas guardadas ✓');
+    }catch(err){toast('✗ Error al guardar');}
+    _renderLeadsTable();_applyLeadsFilter();
+  }
+  inp.addEventListener('keydown',e2=>{if(e2.key==='Enter'){e2.preventDefault();save();}if(e2.key==='Escape')_renderLeadsTable();});
+  cell.innerHTML='';cell.appendChild(inp);cell.appendChild(_leadEditBtns(save));
+  inp.focus();inp.select();
+}
+function _toggleLeadsSort(){
+  if(_leadsSortBy==='updated_at'){
+    _leadsSortDir=_leadsSortDir==='desc'?'asc':'desc';
+  } else {
+    _leadsSortBy='updated_at';_leadsSortDir='desc';
+  }
+  leadsCurrentPage=1;
+  fetchLeadsPage(1);
 }
 
 // Builds query params for the current active filters
@@ -2311,6 +2456,7 @@ function _leadsFilterParams(){
   if(_leadsVistaFiltro && _leadsVistaFiltro !== 'todos') p.set('vista', _leadsVistaFiltro);
   if(_gf.mes !== '')        p.set('mes',     _gf.mes);
   else if(_gf.period)       p.set('period',  _gf.period);
+  if(_leadsSortBy)          { p.set('sort_by', _leadsSortBy); p.set('sort_dir', _leadsSortDir); }
   return p;
 }
 
@@ -2400,8 +2546,8 @@ const FUNNEL_FASES = [
   { label:'Primer Contacto',  estados:['Primer contacto'],                                      color:'#9a9690', bg:'rgba(154,150,144,0.22)' },
   { label:'Descubrimiento',   estados:['Descubrimiento (Problemas-Objetivos)'],                 color:'#6090d4', bg:'rgba(61,106,170,0.22)'  },
   { label:'Nutrición',        estados:['Recurso de nutrición'],                                  color:'#a070d8', bg:'rgba(122,74,184,0.22)'  },
-  { label:'Agendamiento',     estados:['PITCH VSL CHAT','VSL CHAT','Proponer Call'],             color:'#e0a848', bg:'rgba(196,136,42,0.22)'  },
-  { label:'Cierre',           estados:['Calendly Enviado','Agendado'],                           color:'#d4a832', bg:'rgba(212,168,50,0.2)'   },
+  { label:'Agendamiento',     estados:['PITCH VSL CHAT','VSL CHAT','Proponer Call','Calendly Enviado'], color:'#e0a848', bg:'rgba(196,136,42,0.22)'  },
+  { label:'Cierre',           estados:['Agendado'],                                              color:'#d4a832', bg:'rgba(212,168,50,0.2)'   },
   { label:'Cerrados',         estados:['Cerrada'],                                               color:'#5cb87a', bg:'rgba(61,138,90,0.22)'   },
 ];
 let _funnelFilter = { period:'mes', mes:'' };
@@ -2692,7 +2838,7 @@ function _clientOrigenBadge(x){
       const nom=(x.nombre||'').toLowerCase();
       lead=nom?leadsCache.find(l=>(l.nombre||'').toLowerCase()===nom):null;
     }
-    const ets=_getEtiquetas(lead);
+    const ets=lead?_getEtiquetas(lead):[];
     etiqueta=ets.length?ets[ets.length-1]:null;
   }
   if(!etiqueta) return '<span style="color:var(--text3);font-size:11px">—</span>';
@@ -2957,7 +3103,7 @@ async function saveClient(){
     const nCuotas=parseInt(document.getElementById('cl-nro-cuotas')?.value)||2;
     generarCuotasCliente(nc,nCuotas);
   }
-  closeModal('modal-client');renderClients();renderDash();toast('Cliente guardado ✓');
+  playCashSound();closeModal('modal-client');renderClients();renderDash();toast('Cliente guardado ✓');
 }
 async function delClient(id){
   if(!confirm('¿Eliminar?'))return;
@@ -4694,7 +4840,7 @@ async function saveCierre(){
   }
   _logActivity('Cliente creado',{nombre,instagram},'Desde cierre de lead');
   if(typeof renderClients==='function') renderClients();
-  closeModal('modal-cierre');
+  playCashSound();closeModal('modal-cierre');
   window._pendingCierre=null;
   toast('✓ Cliente creado y venta registrada');
 }
