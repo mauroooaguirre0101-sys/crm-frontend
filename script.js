@@ -1392,6 +1392,7 @@ function renderContCharts(){
 }
 
 let _angSortBy='ventas';
+let _hiddenAngulos=new Set();
 // ========== ÁNGULOS ==========
 function renderAng(){
   // Build stats from content pieces — only when there are leads; otherwise everything is 0
@@ -1421,7 +1422,7 @@ function renderAng(){
 
   // Merge manual S.angulos with auto-detected ángulos from content pieces
   const knownAngNames=new Set(S.angulos.map(x=>x.angulo));
-  const hiddenAutoAng=_getHiddenAutoAng();
+  const hiddenAutoAng=_hiddenAngulos;
   const autoAngItems=Object.keys(angStats).filter(n=>!knownAngNames.has(n)&&!hiddenAutoAng.has(n)).map(n=>({id:'_auto_'+n,angulo:n,tipo:'—',pc:[],uc:[],ad:'No'}));
   const angulos=[...S.angulos,...autoAngItems].sort((a,b)=>{
     const sa=angStats[a.angulo]||{ventas:0,agendas:0,facturacion:0};
@@ -1467,12 +1468,11 @@ async function delAng(id){
   try{const r=await apiFetch(`${API_URL}/angulos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
   S.angulos=S.angulos.filter(x=>x.id!==id);renderAng();
 }
-function _getHiddenAutoAng(){
-  try{return new Set(JSON.parse(localStorage.getItem(`_hidAutoAng_${getCid()}`)||'[]'));}catch{return new Set();}
-}
-function _hideAutoAng(name){
-  const s=_getHiddenAutoAng();s.add(name);
-  localStorage.setItem(`_hidAutoAng_${getCid()}`,JSON.stringify([...s]));
+async function _hideAutoAng(name){
+  _hiddenAngulos.add(name);
+  renderAng();
+  try{await apiFetch(`${API_URL}/angulos`,{method:'POST',body:JSON.stringify({angulo:name,hidden:true})});}
+  catch(e){console.warn('No se pudo guardar ángulo oculto:',e);}
   renderAng();
 }
 
@@ -2063,7 +2063,12 @@ function _applyLeadsFilter(){
   }
 
   const segEl = document.getElementById('leads-seguidores-badge');
-  if(segEl) segEl.textContent = filtrados.filter(l=>(l.tipo||'').toLowerCase()==='seguidor').length;
+  const SEG_ETAS=['Seguir Nuevo','Seguidor Nuevo'];
+  if(segEl) segEl.textContent = filtrados.filter(l=>{
+    if((l.tipo||'').toLowerCase()==='seguidor') return true;
+    const ets=Array.isArray(l.etiquetas)?l.etiquetas:(l.etiqueta?[l.etiqueta]:[]);
+    return ets.some(e=>SEG_ETAS.includes(e));
+  }).length;
 
   _renderFunnel(leadsCache);
   _renderEstadoCounters(leadsCache);
@@ -2150,7 +2155,7 @@ function _renderLeadsTable(){
       <td style="text-align:center;width:30px;padding:4px 2px;color:var(--text3);font-size:10px">${_origIdx+1}</td>
       <td style="color:var(--text3);font-size:12px;white-space:nowrap">${formatearFecha(x.created_at)}</td>
       <td style="color:var(--text3);font-size:11px;white-space:nowrap">${formatearFechaHora(x.estado_updated_at||x.updated_at)}</td>
-      <td style="color:var(--text);font-weight:600">${x.nombre||'—'}</td>
+      <td style="color:var(--text);font-weight:600;cursor:text" title="Clic para editar nombre" onclick="_editLeadNombre(event,'${x.id}','${(x.nombre||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${x.nombre||'<span style="color:var(--text3);font-style:italic">Sin nombre</span>'}</td>
       <td>${x.instagram?`<a href="https://instagram.com/${(x.instagram||'').replace('@','')}" target="_blank"
              style="color:var(--blue);text-decoration:none;font-size:12px">@${x.instagram}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td>${origenBadge(x.origen)}</td>
@@ -2273,6 +2278,29 @@ async function actualizarCampo(id, campo, valor){
     if(lead) lead[campo] = !valor;
     _renderFunnel(leadsCache);
   }
+}
+
+function _editLeadNombre(e, id, current){
+  const cell=e.target.closest('td');
+  if(!cell) return;
+  const inp=document.createElement('input');
+  inp.value=current||'';
+  inp.style.cssText='background:transparent;border:none;border-bottom:1px solid var(--gold);color:var(--text);font-weight:600;font-size:inherit;width:100%;min-width:80px;outline:none;padding:0;';
+  cell.innerHTML='';
+  cell.appendChild(inp);
+  inp.focus();inp.select();
+  async function save(){
+    const nuevo=inp.value.trim();
+    if(!nuevo||nuevo===current){_renderLeadsTable();return;}
+    try{
+      await apiFetch(`${API_URL}/leads/${id}`,{method:'PATCH',body:JSON.stringify({nombre:nuevo,updated_at:new Date().toISOString()})});
+      [leadsCache,leadsTableCache].forEach(arr=>{const l=arr.find(x=>x.id===id);if(l)l.nombre=nuevo;});
+      toast('Nombre actualizado ✓');
+    }catch(err){toast('✗ Error al guardar');}
+    _renderLeadsTable();
+  }
+  inp.addEventListener('blur',save);
+  inp.addEventListener('keydown',e2=>{if(e2.key==='Enter'){e2.preventDefault();inp.blur();}if(e2.key==='Escape')_renderLeadsTable();});
 }
 
 // Builds query params for the current active filters
@@ -3691,7 +3719,8 @@ async function fetchAngulos(){
     if(!res.ok) return;
     const data=await res.json();
     if(!Array.isArray(data)) return;
-    S.angulos=data;
+    _hiddenAngulos=new Set(data.filter(x=>x.hidden).map(x=>x.angulo));
+    S.angulos=data.filter(x=>!x.hidden);
   }catch(e){console.warn('[fetchAngulos]',e);}
 }
 async function fetchReferentes(){
