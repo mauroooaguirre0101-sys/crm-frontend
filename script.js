@@ -1670,11 +1670,12 @@ const LEAD_ESTADOS = [
   'Proponer Call',
   'Calendly Enviado',
   'Agendado',
+  'Seña',
   'Cerrada',
   'Perdido',
 ];
 const ESTADO_PERDIDO = new Set(['Perdido']);
-const ESTADO_CERRADO = new Set(['Cerrada']);
+const ESTADO_CERRADO = new Set(['Cerrada','Seña']);
 function _esPerdidoEfectivo(l){ return ESTADO_PERDIDO.has(l.estado)||((l.seguimientos||0)>=4&&l.respondio_seguimiento_4==='NO'); }
 
 const ESTADO_COLOR = {
@@ -1686,6 +1687,7 @@ const ESTADO_COLOR = {
   'Proponer Call':                      { bg:'rgba(196,136,42,0.13)',  border:'rgba(196,136,42,0.3)', text:'#e0a848' },
   'Calendly Enviado':                   { bg:'rgba(212,168,50,0.1)',   border:'rgba(212,168,50,0.2)', text:'#d4a832' },
   'Agendado':                           { bg:'rgba(212,168,50,0.07)',  border:'rgba(212,168,50,0.18)',text:'#d4a832' },
+  'Seña':                               { bg:'rgba(61,138,90,0.08)',   border:'rgba(61,138,90,0.2)',  text:'#4aaa6a' },
   'Cerrada':                            { bg:'rgba(61,138,90,0.12)',   border:'rgba(61,138,90,0.25)', text:'#5cb87a' },
   'Perdido':                            { bg:'rgba(184,72,72,0.12)',   border:'rgba(184,72,72,0.25)', text:'#d46060' },
 };
@@ -2028,7 +2030,7 @@ async function actualizarEstado(id, nuevoEstado, selectEl){
     _mostrarPopupReporteAgenda(id, lead);
     if(lead) _atribuirContenido(lead,'agendas').catch(()=>{});
   }
-  if(nuevoEstado === 'Cerrada' && lead) _atribuirContenido(lead,'ventas').catch(()=>{});
+  if((nuevoEstado === 'Cerrada' || nuevoEstado === 'Seña') && lead) _atribuirContenido(lead,'ventas').catch(()=>{});
   _logActivity(`Estado → ${nuevoEstado}`, lead, estadoAnterior?`Antes: ${estadoAnterior}`:'');
 
   _renderEstadoCounters(leadsCache);
@@ -2548,7 +2550,7 @@ const FUNNEL_FASES = [
   { label:'Nutrición',        estados:['Recurso de nutrición'],                                  color:'#a070d8', bg:'rgba(122,74,184,0.22)'  },
   { label:'Agendamiento',     estados:['PITCH VSL CHAT','VSL CHAT','Proponer Call','Calendly Enviado'], color:'#e0a848', bg:'rgba(196,136,42,0.22)'  },
   { label:'Cierre',           estados:['Agendado'],                                              color:'#d4a832', bg:'rgba(212,168,50,0.2)'   },
-  { label:'Cerrados',         estados:['Cerrada'],                                               color:'#5cb87a', bg:'rgba(61,138,90,0.22)'   },
+  { label:'Cerrados',         estados:['Cerrada','Seña'],                                         color:'#5cb87a', bg:'rgba(61,138,90,0.22)'   },
 ];
 let _funnelFilter = { period:'mes', mes:'' };
 let _funnelFasesCache = [];
@@ -4210,13 +4212,25 @@ function _renderCallsTable(rows){
     const estado=r.estado||r.estado_llamada||'';
     const col=CALL_ESTADO_COLOR[estado]||{bg:'rgba(60,58,55,0.5)',border:'rgba(80,78,74,0.3)',text:'#7a7870'};
     const isCierre=['Cierre','Cierre Cuotas'].includes(estado);
+    const isPostCall = estado === 'Seguimiento Post Call';
     let pagoHtml='';
     if(isCierre){
       const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
       if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
     }
+    let segHtml='';
+    if(isPostCall){
+      const seg=r.seguimientos||0;
+      const respColor=r.responde?'#5cb87a':'var(--text3)';
+      segHtml=`<div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:var(--text3)">Segs:</span>
+        <span style="font-size:11px;font-weight:700;color:${seg>0?'var(--gold)':'var(--text3)'}">${seg}</span>
+        <span style="font-size:10px;color:var(--text3)">·</span>
+        <span style="font-size:10px;font-weight:700;color:${respColor}">${r.responde?'Responde':'No responde'}</span>
+      </div>`;
+    }
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}`;
+      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${segHtml}`;
 
     const infoPrevia=r.info_previa
       ?`<span class="trunc" style="max-width:110px;display:inline-block;cursor:pointer;color:var(--text2)"
@@ -4248,8 +4262,6 @@ function _renderCallsTable(rows){
       <td>${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
-      <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${r.seguimientos||0}</td>
-      <td><span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span></td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${reporteCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
@@ -4257,7 +4269,7 @@ function _renderCallsTable(rows){
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="13" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="11" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
