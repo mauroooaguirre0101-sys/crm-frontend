@@ -729,127 +729,47 @@ function _loadSOPS(){return ld(_getSopsKey(),[]);}
 function _saveSOPS(arr){sv(_getSopsKey(),arr);}
 
 const SOP_AREAS=['Marketing','Ventas','Productos','Operaciones','Otro'];
-const SOP_ROLES=['Setter','Closer','Editor','Content','Todos'];
-
-// Roles de SOP visibles por usuario (null = todos)
-const ROLE_SOP_ROL={admin:null,setter:['Setter','Todos'],closer:['Closer','Todos'],content:['Content','Editor','Todos']};
-function _sopRolesForUser(){return ROLE_SOP_ROL[currentUserRole]??null;}
-
+const ROLE_SOP_AREAS={admin:null,content:['Marketing'],closer:['Ventas'],setter:['Ventas']};
+function _sopAreasForRole(){return ROLE_SOP_AREAS[currentUserRole]??null;}
 function sopAreaBadge(a){
   const m={Marketing:'bb',Ventas:'bgr',Productos:'bg',Operaciones:'ba',Otro:'bgy'};
   return `<span class="badge ${m[a]||'bgy'}">${a||'—'}</span>`;
 }
-function sopRolBadge(r){
-  const m={Setter:'ba',Closer:'bgr',Editor:'bb',Content:'bp',Todos:'bgy'};
-  return `<span class="badge ${m[r||'Todos']||'bgy'}">${r||'Todos'}</span>`;
-}
 
 function renderSOPS(){
   const el=document.getElementById('sops-table-body');if(!el)return;
+  const areas=_sopAreasForRole();
   const canEdit=currentUserRole==='admin';
-  const isAdmin=currentUserRole==='admin';
-  // Mostrar columna Rol solo para admins
-  const thRol=document.getElementById('sops-th-rol');
-  if(thRol) thRol.style.display=isAdmin?'':'none';
-  const rolesPermitidos=_sopRolesForUser();
-
+  const list=(S.sops||[]).filter(s=>!areas||areas.includes(s.area));
   const btnAdd=document.getElementById('btn-new-sop');
   if(btnAdd) btnAdd.style.display=canEdit?'':'none';
-
-  // Filtrar: admins ven todo, resto filtrado por su rol
-  const all=S.sops||[];
-  const list=isAdmin ? all : all.filter(s=>{
-    const sopRol=s.rol||'Todos';
-    return rolesPermitidos===null||rolesPermitidos.includes(sopRol);
-  });
-
-  if(!list.length){
-    el.innerHTML=`<tr><td colspan="${isAdmin?6:5}" style="color:var(--text3);text-align:center;padding:28px">Sin SOPs. ${canEdit?"Usá '+ Nuevo SOP' para agregar uno.":'Pedí a un admin que agregue SOPs.'}</td></tr>`;
-    return;
-  }
-
-  if(isAdmin){
-    // Agrupar por área con cabeceras de sección
-    const byArea={};
-    SOP_AREAS.forEach(a=>{ byArea[a]=[]; });
-    list.forEach(s=>{ const a=s.area||'Otro'; if(!byArea[a]) byArea[a]=[]; byArea[a].push(s); });
-    el.innerHTML=SOP_AREAS.flatMap(area=>{
-      const sops=byArea[area];
-      if(!sops||!sops.length) return [];
-      const header=`<tr><td colspan="6" style="padding:8px 10px 4px;background:rgba(255,255,255,0.03);border-top:1px solid rgba(255,255,255,0.07)">
-        ${sopAreaBadge(area)} <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-left:6px">${sops.length} SOP${sops.length>1?'s':''}</span>
-      </td></tr>`;
-      const rows=sops.map(s=>`
-        <tr>
-          <td>${s.link?`<a href="${s.link}" target="_blank" style="color:var(--blue);font-size:12px">Ver SOP ↗</a>`:'<span style="color:var(--text3)">—</span>'}</td>
-          <td>${sopRolBadge(s.rol)}</td>
-          <td style="color:var(--text2);font-size:13px">${s.detalles||'—'}</td>
-          <td style="color:var(--text2);font-size:13px">${s.entregables||'—'}</td>
-          <td style="white-space:nowrap">
-            <button class="btn-icon" onclick="editSOP('${s.id}')" style="color:var(--gold);font-size:13px;margin-right:4px" title="Editar">✎</button>
-            <button class="btn-icon" onclick="delSOP('${s.id}')" title="Eliminar">×</button>
-          </td>
-        </tr>`).join('');
-      return [header, rows];
-    }).join('');
-  } else {
-    el.innerHTML=list.map(s=>`
-      <tr>
-        <td>${s.link?`<a href="${s.link}" target="_blank" style="color:var(--blue);font-size:12px">Ver SOP ↗</a>`:'<span style="color:var(--text3)">—</span>'}</td>
-        <td style="color:var(--text2);font-size:13px">${s.detalles||'—'}</td>
-        <td style="color:var(--text2);font-size:13px">${s.entregables||'—'}</td>
-      </tr>`).join('');
-  }
+  el.innerHTML=list.map(s=>`
+    <tr>
+      <td>${s.link?`<a href="${s.link}" target="_blank" style="color:var(--blue);font-size:12px">Ver SOP ↗</a>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td>${sopAreaBadge(s.area)}</td>
+      <td style="color:var(--text2);font-size:13px">${s.detalles||'—'}</td>
+      <td style="color:var(--text2);font-size:13px">${s.entregables||'—'}</td>
+      <td>${canEdit?`<button class="btn-icon" onclick="delSOP('${s.id}')">×</button>`:''}</td>
+    </tr>`).join('')||`<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:28px">Sin SOPs${areas?' de '+areas.join('/'):''}. ${canEdit?"Usá '+ Nuevo SOP' para agregar uno.":'Pedí a un admin que agregue SOPs.'}</td></tr>`;
 }
 async function saveSOP(){
   const link=(document.getElementById('sop-link')?.value||'').trim();
   const area=document.getElementById('sop-area')?.value||'Otro';
-  const rol=document.getElementById('sop-rol')?.value||'Todos';
   const detalles=(document.getElementById('sop-detalles')?.value||'').trim();
   const entregables=(document.getElementById('sop-entregables')?.value||'').trim();
   if(!detalles&&!link){toast('✗ Completá al menos el link o los detalles');return;}
   try{
-    const res=await apiFetch(`${API_URL}/sops`,{method:'POST',body:JSON.stringify({link,area,rol,detalles,entregables})});
+    const res=await apiFetch(`${API_URL}/sops`,{method:'POST',body:JSON.stringify({link,area,detalles,entregables})});
     if(!res.ok) throw new Error();
     const saved=await res.json();
-    S.sops.unshift({id:saved.id||uid(),link,area,rol,detalles,entregables});
+    S.sops.unshift({id:saved.id||uid(),link,area,detalles,entregables});
     closeModal('modal-sop');renderSOPS();toast('✓ SOP guardado');
   }catch(e){
-    const item={id:uid(),link,area,rol,detalles,entregables};
+    const item={id:uid(),link,area,detalles,entregables};
     const local=_loadSOPS();local.unshift(item);_saveSOPS(local);
     S.sops.unshift(item);
     closeModal('modal-sop');renderSOPS();toast('✓ SOP guardado localmente (sin conexión)');
   }
-}
-function editSOP(id){
-  const raw=S.sops.find(x=>x.id===id);
-  if(!raw) return;
-  const s=_sopFields(raw);
-  document.getElementById('es-id').value=id;
-  document.getElementById('es-link').value=s.link||'';
-  document.getElementById('es-area').value=s.area||'Otro';
-  document.getElementById('es-rol').value=s.rol||'Todos';
-  document.getElementById('es-detalles').value=s.detalles||'';
-  document.getElementById('es-entregables').value=s.entregables||'';
-  openModal('modal-edit-sop');
-}
-async function saveEditSOP(){
-  const id=document.getElementById('es-id').value;
-  if(!id) return;
-  const link=(document.getElementById('es-link')?.value||'').trim();
-  const area=document.getElementById('es-area')?.value||'Otro';
-  const rol=document.getElementById('es-rol')?.value||'Todos';
-  const detalles=(document.getElementById('es-detalles')?.value||'').trim();
-  const entregables=(document.getElementById('es-entregables')?.value||'').trim();
-  if(!detalles&&!link){toast('✗ Completá al menos el link o los detalles');return;}
-  const patch={link,area,rol,detalles,entregables};
-  try{
-    const r=await apiFetch(`${API_URL}/sops/${id}`,{method:'PATCH',body:JSON.stringify(patch)});
-    if(!r.ok) throw new Error();
-    const idx=S.sops.findIndex(x=>x.id===id);
-    if(idx>-1) S.sops[idx]={...S.sops[idx],...patch};
-    closeModal('modal-edit-sop');renderSOPS();toast('✓ SOP actualizado');
-  }catch(e){toast('✗ Error al guardar');}
 }
 async function delSOP(id){
   if(!confirm('¿Eliminar este SOP?'))return;
@@ -3925,16 +3845,7 @@ function setupAutoLogout(){
     document.addEventListener(e,bump,{passive:true}));
 }
 
-function _flattenSOP(s){
-  if(!s.data) return s;
-  const d = typeof s.data === 'string' ? JSON.parse(s.data) : s.data;
-  return {id:s.id, created_at:s.created_at, ...d};
-}
-function _sopFields(s){
-  // Returns the SOP's editable fields regardless of whether data is flattened or still nested
-  if(s.data && typeof s.data === 'object') return s.data;
-  return s;
-}
+function _flattenSOP(s){ return s.data ? {id:s.id,created_at:s.created_at,...s.data} : s; }
 async function fetchSOPS(){
   try{
     const res=await apiFetch(`${API_URL}/sops`);
