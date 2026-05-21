@@ -822,8 +822,9 @@ async function saveSOP(){
   }
 }
 function editSOP(id){
-  const s=S.sops.find(x=>x.id===id);
-  if(!s) return;
+  const raw=S.sops.find(x=>x.id===id);
+  if(!raw) return;
+  const s=_sopFields(raw);
   document.getElementById('es-id').value=id;
   document.getElementById('es-link').value=s.link||'';
   document.getElementById('es-area').value=s.area||'Otro';
@@ -3924,7 +3925,16 @@ function setupAutoLogout(){
     document.addEventListener(e,bump,{passive:true}));
 }
 
-function _flattenSOP(s){ return s.data ? {id:s.id,created_at:s.created_at,...s.data} : s; }
+function _flattenSOP(s){
+  if(!s.data) return s;
+  const d = typeof s.data === 'string' ? JSON.parse(s.data) : s.data;
+  return {id:s.id, created_at:s.created_at, ...d};
+}
+function _sopFields(s){
+  // Returns the SOP's editable fields regardless of whether data is flattened or still nested
+  if(s.data && typeof s.data === 'object') return s.data;
+  return s;
+}
 async function fetchSOPS(){
   try{
     const res=await apiFetch(`${API_URL}/sops`);
