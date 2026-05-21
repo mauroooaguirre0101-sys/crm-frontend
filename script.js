@@ -4218,19 +4218,8 @@ function _renderCallsTable(rows){
       const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
       if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
     }
-    let segHtml='';
-    if(isPostCall){
-      const seg=r.seguimientos||0;
-      const respColor=r.responde?'#5cb87a':'var(--text3)';
-      segHtml=`<div style="margin-top:4px;display:flex;gap:6px;align-items:center">
-        <span style="font-size:10px;color:var(--text3)">Segs:</span>
-        <span style="font-size:11px;font-weight:700;color:${seg>0?'var(--gold)':'var(--text3)'}">${seg}</span>
-        <span style="font-size:10px;color:var(--text3)">·</span>
-        <span style="font-size:10px;font-weight:700;color:${respColor}">${r.responde?'Responde':'No responde'}</span>
-      </div>`;
-    }
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${segHtml}`;
+      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}`;
 
     const infoPrevia=r.info_previa
       ?`<span class="trunc" style="max-width:110px;display:inline-block;cursor:pointer;color:var(--text2)"
@@ -4262,6 +4251,8 @@ function _renderCallsTable(rows){
       <td>${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
+      <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${isPostCall?(r.seguimientos||0):'<span style="color:var(--text3)">—</span>'}</td>
+      <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${reporteCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
@@ -4269,7 +4260,7 @@ function _renderCallsTable(rows){
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="11" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="13" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
@@ -4382,8 +4373,13 @@ function abrirEditCall(id){
 }
 function onEditCallEstadoChange(){
   const estado=document.getElementById('ec-estado')?.value||'';
-  const wrap=document.getElementById('ec-motivo-wrap');
-  if(wrap) wrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
+  const isPostCall = estado === 'Seguimiento Post Call';
+  const motivoWrap=document.getElementById('ec-motivo-wrap');
+  const segWrap=document.getElementById('ec-seg-wrap');
+  const respWrap=document.getElementById('ec-resp-wrap');
+  if(motivoWrap) motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
+  if(segWrap)   segWrap.style.display=isPostCall?'block':'none';
+  if(respWrap)  respWrap.style.display=isPostCall?'block':'none';
 }
 
 // ========== CLOSER: saveEditCall ==========
