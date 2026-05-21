@@ -1702,6 +1702,7 @@ let leadsFilter    = 'mes';
 let leadsMes       = '';
 let leadsBusqueda       = '';
 let _leadsEstadoFiltro  = '';
+let _leadsEtiquetaFiltro = '';
 let _leadsVistaFiltro   = 'todos';
 let _leadsSortBy        = null;
 let _leadsSortDir       = 'desc';
@@ -2020,7 +2021,15 @@ function _filtrarLeads(){
   if(_leadsVistaFiltro==='activos')  r=r.filter(l=>!_esPerdidoEfectivo(l));
   else if(_leadsVistaFiltro==='perdidos') r=r.filter(l=>_esPerdidoEfectivo(l));
   if(_leadsEstadoFiltro) r=r.filter(l=>l.estado===_leadsEstadoFiltro);
+  if(_leadsEtiquetaFiltro) r=r.filter(l=>_getEtiquetas(l).includes(_leadsEtiquetaFiltro));
   return r;
+}
+
+function toggleEtiquetaFiltro(et){
+  _leadsEtiquetaFiltro = _leadsEtiquetaFiltro===et ? '' : et;
+  leadsCurrentPage=1;
+  _applyLeadsFilter();
+  fetchLeadsPage(1);
 }
 function onLeadsEstadoChange(){
   _leadsEstadoFiltro=document.getElementById('leads-estado-select')?.value||'';
@@ -2187,24 +2196,35 @@ function _renderEtiquetas(leads){
   const wrap=document.getElementById('leads-etiquetas-wrap');
   const grid=document.getElementById('leads-etiquetas-grid');
   if(!wrap||!grid) return;
-  const grupos=agruparPorEtiqueta(leads);
+  // Use all leadsCache for counts (unaffected by etiqueta filter itself)
+  const base=_leadsEtiquetaFiltro
+    ? leadsCache.filter(l=>_gfInRange(l.created_at))
+    : leads;
+  const grupos=agruparPorEtiqueta(base);
   const entries=Object.entries(grupos);
   if(!entries.length){ wrap.style.display='none'; return; }
   wrap.style.display='block';
   const max=entries[0][1];
+  const periodLabel=document.getElementById('leads-etiquetas-period');
+  if(periodLabel) periodLabel.textContent=_leadsEtiquetaFiltro?`Filtrando: ${_leadsEtiquetaFiltro} · Clic para quitar filtro`:'';
   grid.innerHTML=entries.map(([etiqueta,count])=>{
     const pct=Math.round((count/max)*100);
-    const color=etiqueta==='(sin etiqueta)'?'var(--text3)':'var(--gold)';
-    return `<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);
-                border-radius:var(--rs);padding:10px 14px;min-width:160px;flex:1;max-width:240px">
+    const isActive=_leadsEtiquetaFiltro===etiqueta;
+    const isSinEt=etiqueta==='(sin etiqueta)';
+    const color=isSinEt?'var(--text3)':'var(--gold)';
+    const activeBorder=isActive?`border-color:${isSinEt?'rgba(154,150,144,0.6)':'rgba(212,168,50,0.6)'};box-shadow:0 0 0 1px ${isSinEt?'rgba(154,150,144,0.3)':'rgba(212,168,50,0.25)'};`:''
+    return `<div onclick="toggleEtiquetaFiltro('${etiqueta.replace(/'/g,"\\'")}')"
+      style="background:${isActive?'rgba(212,168,50,0.07)':'rgba(255,255,255,0.025)'};border:1px solid ${isActive?(isSinEt?'rgba(154,150,144,0.5)':'rgba(212,168,50,0.45)'):'rgba(255,255,255,0.05)'};
+             border-radius:var(--rs);padding:10px 14px;min-width:160px;flex:1;max-width:240px;cursor:pointer;transition:border-color .15s,background .15s"
+      title="${isActive?'Clic para quitar filtro':'Clic para filtrar por esta etiqueta'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px" title="${etiqueta}">${etiqueta}</span>
+        <span style="font-size:12px;font-weight:600;color:${isActive?color:'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px" title="${etiqueta}">${etiqueta}</span>
         <span style="font-family:'Inter',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.02em;color:${color};margin-left:8px">${count}</span>
       </div>
       <div style="height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .4s ease;${color==='var(--gold)'?'box-shadow:0 0 6px rgba(212,168,50,0.4)':''}"></div>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">${count} lead${count!==1?'s':''}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">${isActive?'✓ Filtrando':count+' lead'+(count!==1?'s':'')}</div>
     </div>`;
   }).join('');
 }
@@ -2505,6 +2525,7 @@ function _leadsFilterParams(){
   if(_gf.mes !== '')        p.set('mes',     _gf.mes);
   else if(_gf.period)       p.set('period',  _gf.period);
   if(_leadsSortBy)          { p.set('sort_by', _leadsSortBy); p.set('sort_dir', _leadsSortDir); }
+  if(_leadsEtiquetaFiltro)  p.set('etiqueta_filter', _leadsEtiquetaFiltro);
   return p;
 }
 
