@@ -1703,7 +1703,8 @@ function origenBadge(o){
 function estadoSelect(lead){
   const estado  = lead.estado || 'Primer Contacto';
   const col     = ESTADO_COLOR[estado] || ESTADO_COLOR['Primer Contacto'];
-  const options = LEAD_ESTADOS.map(e =>
+  const canSeña = ['admin','closer'].includes(currentUserRole);
+  const options = LEAD_ESTADOS.filter(e => e !== 'Seña' || canSeña).map(e =>
     `<option value="${e}" ${e === estado ? 'selected' : ''}>${e}</option>`
   ).join('');
   let calHtml = '';
