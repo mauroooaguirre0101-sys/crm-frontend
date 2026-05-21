@@ -785,7 +785,10 @@ function renderSOPS(){
           <td>${sopRolBadge(s.rol)}</td>
           <td style="color:var(--text2);font-size:13px">${s.detalles||'—'}</td>
           <td style="color:var(--text2);font-size:13px">${s.entregables||'—'}</td>
-          <td><button class="btn-icon" onclick="delSOP('${s.id}')">×</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn-icon" onclick="editSOP('${s.id}')" style="color:var(--gold);font-size:13px;margin-right:4px" title="Editar">✎</button>
+            <button class="btn-icon" onclick="delSOP('${s.id}')" title="Eliminar">×</button>
+          </td>
         </tr>`).join('');
       return [header, rows];
     }).join('');
@@ -817,6 +820,35 @@ async function saveSOP(){
     S.sops.unshift(item);
     closeModal('modal-sop');renderSOPS();toast('✓ SOP guardado localmente (sin conexión)');
   }
+}
+function editSOP(id){
+  const s=S.sops.find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('es-id').value=id;
+  document.getElementById('es-link').value=s.link||'';
+  document.getElementById('es-area').value=s.area||'Otro';
+  document.getElementById('es-rol').value=s.rol||'Todos';
+  document.getElementById('es-detalles').value=s.detalles||'';
+  document.getElementById('es-entregables').value=s.entregables||'';
+  openModal('modal-edit-sop');
+}
+async function saveEditSOP(){
+  const id=document.getElementById('es-id').value;
+  if(!id) return;
+  const link=(document.getElementById('es-link')?.value||'').trim();
+  const area=document.getElementById('es-area')?.value||'Otro';
+  const rol=document.getElementById('es-rol')?.value||'Todos';
+  const detalles=(document.getElementById('es-detalles')?.value||'').trim();
+  const entregables=(document.getElementById('es-entregables')?.value||'').trim();
+  if(!detalles&&!link){toast('✗ Completá al menos el link o los detalles');return;}
+  const patch={link,area,rol,detalles,entregables};
+  try{
+    const r=await apiFetch(`${API_URL}/sops/${id}`,{method:'PATCH',body:JSON.stringify(patch)});
+    if(!r.ok) throw new Error();
+    const idx=S.sops.findIndex(x=>x.id===id);
+    if(idx>-1) S.sops[idx]={...S.sops[idx],...patch};
+    closeModal('modal-edit-sop');renderSOPS();toast('✓ SOP actualizado');
+  }catch(e){toast('✗ Error al guardar');}
 }
 async function delSOP(id){
   if(!confirm('¿Eliminar este SOP?'))return;
