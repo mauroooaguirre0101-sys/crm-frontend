@@ -442,7 +442,7 @@
     <div class="table-wrap"><table>
       <thead><tr>
         <th>Link SOP</th>
-        <th>Área</th>
+        <th id="sops-th-rol">Rol</th>
         <th>Detalles del SOP</th>
         <th>Entregables</th>
         <th></th>
@@ -1376,14 +1376,24 @@
   <div class="modal-title">+ Nuevo SOP</div>
   <div class="form-group"><label class="form-label">Link del SOP</label>
     <input type="text" id="sop-link" placeholder="https://notion.so/... o https://drive.google.com/..."></div>
-  <div class="form-group"><label class="form-label">Área</label>
-    <select id="sop-area">
-      <option>Marketing</option>
-      <option>Ventas</option>
-      <option>Productos</option>
-      <option>Operaciones</option>
-      <option>Otro</option>
-    </select></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Área</label>
+      <select id="sop-area">
+        <option>Marketing</option>
+        <option>Ventas</option>
+        <option>Productos</option>
+        <option>Operaciones</option>
+        <option>Otro</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Rol</label>
+      <select id="sop-rol">
+        <option>Setter</option>
+        <option>Closer</option>
+        <option>Editor</option>
+        <option>Content</option>
+        <option>Todos</option>
+      </select></div>
+  </div>
   <div class="form-group"><label class="form-label">Detalles del SOP</label>
     <textarea id="sop-detalles" placeholder="Descripción breve de qué cubre este SOP y cuándo usarlo..." style="min-height:90px"></textarea></div>
   <div class="form-group"><label class="form-label">Entregables</label>
