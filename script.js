@@ -299,7 +299,19 @@ function initCurrencyUI(){
 
 // ========== NAV ==========
 let dashFilter='mes';
-let contFilterTipo='Todos',contFilterTime='todo',contFilterWinner=false;
+let contFilterTipo='Todos',contFilterTime='todo',contFilterWinner=false,_contView='produccion';
+let _contStatsFilter='semana';   // 'semana' | 'mes' | 'custom'
+let _contStatsFrom='';           // YYYY-MM-DD  (used when custom)
+let _contStatsTo='';
+
+function setContView(v){
+  _contView=v;
+  document.getElementById('cont-main-section').style.display=v==='produccion'?'':'none';
+  document.getElementById('cont-subido-section').style.display=v==='subido'?'':'none';
+  document.getElementById('cont-view-prod').classList.toggle('active',v==='produccion');
+  document.getElementById('cont-view-sub').classList.toggle('active',v==='subido');
+  renderCont();
+}
 let dashChart=null;
 let dashChartRestricted=null;
 let _contCharts=[null,null,null,null,null,null,null,null];
@@ -322,13 +334,14 @@ function nav(id,el){
   }
   const renders={dash:renderDash,acc:renderSOPS,found:renderFound,cont:renderCont,
     ang:renderAng,ref:renderRef,leads:renderLeads,funnel:renderFunnelMetricas,calls:renderCallsPage,
-    clients:renderClients,fin:renderFin,ig:renderIG,formatos:renderFormatos,lab:renderLab,forms:renderForms};
+    clients:renderClients,fin:renderFin,ig:renderIG,formatos:renderFormatos,lab:renderLab,forms:renderForms,tasks:renderTasks,reports:renderReports,ideas:renderCrmIdeas};
   // Re-fetch server data on navigation so changes by other users are always visible
   const refetch={
     cont:fetchContenido, found:fetchFundaciones, ang:fetchAngulos,
     ref:fetchReferentes, ig:fetchIG,
     clients:fetchClients, fin:()=>{fetchIngresos();fetchEgresos();},
     formatos:fetchFormatos, lab:fetchLaboratorio,
+    ideas:fetchCrmIdeas,
   };
   if(id==='equipo'){
     fetchEquipoMembers();
@@ -912,7 +925,7 @@ async function saveFound(){
 // ========== CONTENT CALENDAR ==========
 function _calAllItems(){return[...S.content,...S.hists];}
 function _calFmt(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
-function _calItemsByDate(ds){return _calAllItems().filter(x=>x.fecha===ds);}
+function _calItemsByDate(ds){return _calAllItems().filter(x=>x.fecha===ds&&x.estado!=='Subido');}
 function _calItemColor(it){
   if(it.esHistoria)return{bg:'rgba(122,74,184,.18)',col:'#B890F0'};
   const m={Reel:{bg:'rgba(212,168,50,.18)',col:'#E0B832'},Carrusel:{bg:'rgba(61,106,170,.18)',col:'#6A9FE0'},YouTube:{bg:'rgba(204,0,0,.18)',col:'#FF5555'}};
@@ -1107,7 +1120,7 @@ function renderCalPanel(vals){
   const fmts=_calGetFormatos(defCat);
   const curFmt=(vals?.formato!==undefined?vals.formato:(it?.formato||''));
   const fmtOpts=[...new Set([...fmts,...(curFmt?[curFmt]:[])])];
-  const estados=['Creando Guión','Producción','Editando','Listo para Subir'];
+  const estados=['Creando Guión','Producción','Editando','Listo para Subir','Subido'];
   const selEstado=(vals?.estado)||(it?.estado)||'Creando Guión';
   const selAngulo=(vals?.angulo!==undefined?vals.angulo:(it?.angulo||''));
   const selObjetivo=(vals?.objetivo!==undefined?vals.objetivo:(it?.objetivo||''));
@@ -1136,17 +1149,15 @@ function renderCalPanel(vals){
   ${isHistoria?`<div class="form-group"><label class="form-label">Estructura</label><textarea id="cp-estructura" rows="3" style="resize:vertical" placeholder="Ej: Hook → Problema → Solución → CTA">${esc(selEstructura)}</textarea></div>`:'<input type="hidden" id="cp-estructura" value="">'}
   <div class="form-group"><label class="form-label">Estado de producción</label><select id="cp-estado">${estadoOpts}</select></div>
   <div class="form-group"><label class="form-label">CTA</label><input type="text" id="cp-cta" placeholder="Ej: Escribime" value="${esc(selCta)}"></div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Agendas</label><input type="number" id="cp-agendas" min="0" value="${Number(selAgendas)||0}" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">Ventas</label><input type="number" id="cp-ventas" min="0" value="${Number(selVentas)||0}" placeholder="0"></div>
-  </div>
+  <input type="hidden" id="cp-agendas" value="0">
+  <input type="hidden" id="cp-ventas" value="0">
   <div class="form-group" style="display:flex;align-items:center;gap:10px">
     <input type="checkbox" id="cp-winner" ${selWinner?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:#f5d27a">
     <label for="cp-winner" style="font-size:13px;font-weight:600;color:var(--text);cursor:pointer">★ Pieza Winner</label>
   </div>
   <div class="form-group"><label class="form-label">Guión</label><textarea id="cp-guion" rows="9" style="resize:vertical" placeholder="Escribí el guión completo...">${selGuion}</textarea></div>
   <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-    ${it?`<button class="btn btn-outline" style="color:#e05555;border-color:rgba(224,85,85,.4)" onclick="calDeletePanel()">Eliminar</button>`:''}
+    ${it?`<span style="font-size:11px;color:var(--text3);align-self:center">Para eliminar, usá la tabla</span>`:''}
     <button class="btn btn-outline" onclick="calClosePanel()" style="margin-left:auto">Cancelar</button>
     <button class="btn btn-gold" onclick="calSavePanel()">Guardar</button>
   </div>`;
@@ -1207,38 +1218,77 @@ function _calDuplicate(itemId){
   renderCalPanel({fecha:item.fecha,angulo:item.angulo||'',formato:item.formato||'',objetivo:item.objetivo||'',cta:item.cta||'',estado:item.estado||'Creando Guión',guion:item.guion||'',agendas:0,ventas:0,cat,winner:false,estructura:item.estructura||''});
 }
 function renderContCounters(){
-  const el=document.getElementById('cont-counters');if(!el)return;
-  let items;
-  let viewLabel;
-  if(contFilterTime!=='todo'){
-    // Table filter takes precedence over calendar view
-    items=_calAllItems().filter(x=>inDateRange(x.fecha,contFilterTime));
-    viewLabel=contFilterTime==='hoy'?'hoy':contFilterTime==='semana'?'esta semana':'este mes';
-  } else if(_calView==='mes'){
-    const y=_calDate.getFullYear(),m=_calDate.getMonth();
-    const start=_calFmt(new Date(y,m,1)),end=_calFmt(new Date(y,m+1,0));
-    items=_calAllItems().filter(x=>x.fecha>=start&&x.fecha<=end);
-    viewLabel='este mes';
-  } else if(_calView==='semana'){
-    const d2=new Date(_calDate);const monday=new Date(d2);monday.setDate(d2.getDate()-d2.getDay());
-    const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);
-    const start=_calFmt(monday),end=_calFmt(sunday);
-    items=_calAllItems().filter(x=>x.fecha>=start&&x.fecha<=end);
-    viewLabel='esta semana';
+  const el=document.getElementById('cont-stats-section');if(!el)return;
+  const today=_calFmt(new Date());
+
+  // ── Calcular rango de fechas según filtro ──
+  let from='',to='',viewLabel='';
+  if(_contStatsFilter==='semana'){
+    const d=new Date();const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    from=_calFmt(mon);to=_calFmt(sun);viewLabel='Esta semana';
+  } else if(_contStatsFilter==='mes'){
+    const d=new Date();
+    from=_calFmt(new Date(d.getFullYear(),d.getMonth(),1));
+    to=_calFmt(new Date(d.getFullYear(),d.getMonth()+1,0));
+    viewLabel='Este mes';
   } else {
-    const ds=_calFmt(_calDate);items=_calAllItems().filter(x=>x.fecha===ds);
-    viewLabel='hoy';
+    from=_contStatsFrom;to=_contStatsTo;
+    viewLabel=from&&to?`${from} → ${to}`:'Seleccioná un rango';
   }
-  el.innerHTML=[
-    {label:'Reels',n:items.filter(x=>x.tipo==='Reel').length,col:'var(--gold)'},
-    {label:'Carruseles',n:items.filter(x=>x.tipo==='Carrusel').length,col:'#6A9FE0'},
-    {label:'Historias',n:items.filter(x=>x.esHistoria).length,col:'#B890F0'},
-    {label:'YouTube',n:items.filter(x=>x.tipo==='YouTube').length,col:'#FF5555'},
-  ].map(({label,n,col})=>`<div class="card" style="text-align:center;padding:16px 8px">
-    <div style="font-size:30px;font-weight:800;color:${col}">${n}</div>
-    <div style="font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px">${label}</div>
-    <div style="font-size:9px;color:var(--text3);margin-top:2px;opacity:.6">${viewLabel}</div>
-  </div>`).join('');
+
+  // ── Solo piezas SUBIDAS en el rango ──
+  const inRange=x=>x.estado==='Subido'&&x.fecha>=from&&x.fecha<=to;
+  const items=(from&&to)?_calAllItems().filter(inRange):[];
+  const total=items.length;
+
+  const tipos=[
+    {label:'Reels',     n:items.filter(x=>x.tipo==='Reel'&&!x.esHistoria).length, col:'var(--gold)'},
+    {label:'Carruseles',n:items.filter(x=>x.tipo==='Carrusel').length,             col:'#6A9FE0'},
+    {label:'Historias', n:items.filter(x=>x.esHistoria).length,                    col:'#B890F0'},
+    {label:'YouTube',   n:items.filter(x=>x.tipo==='YouTube').length,              col:'#FF5555'},
+  ];
+
+  const tab=(f,label)=>`<button onclick="contStatsSetFilter('${f}')" style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid ${_contStatsFilter===f?'var(--gold)':'rgba(255,255,255,.1)'};background:${_contStatsFilter===f?'rgba(224,181,74,.12)':'transparent'};color:${_contStatsFilter===f?'var(--gold)':'var(--text3)'};cursor:pointer">${label}</button>`;
+
+  const customPickers=_contStatsFilter==='custom'?`
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+      <input type="date" value="${_contStatsFrom}" onchange="_contStatsFrom=this.value;renderContCounters()"
+        style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text1)">
+      <span style="color:var(--text3);font-size:12px">→</span>
+      <input type="date" value="${_contStatsTo}" onchange="_contStatsTo=this.value;renderContCounters()"
+        style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text1)">
+    </div>`:'';
+
+  el.innerHTML=`
+    <div class="card" style="padding:16px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:13px;font-weight:700;color:var(--text1)">Piezas subidas</span>
+          ${from&&to?`<span style="font-size:12px;color:var(--text3)">${viewLabel}</span>`:''}
+          ${from&&to?`<span style="font-size:13px;font-weight:800;color:var(--gold);margin-left:4px">${total}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${tab('semana','Semana')}
+          ${tab('mes','Mes')}
+          ${tab('custom','Rango')}
+        </div>
+      </div>
+      ${customPickers}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;${_contStatsFilter==='custom'&&(!from||!to)?'opacity:.4':''}margin-top:${customPickers?'12':'0'}px">
+        ${tipos.map(({label,n,col})=>`
+          <div style="text-align:center;padding:14px 8px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05)">
+            <div style="font-size:28px;font-weight:800;color:${col};line-height:1">${n}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.5px">${label}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function contStatsSetFilter(f){
+  _contStatsFilter=f;
+  if(f!=='custom'){_contStatsFrom='';_contStatsTo='';}
+  renderContCounters();
 }
 
 function contFilter(type,val,el){
@@ -1266,42 +1316,60 @@ function showGuion(id){
   document.body.appendChild(el);
 }
 function renderCont(){
-  let posts=S.content.filter(x=>!x.esHistoria&&x.tipo!=='YouTube');
-  let hists=S.hists;
-  let yts=S.content.filter(x=>x.tipo==='YouTube');
-  if(contFilterTipo!=='Todos'){
-    if(contFilterTipo==='Historia'){posts=[];yts=[];}
-    else if(contFilterTipo==='YouTube'){posts=[];hists=[];}
-    else{hists=[];yts=[];posts=posts.filter(x=>x.tipo===contFilterTipo);}
+  // ── Build live stats from leadsCache + S.ing ──
+  const _piezaStatsMap={};
+  if(leadsCache.length>0){
+    const __pMap={};
+    [...S.content,...S.hists].forEach(p=>{if(p.id)__pMap[_angPiezaLabel(p)]=p;});
+    leadsCache.forEach(lead=>{
+      const ets=_getEtiquetas(lead);
+      if(!ets.length)return;
+      const pieza=__pMap[ets[ets.length-1]]||_findContentByEtiqueta(ets[ets.length-1]);
+      if(!pieza)return;
+      if(!_piezaStatsMap[pieza.id])_piezaStatsMap[pieza.id]={agendas:0,ventas:0,cal:0,descal:0,leads:0,igsClosed:new Set()};
+      const st=_piezaStatsMap[pieza.id];
+      st.leads++;
+      if(lead.estado==='Agendado') st.agendas++;
+      if(ESTADO_CERRADO.has(lead.estado)){st.ventas++;if(lead.instagram)st.igsClosed.add((lead.instagram||'').toLowerCase());}
+      if(lead.calificado===true)  st.cal++;
+      if(lead.descalificado===true) st.descal++;
+    });
+    Object.values(_piezaStatsMap).forEach(st=>{
+      st.facturacion=(S.ing||[]).filter(i=>i.concepto==='Venta Nueva'&&st.igsClosed.has((i.instagram||'').toLowerCase())).reduce((a,i)=>a+(Number(i.usd)||0),0);
+    });
   }
-  if(contFilterTime!=='todo'){
-    posts=posts.filter(x=>inDateRange(x.fecha,contFilterTime));
-    hists=hists.filter(x=>inDateRange(x.fecha,contFilterTime));
-    yts=yts.filter(x=>inDateRange(x.fecha,contFilterTime));
-  }
-  if(contFilterWinner){
-    posts=posts.filter(x=>x.winner);
-    hists=hists.filter(x=>x.winner);
-    yts=yts.filter(x=>x.winner);
-  }
-  const sf=(a,b)=>(b.fecha||'').localeCompare(a.fecha||'');
-  posts.sort(sf);hists.sort(sf);yts.sort(sf);
-  const eid=id=>id.replace(/['"]/g,'');
-  const reels=posts.filter(x=>x.tipo==='Reel');
-  const carruseles=posts.filter(x=>x.tipo==='Carrusel');
-  const _noLeads=leadsCache.length===0;
   const _contExtraCols=x=>{
-    const cal=_noLeads?0:(Number(x.calificados)||0);
-    const descal=_noLeads?0:(Number(x.descalificados)||0);
-    const leads=_noLeads?0:(Number(x.leads)||0);
-    const agendas=_noLeads?0:(Number(x.agendas)||0);
-    const ventas=_noLeads?0:(Number(x.ventas)||0);
-    const pctAg=leads>0?Math.round(agendas/leads*100)+'%':'—';
-    const cashCC=_noLeads?0:(Number(x.cashCollected)||0);
-    const facBadge=(!_noLeads&&x.facturacion>0)?`<div style="font-size:9px;color:#5cb87a;font-weight:600;margin-top:1px;white-space:nowrap;opacity:.85">${fmtMoney(x.facturacion)}</div>`:'';
-    return{cal,descal,pctAg,cashCC,facBadge,agendas,ventas};
+    const st=_piezaStatsMap[x.id]||{agendas:0,ventas:0,cal:0,descal:0,leads:0,facturacion:0};
+    const pctAg=st.leads>0?Math.round(st.agendas/st.leads*100)+'%':'—';
+    const cashCC=st.ventas>0?(Number(x.cashCollected)||0):0;
+    const facBadge=st.facturacion>0?`<div style="font-size:9px;color:#5cb87a;font-weight:600;margin-top:1px;white-space:nowrap;opacity:.85">${fmtMoney(st.facturacion)}</div>`:'';
+    return{cal:st.cal,descal:st.descal,pctAg,cashCC,facBadge,agendas:st.agendas,ventas:st.ventas};
   };
-  const rowPost=x=>{
+
+  // ── Piece sets ──
+  const allPosts=S.content.filter(x=>!x.esHistoria&&x.tipo!=='YouTube');
+  const allHists=S.hists;
+  const allYts=S.content.filter(x=>x.tipo==='YouTube');
+  const sf=(a,b)=>(b.fecha||'').localeCompare(a.fecha||'');
+  const eid=id=>id.replace(/['"]/g,'');
+
+  const _applyFilters=(posts,hists,yts)=>{
+    if(contFilterTipo!=='Todos'){
+      if(contFilterTipo==='Historia'){posts=[];yts=[];}
+      else if(contFilterTipo==='YouTube'){posts=[];hists=[];}
+      else{hists=[];yts=[];posts=posts.filter(x=>x.tipo===contFilterTipo);}
+    }
+    if(contFilterTime!=='todo'){
+      posts=posts.filter(x=>inDateRange(x.fecha,contFilterTime));
+      hists=hists.filter(x=>inDateRange(x.fecha,contFilterTime));
+      yts=yts.filter(x=>inDateRange(x.fecha,contFilterTime));
+    }
+    if(contFilterWinner){posts=posts.filter(x=>x.winner);hists=hists.filter(x=>x.winner);yts=yts.filter(x=>x.winner);}
+    posts.sort(sf);hists.sort(sf);yts.sort(sf);
+    return{reels:posts.filter(x=>x.tipo==='Reel'),carruseles:posts.filter(x=>x.tipo==='Carrusel'),hists,yts};
+  };
+
+  const rowPost=(x,delFn)=>{
     const{col}=_calItemColor(x);
     const winBadge=x.winner?'<span style="color:#f5d27a;margin-right:3px">★</span>':'';
     const{cal,descal,pctAg,cashCC,facBadge,agendas,ventas}=_contExtraCols(x);
@@ -1319,14 +1387,10 @@ function renderCont(){
       <td style="text-align:center;font-size:11px;color:var(--gold);font-weight:600">${pctAg}</td>
       <td style="text-align:center"><div style="font-weight:700">${ventas}</div>${facBadge}</td>
       <td style="text-align:center;font-size:11px;color:#5cb87a;font-weight:600">${cashCC>0?fmtMoney(cashCC):'—'}</td>
-      <td><button class="btn-icon" onclick="event.stopPropagation();delCont('${eid(x.id)}')">×</button></td>
+      <td><button class="btn-icon" onclick="event.stopPropagation();${delFn}('${eid(x.id)}')">×</button></td>
     </tr>`;
   };
-  document.getElementById('reel-table').innerHTML=reels.map(rowPost).join('')
-    ||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:20px">Sin reels</td></tr>';
-  document.getElementById('carrusel-table').innerHTML=carruseles.map(rowPost).join('')
-    ||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:20px">Sin carruseles</td></tr>';
-  document.getElementById('hist-table').innerHTML=hists.map(x=>{
+  const rowHist=(x,delFn)=>{
     const winBadge=x.winner?'<span style="color:#f5d27a;margin-right:3px">★</span>':'';
     const{cal,descal,pctAg,cashCC,facBadge,agendas,ventas}=_contExtraCols(x);
     return`<tr onclick="calOpenPanel('${x.fecha}','${eid(x.id)}')" style="cursor:pointer;border-left:3px solid #B890F0">
@@ -1343,33 +1407,41 @@ function renderCont(){
       <td style="text-align:center;font-size:11px;color:var(--gold);font-weight:600">${pctAg}</td>
       <td style="text-align:center"><div style="font-weight:700">${ventas}</div>${facBadge}</td>
       <td style="text-align:center;font-size:11px;color:#5cb87a;font-weight:600">${cashCC>0?fmtMoney(cashCC):'—'}</td>
-      <td><button class="btn-icon" onclick="event.stopPropagation();delHist('${eid(x.id)}')">×</button></td>
+      <td><button class="btn-icon" onclick="event.stopPropagation();${delFn}('${eid(x.id)}')">×</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:20px">Sin historias</td></tr>';
+  };
+  const MT='<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:20px">';
+
+  // ── En producción tables ──
+  const prod=_applyFilters(
+    allPosts.filter(x=>x.estado!=='Subido'),
+    allHists.filter(x=>x.estado!=='Subido'),
+    allYts.filter(x=>x.estado!=='Subido')
+  );
+  document.getElementById('reel-table').innerHTML=prod.reels.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin reels</td></tr>';
+  document.getElementById('carrusel-table').innerHTML=prod.carruseles.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin carruseles</td></tr>';
+  document.getElementById('hist-table').innerHTML=prod.hists.map(x=>rowHist(x,'delHist')).join('')||MT+'Sin historias</td></tr>';
   const ytEl=document.getElementById('yt-table');
-  if(ytEl)ytEl.innerHTML=yts.map(x=>{
-    const winBadge=x.winner?'<span style="color:#f5d27a;margin-right:3px">★</span>':'';
-    const{cal,descal,pctAg,cashCC,facBadge,agendas,ventas}=_contExtraCols(x);
-    return`<tr onclick="calOpenPanel('${x.fecha}','${eid(x.id)}')" style="cursor:pointer;border-left:3px solid #FF5555">
-      <td>${x.fecha||'—'}</td>
-      <td><span class="trunc" title="${x.angulo}">${winBadge}${x.angulo||'—'}</span></td>
-      <td>${x.formato||'—'}</td>
-      <td>${x.objetivo?`<span style="font-size:11px;color:var(--text2)">${x.objetivo}</span>`:'—'}</td>
-      <td>${x.cta||'—'}</td>
-      <td>${contBadge(x.estado)}</td>
-      <td onclick="event.stopPropagation();showGuion('${eid(x.id)}')" style="cursor:pointer">${_guionPrev(x.guion)}</td>
-      <td style="text-align:center">${agendas}</td>
-      <td style="text-align:center;color:#5cb87a;font-weight:600">${cal||'—'}</td>
-      <td style="text-align:center;color:#d46060;font-weight:600">${descal||'—'}</td>
-      <td style="text-align:center;font-size:11px;color:var(--gold);font-weight:600">${pctAg}</td>
-      <td style="text-align:center"><div style="font-weight:700">${ventas}</div>${facBadge}</td>
-      <td style="text-align:center;font-size:11px;color:#5cb87a;font-weight:600">${cashCC>0?fmtMoney(cashCC):'—'}</td>
-      <td><button class="btn-icon" onclick="event.stopPropagation();delCont('${eid(x.id)}')">×</button></td>
-    </tr>`;
-  }).join('')||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:20px">Sin videos</td></tr>';
+  if(ytEl)ytEl.innerHTML=prod.yts.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin videos</td></tr>';
+
+  // ── Subido tables ──
+  const sub=_applyFilters(
+    allPosts.filter(x=>x.estado==='Subido'),
+    allHists.filter(x=>x.estado==='Subido'),
+    allYts.filter(x=>x.estado==='Subido')
+  );
+  const rSel=document.getElementById('reel-s-table');
+  const cSel=document.getElementById('carrusel-s-table');
+  const hSel=document.getElementById('hist-s-table');
+  const ySel=document.getElementById('yt-s-table');
+  if(rSel)rSel.innerHTML=sub.reels.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin reels subidos</td></tr>';
+  if(cSel)cSel.innerHTML=sub.carruseles.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin carruseles subidos</td></tr>';
+  if(hSel)hSel.innerHTML=sub.hists.map(x=>rowHist(x,'delHist')).join('')||MT+'Sin historias subidas</td></tr>';
+  if(ySel)ySel.innerHTML=sub.yts.map(x=>rowPost(x,'delCont')).join('')||MT+'Sin videos subidos</td></tr>';
+
   renderCalendar();
   renderContCounters();
-  renderContCharts();
+  renderContCharts(_piezaStatsMap);
 }
 async function delCont(id){
   if(!confirm('¿Eliminar?'))return;
@@ -1382,11 +1454,11 @@ async function delHist(id){
   S.hists=S.hists.filter(x=>x.id!==id);renderCont();
 }
 
-function renderContCharts(){
+function renderContCharts(piezaStatsMap={}){
   const buildChart=(idx,canvasId,items,field,label,col,border)=>{
     const sorted=items.filter(x=>x.fecha).sort((a,b)=>a.fecha.localeCompare(b.fecha));
     const lbls=sorted.map(x=>{const p=x.fecha.split('-');return`${p[2]}/${p[1]}`;});
-    const data=leadsCache.length===0?sorted.map(()=>0):sorted.map(x=>Number(x[field])||0);
+    const data=leadsCache.length===0?sorted.map(()=>0):sorted.map(x=>Number((piezaStatsMap[x.id]||{})[field])||0);
     const angulos=sorted.map(x=>x.angulo||x.tipo||x.fecha||'');
     const ctx=document.getElementById(canvasId);if(!ctx)return;
     if(_contCharts[idx])_contCharts[idx].destroy();
@@ -1421,39 +1493,103 @@ function renderContCharts(){
 }
 
 let _angSortBy='ventas';
+const _angExpanded=new Set();
+
+function _angPiezaLabel(p){
+  const SHORT={Historia:'H',Reel:'Reel',Carrusel:'C',YouTube:'YT'};
+  const t=SHORT[p.tipo]||p.tipo||'';
+  const parts=(p.fecha||'').split('-');
+  const d=parts.length===3?`${parseInt(parts[2])}/${parseInt(parts[1])}`:p.fecha||'—';
+  return`${t} ${d}`.trim();
+}
+
+function _toggleAngPiezas(angulo){
+  const key=angulo;
+  if(_angExpanded.has(key)) _angExpanded.delete(key);
+  else _angExpanded.add(key);
+  renderAng();
+}
+
 let _hiddenAngulos=new Set();
 // ========== ÁNGULOS ==========
 function renderAng(){
-  // Build stats from content pieces — only when there are leads; otherwise everything is 0
+  // Build a fast lookup: tipo+fecha → content piece
+  const _piezaMap={};
+  [...S.content,...S.hists].forEach(p=>{
+    if(p.angulo) _piezaMap[_angPiezaLabel(p)]=p;
+  });
+
+  // Derive stats from actual leads, not from stored counters on content pieces
   const angStats={};
-  if(leadsCache.length>0){
-    [...S.content,...S.hists].forEach(p=>{
-      if(!p.angulo)return;
-      if(!angStats[p.angulo])angStats[p.angulo]={ventas:0,agendas:0,facturacion:0,calificados:0,descalificados:0};
-      angStats[p.angulo].ventas+=(Number(p.ventas)||0);
-      angStats[p.angulo].agendas+=(Number(p.agendas)||0);
-      angStats[p.angulo].facturacion+=(Number(p.facturacion)||0);
-      angStats[p.angulo].calificados+=(Number(p.calificados)||0);
-      angStats[p.angulo].descalificados+=(Number(p.descalificados)||0);
-    });
-  }
+  const angPiezas={}; // { angulo: { piezaLabel: {ventas,agendas} } }
+
+  leadsCache.forEach(lead=>{
+    const etiquetas=_getEtiquetas(lead);
+    if(!etiquetas.length) return;
+    const lastEt=etiquetas[etiquetas.length-1];
+    // Try fast map first (label matches exactly), fallback to full parse
+    const pieza=_piezaMap[lastEt]||_findContentByEtiqueta(lastEt);
+    if(!pieza||!pieza.angulo) return;
+
+    const ang=pieza.angulo;
+    if(!angStats[ang]) angStats[ang]={ventas:0,agendas:0,facturacion:0,calificados:0,descalificados:0};
+    const plabel=_angPiezaLabel(pieza);
+    if(!angPiezas[ang]) angPiezas[ang]={};
+    if(!angPiezas[ang][plabel]) angPiezas[ang][plabel]={ventas:0,agendas:0};
+
+    if(ESTADO_CERRADO.has(lead.estado)){
+      angStats[ang].ventas++;
+      angPiezas[ang][plabel].ventas++;
+    }
+    if(lead.estado==='Agendado'){
+      angStats[ang].agendas++;
+      angPiezas[ang][plabel].agendas++;
+    }
+    if(lead.calificado===true)  angStats[ang].calificados++;
+    if(lead.descalificado===true) angStats[ang].descalificados++;
+  });
+
+  // Facturación from real ingresos: match ingreso → lead (by instagram) → etiqueta → pieza → angulo
+  (S.ing||[]).forEach(ing=>{
+    if(ing.concepto!=='Venta Nueva'||!(Number(ing.usd)>0)||!ing.instagram) return;
+    const igLow=(ing.instagram||'').toLowerCase();
+    const lead=leadsCache.find(l=>(l.instagram||'').toLowerCase()===igLow);
+    if(!lead) return;
+    const ets=_getEtiquetas(lead);
+    if(!ets.length) return;
+    const pieza=_piezaMap[ets[ets.length-1]]||_findContentByEtiqueta(ets[ets.length-1]);
+    if(!pieza||!pieza.angulo) return;
+    if(!angStats[pieza.angulo]) angStats[pieza.angulo]={ventas:0,agendas:0,facturacion:0,calificados:0,descalificados:0};
+    angStats[pieza.angulo].facturacion+=Number(ing.usd)||0;
+  });
+
   const bestVentas=Object.entries(angStats).sort((a,b)=>b[1].ventas-a[1].ventas)[0];
   const bestAgendas=Object.entries(angStats).sort((a,b)=>b[1].agendas-a[1].agendas)[0];
-  const bestFac=Object.entries(angStats).sort((a,b)=>b[1].facturacion-a[1].facturacion)[0];
+  const bestFac=Object.entries(angStats).filter(([,s])=>s.ventas>0).sort((a,b)=>b[1].facturacion-a[1].facturacion)[0];
 
-  const topCard=_angSortBy==='agendas'
+  const leftCard=_angSortBy==='agendas'
     ? metCard('Ángulo con más agendas',bestAgendas&&bestAgendas[1].agendas>0?`${bestAgendas[0]} (${bestAgendas[1].agendas})`:'—','')
     : metCard('Ángulo con más ventas',bestVentas&&bestVentas[1].ventas>0?`${bestVentas[0]} (${bestVentas[1].ventas})`:'—','');
 
-  document.getElementById('ang-metrics').innerHTML=
-    topCard+
-    metCard('Mayor facturación',bestFac&&bestFac[1].facturacion>0?`${bestFac[0]} · ${fmtMoney(bestFac[1].facturacion)}`:'—','green');
+  const rightCard=_angSortBy==='agendas'
+    ? metCard('Mayor cantidad de agendas',bestAgendas&&bestAgendas[1].agendas>0?`${bestAgendas[0]} · ${bestAgendas[1].agendas} agenda${bestAgendas[1].agendas!==1?'s':''}`:'—','')
+    : metCard('Mayor facturación',bestFac&&bestFac[1].facturacion>0?`${bestFac[0]} · ${fmtMoney(bestFac[1].facturacion)}`:'—','green');
 
-  // Merge manual S.angulos with auto-detected ángulos from content pieces
+  document.getElementById('ang-metrics').innerHTML=leftCard+rightCard;
+
+  // Merge manual S.angulos with auto-detected ángulos that have real lead data
   const knownAngNames=new Set(S.angulos.map(x=>x.angulo));
-  const hiddenAutoAng=_hiddenAngulos;
-  const autoAngItems=Object.keys(angStats).filter(n=>!knownAngNames.has(n)&&!hiddenAutoAng.has(n)).map(n=>({id:'_auto_'+n,angulo:n,tipo:'—',pc:[],uc:[],ad:'No'}));
-  const angulos=[...S.angulos,...autoAngItems].sort((a,b)=>{
+  // Auto-show any angulo with real stats (ventas or agendas from leads), ignoring hidden list
+  const autoAngItems=Object.keys(angStats)
+    .filter(n=>!knownAngNames.has(n)&&(angStats[n].ventas>0||angStats[n].agendas>0))
+    .map(n=>({id:'_auto_'+n,angulo:n,tipo:'—',pc:[],uc:[],ad:'No'}));
+  const angulos=[...S.angulos,...autoAngItems].filter(x=>{
+    const st=angStats[x.angulo]||{ventas:0,agendas:0,facturacion:0};
+    if(_angSortBy==='ventas')     return st.ventas>0;
+    if(_angSortBy==='agendas')    return st.agendas>0;
+    if(_angSortBy==='facturacion')return st.facturacion>0;
+    return true;
+  }).sort((a,b)=>{
     const sa=angStats[a.angulo]||{ventas:0,agendas:0,facturacion:0};
     const sb=angStats[b.angulo]||{ventas:0,agendas:0,facturacion:0};
     if(_angSortBy==='ventas')return sb.ventas-sa.ventas;
@@ -1471,15 +1607,38 @@ function renderAng(){
     const st=angStats[x.angulo]||{ventas:0,agendas:0,facturacion:0,calificados:0,descalificados:0};
     const pctCierre=st.agendas>0?Math.round(st.ventas/st.agendas*100)+'%':'—';
     const isAuto=x.id.startsWith('_auto_');
-    return`<tr>
-      <td><b style="color:var(--text)">${x.angulo}</b></td>
+    const piezas=Object.entries(angPiezas[x.angulo]||{}).map(([label,s])=>({label,...s}))
+      .filter(p=>_angSortBy==='agendas'?p.agendas>0:_angSortBy==='ventas'?p.ventas>0:p.ventas>0||p.agendas>0);
+    const isExpanded=_angExpanded.has(x.angulo);
+    const hasPiezas=piezas.length>0;
+    const angKey=x.angulo.replace(/'/g,"\\'");
+
+    const mainRow=`<tr style="cursor:${hasPiezas?'pointer':'default'}" onclick="${hasPiezas?`_toggleAngPiezas('${angKey}')`:''}" title="${hasPiezas?'Clic para ver desglose por pieza':''}">
+      <td><b style="color:var(--text)">${x.angulo}</b>${hasPiezas?`<span style="font-size:10px;color:var(--text3);margin-left:6px">${isExpanded?'▾':'▸'} ${piezas.length} pieza${piezas.length!==1?'s':''}</span>`:''}
+      </td>
       <td style="text-align:center;font-weight:700;color:var(--gold)">${st.agendas||0}</td>
       <td style="text-align:center;font-weight:700;color:#5cb87a">${st.calificados||0}</td>
       <td style="text-align:center;font-weight:700;color:#d46060">${st.ventas||0}</td>
       <td style="text-align:center;color:var(--text2)">${pctCierre}</td>
       <td style="text-align:right;color:#5cb87a;font-weight:600">${st.facturacion>0?fmtMoney(st.facturacion):'—'}</td>
-      <td>${isAuto?`<button class="btn-icon" onclick="_hideAutoAng('${x.angulo.replace(/'/g,"\\'")}')">×</button>`:`<button class="btn-icon" onclick="delAng('${x.id}')">×</button>`}</td>
+      <td onclick="event.stopPropagation()">${isAuto?`<button class="btn-icon" onclick="_hideAutoAng('${angKey}')">×</button>`:`<button class="btn-icon" onclick="delAng('${x.id}')">×</button>`}</td>
     </tr>`;
+
+    if(!isExpanded||!hasPiezas) return mainRow;
+
+    const sorted=[...piezas].sort((a,b)=>_angSortBy==='agendas'?b.agendas-a.agendas:b.ventas-a.ventas);
+    const subRows=sorted.map(p=>`
+      <tr style="background:rgba(255,255,255,0.02)">
+        <td style="padding-left:28px;font-size:12px;color:var(--text2)">
+          <span style="background:rgba(212,168,50,0.08);border:1px solid rgba(212,168,50,0.18);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;color:var(--gold)">${p.label}</span>
+        </td>
+        <td style="text-align:center;font-size:12px;color:var(--gold)">${p.agendas||0}</td>
+        <td style="text-align:center;font-size:12px;color:var(--text3)">—</td>
+        <td style="text-align:center;font-size:12px;color:#5cb87a">${p.ventas||0}</td>
+        <td colspan="3"></td>
+      </tr>`).join('');
+
+    return mainRow+subRows;
   }).join('')||'<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px">Sin ángulos</td></tr>';
 }
 async function saveAng(){
@@ -1886,7 +2045,8 @@ function _findContentByEtiqueta(etiqueta){
   if(!etiqueta) return null;
   const parts=etiqueta.trim().split(/\s+/);
   if(parts.length<2) return null;
-  const tipo=parts[0]; // "Reel", "Carrusel", etc.
+  const TIPO_ALIAS={'H':'Historia','R':'Reel','C':'Carrusel','YT':'YouTube','historia':'Historia','reel':'Reel','carrusel':'Carrusel','youtube':'YouTube'};
+  const tipo=TIPO_ALIAS[parts[0]]||parts[0];
   const dateStr=parts[1]; // "15/5"
   const [dayStr,monthStr]=dateStr.split('/');
   const day=parseInt(dayStr,10), month=parseInt(monthStr,10);
@@ -2193,7 +2353,9 @@ function _renderLeadsTable(){
   // Don't re-render while the user has a select open — avoids reverting mid-interaction
   const active=document.activeElement;
   if(active&&active.tagName==='SELECT'&&active.closest('#leads-table')) return;
-  const rows = leadsTableCache;
+  const rows = _leadsEtiquetaFiltro
+    ? leadsTableCache.filter(l => _getEtiquetas(l).includes(_leadsEtiquetaFiltro))
+    : leadsTableCache;
   const totalPages = Math.max(1, Math.ceil(leadsTableTotal / LEADS_SERVER_PAGE));
   const pageOffset = (leadsCurrentPage - 1) * LEADS_SERVER_PAGE;
   const pagBar = document.getElementById('leads-pagination');
@@ -3563,6 +3725,12 @@ const ROLE_ALLOWED = {
   content: ['acc','found','cont','ang','ref','ig','formatos','lab'],
 };
 
+const TASKS_ALLOWED_EMAILS = [
+  'maurooo.aguirre0101@gmail.com',
+  'tomasfernandezhuguenine@gmail.com',
+  'lopezvalen.biz@gmail.com',
+];
+
 function getAuthHeaders(){
   return {
     'Content-Type': 'application/json',
@@ -3813,6 +3981,13 @@ function applyRolePermissions(){
       };
     }
   });
+
+  const tasksSection=document.getElementById('nav-tasks-section');
+  if(tasksSection){
+    const email=(localStorage.getItem('userEmail')||'').toLowerCase();
+    const tasksVisible=TASKS_ALLOWED_EMAILS.includes(email);
+    tasksSection.style.display=tasksVisible?'':'none';
+  }
 
   const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0'};
   _updateUserNickname();
@@ -4119,8 +4294,18 @@ function filtrarCallsPorMes(calls,mes){
   const m=parseInt(mes,10),yr=new Date().getFullYear();
   return calls.filter(c=>{const d=new Date(c.created_at||0);return d.getMonth()===m&&d.getFullYear()===yr;});
 }
+let callsBusqueda='';
+function onCallsBusquedaInput(){
+  callsBusqueda=(document.getElementById('calls-busqueda')?.value||'').trim().toLowerCase();
+  _applyCallsFilter();
+}
 function _filtrarCalls(){
-  return callsCache.filter(c=>_gfInRange(c.created_at));
+  let r=callsCache.filter(c=>_gfInRange(c.created_at));
+  if(callsBusqueda) r=r.filter(c=>
+    (c.nombre||'').toLowerCase().includes(callsBusqueda)||
+    (c.instagram||'').toLowerCase().includes(callsBusqueda)
+  );
+  return r;
 }
 function setCallsFilter(filtro,el){ _gfSet(filtro); }
 function onCallsMesChange(){ const s=document.getElementById('calls-mes-select'); _gfSetMes(s?s.value:''); }
@@ -4174,8 +4359,8 @@ async function _applyCallsFilter(){
   } else {
     // Fallback local si la API no responde
     const prev   =callsCache.filter(c=>_gfPrevInRange(c.created_at));
-    const hechas =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
-    const hechasP=prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+    const hechas =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
+    const hechasP=prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
     const cierres =filtradas.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const cierresP=prev.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const noCerradas=Math.max(0,hechas-cierres);
@@ -4241,11 +4426,7 @@ function _renderCallsTable(rows){
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
       padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}`;
 
-    const infoPrevia=r.info_previa
-      ?`<span class="trunc" style="max-width:110px;display:inline-block;cursor:pointer;color:var(--text2)"
-          onclick="verInfoPreviaModal('${r.info_previa?.replace(/'/g,"\\'")||''}','${r.nombre||''}');event.stopPropagation()"
-          title="Click para ver completo">${r.info_previa}</span>`
-      :'<span style="color:var(--text3)">—</span>';
+    const infoPrevia=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="abrirInfoPreviaEdit('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">${r.info_previa?'Ver / Editar':'+ Agregar'}</button>`;
 
     let rJSON={};
     try{ if(r.reporte) rJSON=typeof r.reporte==='string'?JSON.parse(r.reporte):r.reporte; }catch{}
@@ -4263,24 +4444,32 @@ function _renderCallsTable(rows){
       ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteCall('${r.id}');event.stopPropagation()">Ver${avatarIdeal?' ⭐':''}</button>`
       :'<span style="color:var(--text3)">—</span>';
 
+    const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
+    const origenVal=r.origen||leadOrigen?.origen||'';
+    const reporteGhlCell=r.reporte_ghl
+      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteGHL('${r.id}');event.stopPropagation()">Ver</button>`
+      :'<span style="color:var(--text3)">—</span>';
+
     return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
       <td style="color:var(--text3);font-size:10px;text-align:center">${idx+1}</td>
       <td style="color:var(--text);font-weight:600">${r.nombre||'—'}${callNum}</td>
       <td><a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">@${r.instagram||'—'}</a></td>
       <td style="font-size:12px;color:var(--text2)">${r.whatsapp||'—'}</td>
-      <td>${infoPrevia}</td>
+      <td>${origenBadge(origenVal)}</td>
+      <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${isPostCall?(r.seguimientos||0):'<span style="color:var(--text3)">—</span>'}</td>
       <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${reporteCell}</td>
+      <td onclick="event.stopPropagation()">${reporteGhlCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="13" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="15" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
@@ -4319,7 +4508,8 @@ async function savePreCall(){
 
   if(!instagram){toast('✗ Instagram es obligatorio');return;}
 
-  const data={nombre,instagram,whatsapp,info_previa};
+  const pendingLead=_pendingReporteLeadId?leadsCache.find(l=>l.id===_pendingReporteLeadId):leadsCache.find(l=>(l.instagram||'').toLowerCase()===instagram.toLowerCase());
+  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||''};
   console.log('DATA ENVIADA (pre-call):',data);
 
   const btn=document.getElementById('pc-save-btn');
@@ -4502,10 +4692,52 @@ async function deleteCall(id){
   }catch(e){console.error('[deleteCall]',e);toast('✗ Error de conexión');}
 }
 
+let _editingInfoPreviaCallId=null;
+
 function verInfoPreviaModal(texto, nombre){
+  _editingInfoPreviaCallId=null;
   document.getElementById('modal-info-meta').textContent=nombre||'';
-  document.getElementById('modal-info-body').textContent=texto||'(Sin info previa)';
+  document.getElementById('modal-info-body').value=texto||'';
+  document.getElementById('modal-info-body').readOnly=true;
+  const saveBtn=document.getElementById('modal-info-save-btn');
+  if(saveBtn) saveBtn.style.display='none';
   document.getElementById('modal-info-previa').classList.add('open');
+}
+
+function abrirInfoPreviaEdit(callId, nombre){
+  const call=callsCache.find(c=>c.id===callId);
+  _editingInfoPreviaCallId=callId;
+  document.getElementById('modal-info-meta').textContent=nombre||'';
+  document.getElementById('modal-info-body').value=call?.info_previa||'';
+  document.getElementById('modal-info-body').readOnly=false;
+  const saveBtn=document.getElementById('modal-info-save-btn');
+  if(saveBtn) saveBtn.style.display='';
+  document.getElementById('modal-info-previa').classList.add('open');
+}
+
+async function guardarInfoPrevia(){
+  if(!_editingInfoPreviaCallId) return;
+  const texto=(document.getElementById('modal-info-body')?.value||'').trim();
+  const btn=document.getElementById('modal-info-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  try{
+    const res=await apiFetch(`${API_URL}/call/${_editingInfoPreviaCallId}`,{method:'PATCH',body:JSON.stringify({info_previa:texto})});
+    if(!res.ok) throw new Error();
+    const call=callsCache.find(c=>c.id===_editingInfoPreviaCallId);
+    if(call) call.info_previa=texto;
+    closeModal('modal-info-previa');
+    toast('✓ Info previa guardada');
+  }catch(e){
+    toast('✗ Error al guardar');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Guardar';}
+  }
+}
+
+function verReporteGHL(callId){
+  const call=callsCache.find(c=>c.id===callId);
+  if(!call?.reporte_ghl) return;
+  verInfoPreviaModal(typeof call.reporte_ghl==='string'?call.reporte_ghl:JSON.stringify(call.reporte_ghl,null,2), call.nombre+' (GHL)');
 }
 
 const REPORTE_LABELS={
@@ -6711,3 +6943,1982 @@ function _printFormResp(idx){
     </body></html>`);
   win.document.close();
 }
+
+// ========== IA ANÁLISIS DE LLAMADAS ==========
+
+let _aiView      = 'tabla';  // 'tabla' | 'ia'
+let _aiSubView   = 'nuevo';  // 'nuevo' | 'historial'
+let _aiAnalysisId = null;
+let _aiMessages  = [];
+let _aiLoading   = false;
+let _aiAnalysesList = [];
+
+function setCallsView(v) {
+  _aiView = v;
+  const tabla = document.getElementById('calls-tabla-view');
+  const ia    = document.getElementById('calls-ia-view');
+  const btnT  = document.getElementById('calls-view-btn-tabla');
+  const btnI  = document.getElementById('calls-view-btn-ia');
+  if (!tabla || !ia) return;
+
+  const activeStyle  = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em';
+  const inactiveStyle = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em';
+
+  if (v === 'tabla') {
+    tabla.style.display = '';
+    ia.style.display = 'none';
+    if (btnT) btnT.style.cssText = activeStyle;
+    if (btnI) btnI.style.cssText = inactiveStyle;
+  } else {
+    tabla.style.display = 'none';
+    ia.style.display = '';
+    if (btnT) btnT.style.cssText = inactiveStyle;
+    if (btnI) btnI.style.cssText = activeStyle;
+    renderCallsIA();
+    loadAIAnalysesList();
+  }
+}
+
+// Simple markdown renderer for AI responses
+function _mdToHtml(text) {
+  if (!text) return '';
+  let html = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^## (.+)$/gm, '<h4 style="font-size:13px;font-weight:800;color:var(--text);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em">$1</h4>')
+    .replace(/^### (.+)$/gm, '<h5 style="font-size:12px;font-weight:700;color:var(--text2);margin:12px 0 4px">$1</h5>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text);font-weight:700">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-•] (.+)$/gm, '<li style="color:var(--text2);font-size:13px;margin:4px 0;line-height:1.6;padding-left:4px">$1</li>')
+    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul style="list-style:disc;padding-left:18px;margin:6px 0">${m}</ul>`)
+    .replace(/\n\n/g, '</p><p style="margin:8px 0;color:var(--text2);font-size:13px;line-height:1.6">')
+    .replace(/\n/g, '<br>');
+  return `<p style="margin:8px 0;color:var(--text2);font-size:13px;line-height:1.6">${html}</p>`;
+}
+
+function renderCallsIA() {
+  const root = document.getElementById('calls-ia-root');
+  if (!root) return;
+  if (_aiSubView === 'historial') { _renderAIHistorialView(); return; }
+  _renderAINewView();
+}
+
+function _renderAINewView() {
+  const root = document.getElementById('calls-ia-root');
+  if (!root) return;
+  const isAdmin = currentUserRole === 'admin';
+  const hasAnalysis = _aiMessages.length > 0;
+
+  const callOptions = callsCache.map(c =>
+    `<option value="${c.id}">${c.nombre||c.instagram||'Sin nombre'} — ${c.instagram||''}</option>`
+  ).join('');
+
+  root.innerHTML = `
+    <!-- Header bar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="setAISubView('historial')" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          Historial${_aiAnalysesList.length > 0 ? ` (${_aiAnalysesList.length})` : ''}
+        </button>
+        ${isAdmin ? `<button onclick="openAIConfig()" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          ⚙ Configurar IA
+        </button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${hasAnalysis ? `<button onclick="startNewAIAnalysis()" style="padding:7px 16px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+          border:1px solid rgba(184,72,72,0.4);background:rgba(184,72,72,0.1);color:#d47070;cursor:pointer">
+          Terminar análisis
+        </button>` : ''}
+        ${hasAnalysis ? '' : `<button onclick="startNewAIAnalysis()" style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+          border:1px solid var(--gold);background:rgba(224,181,74,0.12);color:var(--gold);cursor:pointer">
+          + Nuevo análisis
+        </button>`}
+      </div>
+    </div>
+
+    <!-- Panel principal -->
+    <div class="card" style="padding:24px">
+
+      <!-- Transcript input — solo visible si no hay análisis activo -->
+      <div id="ai-input-section" style="${hasAnalysis?'display:none':''}">
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Vincular a llamada (opcional)</div>
+          <select id="ai-call-select" style="width:100%;max-width:420px;padding:8px 12px;font-size:12.5px;background:rgba(255,255,255,0.04);
+            border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text2)">
+            <option value="">— Sin vincular —</option>
+            ${callOptions}
+          </select>
+        </div>
+        <div style="margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Transcript de la llamada</div>
+          <textarea id="ai-transcript-input" rows="8"
+            placeholder="Pegá el transcript completo de la llamada aquí…"
+            style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+                   border-radius:var(--rs);padding:14px;font-size:13px;color:var(--text2);line-height:1.65;
+                   resize:vertical;box-sizing:border-box;font-family:inherit;min-height:150px"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end">
+          <button id="ai-analyze-btn" onclick="runAIAnalysis()"
+            style="padding:9px 26px;font-size:13px;font-weight:700;border-radius:var(--rs);
+                   border:none;background:var(--gold);color:#000;cursor:pointer;letter-spacing:.02em">
+            Analizar llamada →
+          </button>
+        </div>
+      </div>
+
+      <!-- Área de análisis + chat -->
+      <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
+        <div style="margin-bottom:16px">
+          <div id="ai-messages-container" style="display:flex;flex-direction:column;gap:20px;max-height:620px;overflow-y:auto;padding-right:6px">
+          </div>
+        </div>
+        <!-- Input de seguimiento -->
+        <div style="display:flex;gap:10px;align-items:flex-end;border-top:1px solid var(--line);padding-top:16px">
+          <textarea id="ai-followup-input" rows="2"
+            placeholder="Preguntá algo sobre esta llamada… (Enter para enviar)"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}"
+            style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);
+                   border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);line-height:1.5;
+                   resize:none;font-family:inherit"></textarea>
+          <button id="ai-send-btn" onclick="sendAIChatMessage()"
+            style="padding:10px 20px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+                   border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;white-space:nowrap">
+            Enviar →
+          </button>
+        </div>
+      </div>
+
+    </div>`;
+
+  if (hasAnalysis) _renderAIMessages();
+}
+
+function _renderAIHistorialView() {
+  const root = document.getElementById('calls-ia-root');
+  if (!root) return;
+  const isAdmin = currentUserRole === 'admin';
+
+  const listHTML = _aiAnalysesList.length === 0
+    ? `<div style="text-align:center;padding:48px 0;color:var(--text3);font-size:13px">No hay análisis guardados aún.</div>`
+    : _aiAnalysesList.map(a => {
+        const preview = (a.transcript||'').slice(0, 120).replace(/</g,'&lt;');
+        const date = a.created_at
+          ? new Date(a.created_at).toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+          : '';
+        const msgCount = Array.isArray(a.messages) ? Math.floor(a.messages.length / 2) : 0;
+        const chars = (a.transcript||'').length;
+        return `
+          <div style="border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:rgba(255,255,255,0.02);margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:10px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;color:var(--text2);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${preview}…"</div>
+              </div>
+              <div style="font-size:11px;color:var(--text3);white-space:nowrap">${date}</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;gap:10px">
+                <span style="font-size:11px;color:var(--text3)">${chars.toLocaleString()} caracteres</span>
+                <span style="font-size:11px;color:var(--text3)">·</span>
+                <span style="font-size:11px;color:var(--text3)">${msgCount} intercambio${msgCount!==1?'s':''}</span>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button onclick="loadAIAnalysis('${a.id}')"
+                  style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                         border:1px solid var(--gold);background:rgba(224,181,74,0.1);color:var(--gold);cursor:pointer">
+                  Ver análisis
+                </button>
+                ${isAdmin ? `<button onclick="deleteAIAnalysis('${a.id}')"
+                  style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                         border:1px solid rgba(184,72,72,0.3);background:rgba(184,72,72,0.08);color:#d47070;cursor:pointer">
+                  Eliminar
+                </button>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+  root.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="setAISubView('nuevo')" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          ← Volver
+        </button>
+        <div style="font-size:15px;font-weight:700;color:var(--text)">
+          Historial de análisis
+          <span style="font-size:12px;font-weight:500;color:var(--text3);margin-left:8px">${_aiAnalysesList.length} análisis guardados</span>
+        </div>
+      </div>
+      <button onclick="loadAIAnalysesList()" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+        border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+        Actualizar
+      </button>
+    </div>
+    <div>${listHTML}</div>`;
+}
+
+function _renderAIMessages() {
+  const container = document.getElementById('ai-messages-container');
+  if (!container) return;
+
+  const pairs = [];
+  for (let i = 0; i < _aiMessages.length; i += 2) {
+    const user = _aiMessages[i];
+    const assistant = _aiMessages[i + 1];
+    if (user) pairs.push({ user, assistant });
+  }
+
+  container.innerHTML = pairs.map((p, idx) => {
+    const isFirst = idx === 0;
+    const userLabel = isFirst ? 'Transcript enviado' : 'Pregunta';
+    const userContent = isFirst
+      ? `<div style="font-size:11.5px;color:var(--text3);font-style:italic">Transcript analizado · ${(p.user.content||'').length} caracteres</div>`
+      : `<div style="background:rgba(224,181,74,0.08);border:1px solid rgba(224,181,74,0.15);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2)">${(p.user.content||'').replace(/</g,'&lt;')}</div>`;
+
+    const assistantHtml = _mdToHtml(p.assistant?.content || '');
+
+    return `
+      <div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${userLabel}</div>
+        ${userContent}
+        ${p.assistant ? `
+          <div style="margin-top:12px">
+            <div style="font-size:10.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✦ Análisis IA</div>
+            <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);padding:18px 20px">
+              ${assistantHtml}
+            </div>
+          </div>` : ''}
+      </div>`;
+  }).join('');
+
+  // Scroll to bottom
+  container.scrollTop = container.scrollHeight;
+
+  // Show chat area
+  const chatArea = document.getElementById('ai-chat-area');
+  if (chatArea) chatArea.style.display = '';
+}
+
+async function runAIAnalysis() {
+  if (_aiLoading) return;
+  const transcriptEl = document.getElementById('ai-transcript-input');
+  const transcript = (transcriptEl?.value || '').trim();
+  if (!transcript) { toast('Pegá un transcript primero'); transcriptEl?.focus(); return; }
+  if (transcript.length < 30) { toast('El transcript es muy corto'); return; }
+
+  const callId = document.getElementById('ai-call-select')?.value || '';
+  const btn = document.getElementById('ai-analyze-btn');
+
+  _aiLoading = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Analizando…'; }
+
+  try {
+    const body = { transcript };
+    if (callId) body.call_id = callId;
+
+    const res = await apiFetch(`${API_URL}/ai/analyze`, { method: 'POST', body: JSON.stringify(body) });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+    const data = await res.json();
+
+    _aiAnalysisId = data.id;
+    _aiMessages = data.messages || [];
+
+    if (transcriptEl) transcriptEl.value = '';
+    renderCallsIA();
+    loadAIAnalysesList();
+    toast('Análisis completado ✓');
+  } catch (err) {
+    toast('Error: ' + err.message);
+  } finally {
+    _aiLoading = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Analizar llamada →'; }
+  }
+}
+
+async function sendAIChatMessage() {
+  if (_aiLoading) return;
+  const input = document.getElementById('ai-followup-input');
+  const message = (input?.value || '').trim();
+  if (!message) return;
+
+  const btn = document.getElementById('ai-send-btn');
+  _aiLoading = true;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (input) input.value = '';
+
+  // Optimistic: add user message to UI immediately
+  _aiMessages = [..._aiMessages, { role: 'user', content: message }];
+  _renderAIMessages();
+
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ analysis_id: _aiAnalysisId, message, messages: _aiMessages.slice(0, -1) })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+    const data = await res.json();
+    _aiMessages = data.messages || _aiMessages;
+    _renderAIMessages();
+  } catch (err) {
+    // Remove optimistic message on error
+    _aiMessages = _aiMessages.slice(0, -1);
+    _renderAIMessages();
+    toast('Error: ' + err.message);
+  } finally {
+    _aiLoading = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar →'; }
+  }
+}
+
+function setAISubView(v) {
+  _aiSubView = v;
+  renderCallsIA();
+  if (v === 'historial') loadAIAnalysesList();
+}
+
+async function loadAIAnalysesList() {
+  try {
+    const res = await apiFetch(`${API_URL}/ai/analyses`);
+    if (!res.ok) return;
+    _aiAnalysesList = await res.json();
+    if (_aiSubView === 'historial') _renderAIHistorialView();
+  } catch (err) {
+    console.warn('[AI] loadAIAnalysesList:', err.message);
+  }
+}
+
+async function loadAIAnalysis(id) {
+  try {
+    const res = await apiFetch(`${API_URL}/ai/analyses/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    _aiAnalysisId = data.id;
+    _aiMessages = data.messages || [];
+    _aiSubView = 'nuevo';
+    renderCallsIA();
+  } catch (err) {
+    toast('Error al cargar análisis');
+  }
+}
+
+function startNewAIAnalysis() {
+  _aiAnalysisId = null;
+  _aiMessages = [];
+  _aiSubView = 'nuevo';
+  renderCallsIA();
+}
+
+async function deleteAIAnalysis(id) {
+  if (currentUserRole !== 'admin') return;
+  if (!confirm('¿Eliminar este análisis? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/ai/analyses/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Error al eliminar');
+    _aiAnalysesList = _aiAnalysesList.filter(a => a.id !== id);
+    if (_aiAnalysisId === id) { _aiAnalysisId = null; _aiMessages = []; }
+    _renderAIHistorialView();
+    toast('Análisis eliminado ✓');
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
+}
+
+async function openAIConfig() {
+  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
+  openModal('modal-ia-config');
+  try {
+    const clienteId = localStorage.getItem('clienteSeleccionado') || '';
+    const { data } = await _sb
+      .from('ai_config')
+      .select('*')
+      .eq('cliente_id', clienteId)
+      .limit(1)
+      .maybeSingle();
+    const ctxEl = document.getElementById('ia-config-context');
+    const promptEl = document.getElementById('ia-config-prompt');
+    if (ctxEl) ctxEl.value = (data && data.custom_context) || '';
+    if (promptEl) promptEl.value = (data && data.system_prompt) || '';
+  } catch (err) {
+    console.warn('[AI CONFIG]', err.message);
+  }
+}
+
+async function saveAIConfig() {
+  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
+  const system_prompt = (document.getElementById('ia-config-prompt')?.value || '').trim();
+  const custom_context = (document.getElementById('ia-config-context')?.value || '').trim();
+  try {
+    const res = await apiFetch(`${API_URL}/ai/config`, {
+      method: 'PATCH',
+      body: JSON.stringify({ system_prompt, custom_context })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+    closeModal('modal-ia-config');
+    toast('Configuración de IA guardada ✓');
+  } catch (err) {
+    toast('Error al guardar: ' + err.message);
+  }
+}
+
+// ========== IA ANÁLISIS DE CHATS (LEADS) ==========
+
+let _leadsView       = 'tabla';  // 'tabla' | 'ia'
+let _chatSubView     = 'nuevo';  // 'nuevo' | 'historial'
+let _chatAnalysisId  = null;
+let _chatMessages    = [];
+let _chatLoading     = false;
+let _chatImages         = [];    // [{name, base64, mediaType, previewUrl}]
+let _chatFollowupImages = [];    // images staged for the next follow-up send
+let _chatInputText      = '';    // persists textarea text across re-renders
+let _chatFollowupInputText = ''; // persists followup textarea text across re-renders
+let _chatAnalysesList = [];
+
+function setLeadsView(v) {
+  _leadsView = v;
+  const tabla = document.getElementById('leads-tabla-view');
+  const ia    = document.getElementById('leads-ia-view');
+  const btnT  = document.getElementById('leads-view-btn-tabla');
+  const btnI  = document.getElementById('leads-view-btn-ia');
+  if (!tabla || !ia) return;
+
+  const activeStyle   = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em';
+  const inactiveStyle = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em';
+
+  if (v === 'tabla') {
+    tabla.style.display = '';
+    ia.style.display = 'none';
+    if (btnT) btnT.style.cssText = activeStyle;
+    if (btnI) btnI.style.cssText = inactiveStyle;
+  } else {
+    tabla.style.display = 'none';
+    ia.style.display = '';
+    if (btnT) btnT.style.cssText = inactiveStyle;
+    if (btnI) btnI.style.cssText = activeStyle;
+    renderLeadsIA();
+    loadChatAnalysesList();
+  }
+}
+
+function renderLeadsIA() {
+  const root = document.getElementById('leads-ia-root');
+  if (!root) return;
+  if (_chatSubView === 'historial') { _renderChatHistorialView(); return; }
+  _renderChatNewView();
+}
+
+function _renderChatNewView() {
+  const root = document.getElementById('leads-ia-root');
+  if (!root) return;
+  const isAdmin    = currentUserRole === 'admin';
+  const hasAnalysis = _chatMessages.length > 0;
+
+  const thumbnailsHtml = _chatImages.length > 0 ? `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:4px">
+      ${_chatImages.map((img, idx) => `
+        <div style="position:relative;display:inline-block">
+          <img src="${img.previewUrl}" alt="${escHtml(img.name)}"
+            style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.12);cursor:pointer"
+            onclick="previewChatImage(${idx})">
+          <button onclick="removeChatImage(${idx})"
+            style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+                   background:#d04848;border:none;color:#fff;font-size:11px;font-weight:900;cursor:pointer;
+                   display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+        </div>
+      `).join('')}
+      <label for="chat-img-input"
+        style="width:72px;height:72px;border:1px dashed rgba(255,255,255,0.2);border-radius:6px;
+               display:flex;align-items:center;justify-content:center;cursor:pointer;
+               color:var(--text3);font-size:22px;flex-shrink:0">+</label>
+    </div>
+  ` : '';
+
+  const messagesHtml = hasAnalysis ? `
+    <div id="chat-messages-wrap" style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
+      ${_chatMessages.map(m => m.role === 'user' ? `
+        <div style="background:rgba(224,181,74,0.06);border:1px solid rgba(224,181,74,0.14);
+                    border-radius:10px;padding:12px 16px">
+          <span style="font-size:10px;font-weight:700;color:rgba(224,181,74,0.55);text-transform:uppercase;
+                       letter-spacing:.07em;display:block;margin-bottom:6px">Vos</span>
+          <div style="font-size:13px;color:var(--text3);white-space:pre-wrap;line-height:1.55">
+            ${escHtml(typeof m.content === 'string' ? m.content : '[imagen + texto]')}
+          </div>
+        </div>
+      ` : `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+                    border-radius:10px;padding:16px 20px">
+          <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;
+                       letter-spacing:.07em;display:block;margin-bottom:10px">✦ IA Análisis</span>
+          ${_mdToHtml(m.content)}
+        </div>
+      `).join('')}
+      ${_chatLoading ? `
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--text3);font-size:13px">
+          <span>⏳</span> La IA está analizando…
+        </div>
+      ` : ''}
+    </div>
+    <div style="margin-top:16px">
+      ${_chatFollowupImages.length > 0 ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          ${_chatFollowupImages.map((img, idx) => `
+            <div style="position:relative;display:inline-block">
+              <img src="${img.previewUrl}" alt="${escHtml(img.name)}"
+                style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.12);cursor:pointer"
+                onclick="previewFollowupImage(${idx})">
+              <button onclick="removeFollowupImage(${idx})"
+                style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
+                       background:#d04848;border:none;color:#fff;font-size:10px;font-weight:900;cursor:pointer;
+                       display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="chat-followup-input" rows="2"
+          placeholder="Preguntá algo sobre este chat… (Enter = enviar, Shift+Enter = nueva línea)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatFollowup();}"
+          oninput="_chatFollowupInputText=this.value"
+          style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+                 border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);
+                 resize:none;font-family:inherit;line-height:1.5"></textarea>
+        <label for="chat-followup-img-input"
+          style="padding:9px 11px;font-size:17px;border:1px solid ${_chatFollowupImages.length > 0 ? 'rgba(224,181,74,0.4)' : 'rgba(255,255,255,0.1)'};
+                 border-radius:var(--rs);background:rgba(255,255,255,0.04);cursor:pointer;
+                 flex-shrink:0;display:flex;align-items:center;color:${_chatFollowupImages.length > 0 ? 'var(--gold)' : 'var(--text3)'};
+                 position:relative" title="Adjuntar imagen">
+          📎
+          ${_chatFollowupImages.length > 0 ? `<span style="position:absolute;top:-5px;right:-5px;background:var(--gold);color:#000;
+            font-size:9px;font-weight:800;width:14px;height:14px;border-radius:50%;
+            display:flex;align-items:center;justify-content:center">${_chatFollowupImages.length}</span>` : ''}
+        </label>
+        <input type="file" id="chat-followup-img-input" accept="image/*" multiple
+          style="display:none" onchange="addFollowupImages()">
+        <button onclick="sendChatFollowup()"
+          style="padding:10px 20px;font-size:13px;font-weight:700;border-radius:var(--rs);
+                 border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);
+                 cursor:pointer;white-space:nowrap;flex-shrink:0;${_chatLoading ? 'opacity:0.5;' : ''}"
+          ${_chatLoading ? 'disabled' : ''}>
+          ${_chatLoading ? 'Analizando…' : 'Enviar →'}
+        </button>
+      </div>
+    </div>
+  ` : '';
+
+  root.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="setChatSubView('historial')"
+          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          Historial${_chatAnalysesList.length > 0 ? ` (${_chatAnalysesList.length})` : ''}
+        </button>
+        ${isAdmin ? `<button onclick="openChatAIConfig()"
+          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          ⚙ Configurar IA
+        </button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${hasAnalysis
+          ? `<button onclick="startNewChatAnalysis()"
+              style="padding:7px 16px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+                     border:1px solid rgba(184,72,72,0.4);background:rgba(184,72,72,0.1);color:#d47070;cursor:pointer">
+              Terminar análisis
+            </button>`
+          : `<button onclick="startNewChatAnalysis()"
+              style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+                     border:1px solid var(--gold);background:rgba(224,181,74,0.12);color:var(--gold);cursor:pointer">
+              + Nuevo análisis
+            </button>`
+        }
+      </div>
+    </div>
+
+    <div class="card" style="padding:24px">
+      <div id="chat-input-section" style="${hasAnalysis ? 'display:none' : ''}">
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Conversación con el lead</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Pegá el texto del chat y/o subí screenshots. Podés usar texto + imágenes juntos.</div>
+          <textarea id="chat-text-input" rows="9"
+            placeholder="Pegá la conversación aquí… (Instagram DM, WhatsApp, etc.)&#10;&#10;Ejemplo:&#10;Setter: Hola! Vi que te interesó el programa&#10;Lead: Sí, ¿cuánto cuesta?&#10;Setter: Son $5,000&#10;Lead: Es mucho..."
+            oninput="_chatInputText=this.value"
+            style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+                   border-radius:var(--rs);padding:14px;font-size:13px;color:var(--text2);line-height:1.65;
+                   resize:vertical;box-sizing:border-box;font-family:inherit;min-height:180px"></textarea>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <label for="chat-img-input"
+            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:600;
+                   border:1px dashed rgba(255,255,255,0.2);border-radius:var(--rs);color:var(--text3);
+                   cursor:pointer;background:rgba(255,255,255,0.02)">
+            📎 ${_chatImages.length > 0 ? _chatImages.length + ' imagen(es) adjunta(s) — agregar más' : 'Adjuntar screenshots (opcional)'}
+          </label>
+          <input type="file" id="chat-img-input" accept="image/*" multiple
+            style="display:none" onchange="addChatImages()">
+        </div>
+        ${thumbnailsHtml}
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button id="chat-analyze-btn" onclick="runChatAnalysis()"
+            style="padding:9px 26px;font-size:13px;font-weight:700;border-radius:var(--rs);
+                   border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;
+                   ${_chatLoading ? 'opacity:0.5;' : ''}"
+            ${_chatLoading ? 'disabled' : ''}>
+            ${_chatLoading ? '⏳ Analizando…' : '✦ Analizar chat'}
+          </button>
+        </div>
+      </div>
+      ${messagesHtml}
+    </div>
+  `;
+
+  const ta = document.getElementById('chat-text-input');
+  if (ta) ta.value = _chatInputText;
+  const fta = document.getElementById('chat-followup-input');
+  if (fta) fta.value = _chatFollowupInputText;
+}
+
+function _renderChatHistorialView() {
+  const root = document.getElementById('leads-ia-root');
+  if (!root) return;
+  const isAdmin = currentUserRole === 'admin';
+
+  const cardsHtml = _chatAnalysesList.length === 0
+    ? `<div style="text-align:center;padding:48px 0;color:var(--text3);font-size:13px">No hay análisis de chats guardados aún.</div>`
+    : _chatAnalysesList.map(a => {
+        const date = new Date(a.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const preview = (a.chat_text || '').slice(0, 110).replace(/</g, '&lt;');
+        const msgCount = Math.max(0, Math.floor(((a.messages || []).length) / 2) - 1);
+        return `
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;
+                      padding:16px 18px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                <span style="font-size:11px;font-weight:600;color:var(--text3)">${date}</span>
+                ${a.lead_name ? `<span style="font-size:11px;background:rgba(224,181,74,0.1);border:1px solid rgba(224,181,74,0.18);
+                  color:var(--gold);padding:2px 8px;border-radius:20px;font-weight:600">${escHtml(a.lead_name)}</span>` : ''}
+                ${a.has_images ? `<span style="font-size:10px;color:var(--text3);background:rgba(255,255,255,0.04);
+                  padding:2px 7px;border-radius:20px;border:1px solid rgba(255,255,255,0.07)">📎 imágenes</span>` : ''}
+                ${msgCount > 0 ? `<span style="font-size:10px;color:var(--text3)">${msgCount} pregunta${msgCount !== 1 ? 's' : ''} de seguimiento</span>` : ''}
+              </div>
+              <div style="font-size:12.5px;color:var(--text3);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                ${preview ? '"' + preview + (a.chat_text?.length > 110 ? '…"' : '"') : '<em>Solo imágenes</em>'}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+              <button onclick="loadChatAnalysis('${a.id}')"
+                style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                       border:1px solid var(--gold);background:rgba(224,181,74,0.1);color:var(--gold);cursor:pointer">
+                Ver análisis
+              </button>
+              ${isAdmin ? `<button onclick="deleteChatAnalysis('${a.id}')"
+                style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                       border:1px solid rgba(184,72,72,0.3);background:transparent;color:#d47070;cursor:pointer">
+                Eliminar
+              </button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+  root.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="setChatSubView('nuevo')"
+          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
+          ← Nuevo análisis
+        </button>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text2)">
+        Historial de análisis de chats
+        <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:4px">${_chatAnalysesList.length} guardados</span>
+      </div>
+    </div>
+    <div class="card" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:10px">${cardsHtml}</div>
+    </div>
+  `;
+}
+
+function setChatSubView(v) {
+  _chatSubView = v;
+  renderLeadsIA();
+}
+
+async function loadChatAnalysesList() {
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat-analyses`);
+    if (!res.ok) return;
+    _chatAnalysesList = await res.json();
+    if (_chatSubView === 'historial') _renderChatHistorialView();
+  } catch (_) {}
+}
+
+async function loadChatAnalysis(id) {
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat-analyses/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    _chatAnalysisId = data.id;
+    _chatMessages   = data.messages || [];
+    _chatSubView    = 'nuevo';
+    _chatImages     = [];
+    _chatInputText  = '';
+    renderLeadsIA();
+  } catch (err) {
+    toast('Error al cargar: ' + err.message);
+  }
+}
+
+function startNewChatAnalysis() {
+  _chatImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+  _chatFollowupImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+  _chatAnalysisId       = null;
+  _chatMessages         = [];
+  _chatImages           = [];
+  _chatFollowupImages   = [];
+  _chatInputText        = '';
+  _chatFollowupInputText = '';
+  _chatSubView          = 'nuevo';
+  renderLeadsIA();
+}
+
+async function runChatAnalysis() {
+  const textEl   = document.getElementById('chat-text-input');
+  const chatText = (textEl?.value || _chatInputText || '').trim();
+
+  if (!chatText && _chatImages.length === 0) {
+    toast('Pegá una conversación o adjuntá al menos un screenshot');
+    return;
+  }
+  if (_chatLoading) return;
+
+  _chatLoading   = true;
+  _chatInputText = chatText;
+  _renderChatNewView();
+
+  try {
+    const body = {
+      chat_text: chatText,
+      images: _chatImages.map(img => ({ base64: img.base64, mediaType: img.mediaType, name: img.name }))
+    };
+
+    const res = await apiFetch(`${API_URL}/ai/chat-analyze`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+
+    const data      = await res.json();
+    _chatAnalysisId = data.id;
+    _chatMessages   = data.messages || [];
+    _chatImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+    _chatImages     = [];
+    _chatInputText  = '';
+    _chatLoading    = false;
+    renderLeadsIA();
+    loadChatAnalysesList();
+    setTimeout(() => {
+      const wrap = document.getElementById('chat-messages-wrap');
+      if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 120);
+  } catch (err) {
+    _chatLoading = false;
+    _renderChatNewView();
+    toast('Error al analizar: ' + err.message);
+  }
+}
+
+async function sendChatFollowup() {
+  const input   = document.getElementById('chat-followup-input');
+  const message = (input?.value || '').trim();
+  if (!message && _chatFollowupImages.length === 0) return;
+  if (_chatLoading) return;
+
+  _chatLoading = true;
+  const imgNote    = _chatFollowupImages.length > 0 ? `[${_chatFollowupImages.length} imagen(es)]\n` : '';
+  const displayMsg = `${imgNote}${message}`.trim();
+  _chatMessages    = [..._chatMessages, { role: 'user', content: displayMsg }];
+  if (input) input.value = '';
+  _chatFollowupInputText = '';
+
+  const imagesToSend = [..._chatFollowupImages];
+  _chatFollowupImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+  _chatFollowupImages = [];
+  _renderChatNewView();
+
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat-followup`, {
+      method: 'POST',
+      body: JSON.stringify({
+        analysis_id: _chatAnalysisId,
+        message,
+        images: imagesToSend.map(img => ({ base64: img.base64, mediaType: img.mediaType, name: img.name })),
+        messages: _chatMessages.slice(0, -1)
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+
+    const data    = await res.json();
+    _chatMessages = data.messages || _chatMessages;
+    _chatLoading  = false;
+    _renderChatNewView();
+    setTimeout(() => {
+      const wrap = document.getElementById('chat-messages-wrap');
+      if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 120);
+  } catch (err) {
+    _chatMessages  = _chatMessages.slice(0, -1);
+    _chatLoading   = false;
+    _renderChatNewView();
+    toast('Error: ' + err.message);
+  }
+}
+
+async function addFollowupImages() {
+  const input = document.getElementById('chat-followup-img-input');
+  if (!input?.files?.length) return;
+
+  const fta = document.getElementById('chat-followup-input');
+  if (fta) _chatFollowupInputText = fta.value;
+
+  for (const file of input.files) {
+    if (!file.type.startsWith('image/')) continue;
+    const base64 = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.readAsDataURL(file);
+    });
+    _chatFollowupImages.push({ name: file.name, base64, mediaType: file.type, previewUrl: URL.createObjectURL(file) });
+  }
+  input.value = '';
+  _renderChatNewView();
+  const fta2 = document.getElementById('chat-followup-input');
+  if (fta2) fta2.value = _chatFollowupInputText;
+}
+
+function removeFollowupImage(idx) {
+  const fta = document.getElementById('chat-followup-input');
+  if (fta) _chatFollowupInputText = fta.value;
+  if (_chatFollowupImages[idx]?.previewUrl) URL.revokeObjectURL(_chatFollowupImages[idx].previewUrl);
+  _chatFollowupImages.splice(idx, 1);
+  _renderChatNewView();
+  const fta2 = document.getElementById('chat-followup-input');
+  if (fta2) fta2.value = _chatFollowupInputText;
+}
+
+function previewFollowupImage(idx) {
+  const img = _chatFollowupImages[idx];
+  if (img?.previewUrl) window.open(img.previewUrl, '_blank');
+}
+
+async function addChatImages() {
+  const input = document.getElementById('chat-img-input');
+  if (!input?.files?.length) return;
+
+  const ta = document.getElementById('chat-text-input');
+  if (ta) _chatInputText = ta.value;
+
+  for (const file of input.files) {
+    if (!file.type.startsWith('image/')) continue;
+    const base64 = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.readAsDataURL(file);
+    });
+    _chatImages.push({ name: file.name, base64, mediaType: file.type, previewUrl: URL.createObjectURL(file) });
+  }
+  input.value = '';
+  _renderChatNewView();
+  const ta2 = document.getElementById('chat-text-input');
+  if (ta2) ta2.value = _chatInputText;
+}
+
+function removeChatImage(idx) {
+  const ta = document.getElementById('chat-text-input');
+  if (ta) _chatInputText = ta.value;
+  if (_chatImages[idx]?.previewUrl) URL.revokeObjectURL(_chatImages[idx].previewUrl);
+  _chatImages.splice(idx, 1);
+  _renderChatNewView();
+  const ta2 = document.getElementById('chat-text-input');
+  if (ta2) ta2.value = _chatInputText;
+}
+
+function previewChatImage(idx) {
+  const img = _chatImages[idx];
+  if (img?.previewUrl) window.open(img.previewUrl, '_blank');
+}
+
+async function deleteChatAnalysis(id) {
+  if (currentUserRole !== 'admin') return;
+  if (!confirm('¿Eliminar este análisis? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat-analyses/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Error al eliminar');
+    _chatAnalysesList = _chatAnalysesList.filter(a => a.id !== id);
+    if (_chatAnalysisId === id) { _chatAnalysisId = null; _chatMessages = []; }
+    _renderChatHistorialView();
+    toast('Análisis eliminado ✓');
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
+}
+
+async function openChatAIConfig() {
+  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
+  openModal('modal-chat-ia-config');
+  try {
+    const clienteId = localStorage.getItem('clienteSeleccionado') || '';
+    const { data } = await _sb
+      .from('ai_config')
+      .select('chat_system_prompt, chat_custom_context')
+      .eq('cliente_id', clienteId)
+      .limit(1)
+      .maybeSingle();
+    const ctxEl    = document.getElementById('chat-ia-config-context');
+    const promptEl = document.getElementById('chat-ia-config-prompt');
+    if (ctxEl)    ctxEl.value    = (data && data.chat_custom_context) || '';
+    if (promptEl) promptEl.value = (data && data.chat_system_prompt)  || '';
+  } catch (err) {
+    console.warn('[CHAT AI CONFIG]', err.message);
+  }
+}
+
+async function saveChatAIConfig() {
+  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
+  const chat_system_prompt  = (document.getElementById('chat-ia-config-prompt')?.value  || '').trim();
+  const chat_custom_context = (document.getElementById('chat-ia-config-context')?.value || '').trim();
+  try {
+    const res = await apiFetch(`${API_URL}/ai/chat-config`, {
+      method: 'PATCH',
+      body: JSON.stringify({ chat_system_prompt, chat_custom_context })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+    closeModal('modal-chat-ia-config');
+    toast('Configuración de IA guardada ✓');
+  } catch (err) {
+    toast('Error al guardar: ' + err.message);
+  }
+}
+
+// ========== TAREAS ==========
+const _TASKS_COLS = [
+  {id:'por_hacer',   label:'Por hacer',   color:'#6090d4'},
+  {id:'en_proceso',  label:'En proceso',  color:'#e0a848'},
+  {id:'en_revision', label:'En revisión', color:'#9b74d4'},
+  {id:'terminado',   label:'Terminado',   color:'#5cb87a'},
+];
+const _TASKS_PRIO_COLORS = {Alta:'#d46060', Media:'#e0a848', Baja:'#6090d4'};
+const _TASKS_AREA_COLORS = {Marketing:'#9b74d4',Ventas:'#6090d4',Productos:'#5bbbd4',Sistemas:'#e0a848',Otro:'#5a607a'};
+let _tasksList    = [];
+let _tasksMembers = [];
+let _taskDragId   = null;
+
+function _tasksParseResp(val){
+  if(!val) return [];
+  try{ const p=JSON.parse(val); if(Array.isArray(p)) return p; }catch{}
+  return [val];
+}
+function _tasksEmailLabel(email){
+  const nick = _getNickname(email);
+  if(nick) return nick;
+  const local = email.split('@')[0];
+  return local.split('.').map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase().replace(/\d+$/,'')).join(' ').trim()||email;
+}
+
+async function renderTasks(){
+  const email = (localStorage.getItem('userEmail')||'').toLowerCase();
+  if(!TASKS_ALLOWED_EMAILS.includes(email)){
+    toast('No tenés acceso a esta sección');
+    nav('dash', document.getElementById('nav-dash'));
+    return;
+  }
+  const root = document.getElementById('tasks-root');
+  if(!root) return;
+  root.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:16px 0">Cargando tareas…</div>';
+  try {
+    const [tasksRes, usersRes] = await Promise.all([
+      apiFetch(`${API_URL}/tasks`),
+      apiFetch(`${API_URL}/tasks/users`),
+    ]);
+    if(!tasksRes.ok) throw new Error('Error ' + tasksRes.status);
+    _tasksList    = await tasksRes.json();
+    _tasksMembers = usersRes.ok ? await usersRes.json() : [];
+  } catch(e) {
+    root.innerHTML = `<div style="color:#d46060;padding:16px 0">Error al cargar tareas: ${escHtml(e.message)}</div>`;
+    return;
+  }
+  _renderTasksBoard();
+}
+
+function _renderTasksBoard(){
+  const root = document.getElementById('tasks-root');
+  if(!root) return;
+  const colsHtml = _TASKS_COLS.map(col => {
+    const colTasks = _tasksList.filter(t => t.columna === col.id);
+    const overdue  = d => d && new Date(d) < new Date() && col.id !== 'terminado';
+    const cardsHtml = colTasks.length === 0
+      ? `<div style="color:var(--text3);font-size:12px;text-align:center;padding:24px 0;opacity:.4">Sin tareas</div>`
+      : colTasks.map(t => {
+          const prioColor  = _TASKS_PRIO_COLORS[t.prioridad] || 'var(--text3)';
+          const areaColor  = _TASKS_AREA_COLORS[t.area]      || 'var(--text3)';
+          const fechaStr   = t.fecha_limite ? new Date(t.fecha_limite+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}) : '';
+          const isOverdue  = overdue(t.fecha_limite);
+          const resps      = _tasksParseResp(t.responsable);
+          const respHtml   = resps.length ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">👤 ${resps.map(e=>escHtml(_tasksEmailLabel(e))).join(' · ')}</div>` : '';
+          return `<div class="task-card-item" data-id="${escHtml(t.id)}" draggable="true"
+            ondragstart="_taskDragStart('${escHtml(t.id)}',event)"
+            onclick="openTaskModal('${escHtml(t.id)}')"
+            style="position:relative;background:var(--card2,#1e2130);border-radius:8px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--line);cursor:grab;user-select:none">
+            <button onclick="event.stopPropagation();deleteTaskCard('${escHtml(t.id)}')"
+              style="position:absolute;top:7px;right:8px;background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;line-height:1;padding:2px 4px;border-radius:4px"
+              onmouseover="this.style.color='#d46060'" onmouseout="this.style.color='var(--text3)'">×</button>
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;padding-right:18px">
+              <div style="flex:1;font-size:13px;font-weight:600;color:var(--text1);line-height:1.4">${escHtml(t.titulo||'Sin título')}</div>
+              ${t.prioridad?`<span style="font-size:10px;font-weight:700;color:${prioColor};background:${prioColor}22;padding:2px 7px;border-radius:20px;white-space:nowrap;flex-shrink:0">${escHtml(t.prioridad)}</span>`:''}
+            </div>
+            ${t.descripcion?`<div style="font-size:12px;color:var(--text3);margin-bottom:6px;line-height:1.4">${escHtml(t.descripcion)}</div>`:''}
+            ${respHtml}
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px">
+              ${t.area?`<span style="font-size:11px;font-weight:600;color:${areaColor};background:${areaColor}22;padding:2px 8px;border-radius:20px">${escHtml(t.area)}</span>`:''}
+              ${fechaStr?`<span style="font-size:11px;color:${isOverdue?'#d46060':'var(--text3)'}">${isOverdue?'⚠ ':'📅 '}${fechaStr}</span>`:''}
+            </div>
+          </div>`;
+        }).join('');
+
+    return `<div style="flex:1;min-width:230px;max-width:320px;border-radius:10px;padding:14px;background:var(--surface-2,#1a1d2b)"
+      ondragover="_taskDragOver(event,this)"
+      ondragleave="_taskDragLeave(event,this)"
+      ondrop="_taskDrop('${col.id}',event,this)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${col.color};flex-shrink:0"></div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2)">${escHtml(col.label)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-left:auto">${colTasks.length}</div>
+      </div>
+      <div>${cardsHtml}</div>
+    </div>`;
+  }).join('');
+  root.innerHTML = `<div style="display:flex;gap:14px;align-items:flex-start;overflow-x:auto;padding-bottom:16px">${colsHtml}</div>`;
+}
+
+function _taskDragStart(id, event){
+  _taskDragId = id;
+  event.dataTransfer.setData('text/plain', id);
+  event.dataTransfer.effectAllowed = 'move';
+  setTimeout(()=>{
+    const el = document.querySelector(`.task-card-item[data-id="${id}"]`);
+    if(el) el.classList.add('task-card-dragging');
+  }, 0);
+}
+function _taskDragOver(event, col){
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  col.classList.add('tasks-col-drop');
+}
+function _taskDragLeave(event, col){
+  if(!col.contains(event.relatedTarget)) col.classList.remove('tasks-col-drop');
+}
+async function _taskDrop(columna, event, col){
+  event.preventDefault();
+  col.classList.remove('tasks-col-drop');
+  const id = event.dataTransfer.getData('text/plain') || _taskDragId;
+  _taskDragId = null;
+  document.querySelectorAll('.task-card-item').forEach(el => el.classList.remove('task-card-dragging'));
+  if(!id) return;
+  const task = _tasksList.find(t => t.id === id);
+  if(!task || task.columna === columna) return;
+  task.columna = columna;
+  _renderTasksBoard();
+  try {
+    const res = await apiFetch(`${API_URL}/tasks/${id}`, { method:'PATCH', body: JSON.stringify({ columna }) });
+    if(!res.ok) throw new Error('Error ' + res.status);
+    const saved = await res.json();
+    _tasksList = _tasksList.map(t => t.id === id ? saved : t);
+  } catch(e) {
+    toast('Error al mover tarea: ' + e.message);
+    renderTasks();
+  }
+}
+
+function openTaskModal(id){
+  const task = id ? _tasksList.find(t => t.id === id) : null;
+  document.getElementById('task-modal-title').textContent  = task ? 'Editar tarea' : 'Nueva tarea';
+  document.getElementById('task-modal-id').value           = task?.id || '';
+  document.getElementById('task-f-titulo').value           = task?.titulo || '';
+  document.getElementById('task-f-desc').value             = task?.descripcion || '';
+  document.getElementById('task-f-columna').value          = task?.columna || 'por_hacer';
+  document.getElementById('task-f-prioridad').value        = task?.prioridad || '';
+  document.getElementById('task-f-area').value             = task?.area || '';
+  document.getElementById('task-f-fecha').value            = task?.fecha_limite ? task.fecha_limite.slice(0,10) : '';
+  document.getElementById('task-f-recursos').value         = task?.recursos || '';
+  document.getElementById('task-delete-btn').style.display = task ? 'block' : 'none';
+
+  const selected = new Set(_tasksParseResp(task?.responsable || ''));
+  const list = document.getElementById('task-responsables-list');
+  if(!_tasksMembers.length){
+    list.innerHTML = '<span style="font-size:11px;color:var(--text3)">Sin usuarios cargados</span>';
+  } else {
+    list.innerHTML = _tasksMembers.map(u =>
+      `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 2px">
+        <input type="checkbox" value="${escHtml(u.email)}" ${selected.has(u.email)?'checked':''}
+          style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">
+        <span style="font-size:12px;color:var(--text1)">${escHtml(_tasksEmailLabel(u.email))}${u.role?` <span style="color:var(--text3);font-size:10px">· ${escHtml(u.role)}</span>`:''}</span>
+      </label>`
+    ).join('');
+  }
+  openModal('modal-task');
+  setTimeout(()=>document.getElementById('task-f-titulo')?.focus(), 100);
+}
+
+async function saveTask(){
+  const id          = document.getElementById('task-modal-id').value;
+  const responsables = [...document.querySelectorAll('#task-responsables-list input:checked')].map(el => el.value);
+  const body = {
+    titulo:       document.getElementById('task-f-titulo').value.trim(),
+    descripcion:  document.getElementById('task-f-desc').value.trim() || null,
+    columna:      document.getElementById('task-f-columna').value,
+    prioridad:    document.getElementById('task-f-prioridad').value || null,
+    area:         document.getElementById('task-f-area').value || null,
+    responsable:  responsables.length ? JSON.stringify(responsables) : '',
+    fecha_limite: document.getElementById('task-f-fecha').value || null,
+    recursos:     document.getElementById('task-f-recursos').value.trim() || null,
+  };
+  if(!body.titulo){ toast('El título es obligatorio'); return; }
+  try {
+    const res = await apiFetch(`${API_URL}/tasks${id ? '/'+id : ''}`, {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(body),
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({error:'Error'})); throw new Error(e.error); }
+    const saved = await res.json();
+    if(id){
+      _tasksList = _tasksList.map(t => t.id === id ? saved : t);
+    } else {
+      _tasksList.push(saved);
+    }
+    closeModal('modal-task');
+    _renderTasksBoard();
+    toast(id ? 'Tarea actualizada ✓' : 'Tarea creada ✓');
+  } catch(e){
+    toast('Error: ' + e.message);
+  }
+}
+
+async function deleteTaskCard(id){
+  if(!id) return;
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/tasks/${id}`, { method: 'DELETE' });
+    if(!res.ok) throw new Error('Error ' + res.status);
+    _tasksList = _tasksList.filter(t => t.id !== id);
+    _renderTasksBoard();
+    toast('Tarea eliminada');
+  } catch(e){
+    toast('Error: ' + e.message);
+  }
+}
+
+async function deleteTask(){
+  const id = document.getElementById('task-modal-id').value;
+  if(!id) return;
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/tasks/${id}`, { method: 'DELETE' });
+    if(!res.ok) throw new Error('Error ' + res.status);
+    _tasksList = _tasksList.filter(t => t.id !== id);
+    closeModal('modal-task');
+    _renderTasksBoard();
+    toast('Tarea eliminada');
+  } catch(e){
+    toast('Error: ' + e.message);
+  }
+}
+
+// ========== REPORTES SEMANALES ==========
+let _repsHistory = [];
+let _repsData    = null;   // full report object currently displayed
+let _repsGenBusy     = false;  // generating report
+let _repsAIBusy      = false;  // generating AI insights
+let _repsChatHistory = [];     // chat message history [{role,content}]
+let _repsChatBusy    = false;  // waiting for chat reply
+
+function _repsLastWeek(){
+  // Returns last complete Mon→Sun range
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun
+  const daysSinceMon = (dow + 6) % 7;
+  const thisMon = new Date(now); thisMon.setDate(now.getDate() - daysSinceMon);
+  const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+  const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1);
+  const fmt = d => d.toISOString().slice(0,10);
+  return { from: fmt(lastMon), to: fmt(lastSun) };
+}
+
+function _repsWeekLabel(from, to){
+  if(!from||!to) return '—';
+  const [y1,m1,d1] = from.split('-').map(Number);
+  const [,,d2] = to.split('-').map(Number);
+  const [,m2] = to.split('-').map(Number);
+  const MES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  if(m1===m2) return `${d1}–${d2} ${MES[m1]} ${y1}`;
+  return `${d1} ${MES[m1]} – ${d2} ${MES[m2]} ${y1}`;
+}
+
+async function renderReports(){
+  const email = (localStorage.getItem('userEmail')||'').toLowerCase();
+  if(!TASKS_ALLOWED_EMAILS.includes(email)){
+    toast('No tenés acceso a esta sección');
+    nav('dash', document.getElementById('nav-dash'));
+    return;
+  }
+  const root = document.getElementById('reports-root');
+  if(!root) return;
+  root.innerHTML = `<div style="color:var(--text3);font-size:13px;padding:30px 0">Cargando historial…</div>`;
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly`);
+    _repsHistory = res.ok ? await res.json() : [];
+  } catch(e){ _repsHistory = []; }
+  _repsRenderPage();
+}
+
+function _repsRenderPage(){
+  const root = document.getElementById('reports-root');
+  if(!root) return;
+  const def = _repsLastWeek();
+  const fromVal = _repsData?.fecha_inicio || def.from;
+  const toVal   = _repsData?.fecha_fin   || def.to;
+
+  root.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="page-title" style="margin-bottom:4px">Reportes Semanales</div>
+        <div class="page-sub">Análisis automático de métricas, contenido y ventas</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface-2,#1a1d2b);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:20px">
+      <span style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.05em;flex-shrink:0">SEMANA</span>
+      <input type="date" id="reps-from" value="${escHtml(fromVal)}" class="form-input" style="width:140px;font-size:13px;padding:6px 10px">
+      <span style="color:var(--text3);font-size:12px">→</span>
+      <input type="date" id="reps-to" value="${escHtml(toVal)}" class="form-input" style="width:140px;font-size:13px;padding:6px 10px">
+      <button onclick="repsGenerate()" ${_repsGenBusy?'disabled':''} style="background:var(--gold);color:#111;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap${_repsGenBusy?';opacity:.6':''}">
+        ${_repsGenBusy ? '⏳ Generando…' : '📊 Generar reporte'}
+      </button>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div id="reps-sidebar" style="width:190px;flex-shrink:0">
+        <div class="reps-section-label">Historial</div>
+        ${_repsHistory.length===0
+          ? `<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin reportes aún</div>`
+          : _repsHistory.map(r=>{
+              const active = _repsData?.id===r.id;
+              return `<div class="reps-history-item${active?' active':''}" style="position:relative" onclick="repsLoadReport('${escHtml(r.id)}')">
+                <div style="font-size:12px;font-weight:${active?'700':'600'};color:${active?'var(--gold)':'var(--text1)'};padding-right:18px">${_repsWeekLabel(r.fecha_inicio,r.fecha_fin)}</div>
+                <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.insights_ia?'✦ con IA':'sin IA'}</div>
+                <button onclick="event.stopPropagation();repsDeleteReport('${escHtml(r.id)}')" style="position:absolute;top:6px;right:6px;background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;line-height:1;padding:2px 3px;border-radius:3px" onmouseover="this.style.color='#d46060'" onmouseout="this.style.color='var(--text3)'">×</button>
+              </div>`;
+            }).join('')
+        }
+      </div>
+      <div id="reps-main" style="flex:1;min-width:0">
+        ${_repsData ? _repsRenderMain(_repsData) : `
+          <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+            <div style="font-size:36px;margin-bottom:14px">📊</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px">Generá tu primer reporte semanal</div>
+            <div style="font-size:12px">Seleccioná el rango y hacé clic en "Generar reporte"</div>
+          </div>`
+        }
+      </div>
+    </div>`;
+}
+
+function _repsRenderMain(report){
+  const m    = report.metricas || {};
+  const v    = m.ventas    || {};
+  const comp = m.comparativa || {};
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text1)">🗓 Semana ${_repsWeekLabel(report.fecha_inicio,report.fecha_fin)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${report.fecha_inicio} → ${report.fecha_fin}</div>
+      </div>
+      <button onclick="repsExportPDF()" style="background:none;border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">↓ Exportar PDF</button>
+    </div>
+    ${_repsKPIs(v,comp)}
+    ${_repsComparativa(v,comp)}
+    ${_repsFunnel(m.funnel||{})}
+    ${_repsTopContent(m.top_angulos||[],m.top_piezas||[])}
+    ${_repsInsightsBlock(report)}
+    ${_repsChatSection(report)}`;
+}
+
+function _repsKPIs(v,comp){
+  const delta = (d) => {
+    if(!d||d==='0%') return '';
+    const up = d.startsWith('+');
+    return `<div style="font-size:10px;margin-top:3px;font-weight:700;color:${up?'#5cb87a':'#d46060'}">${d} vs ant.</div>`;
+  };
+  const kpi = (label,val,accent,d) => `
+    <div class="reps-kpi">
+      <div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px">${label}</div>
+      <div style="font-size:20px;font-weight:800;color:${accent||'var(--text1)'};font-family:'Inter',sans-serif;line-height:1">${val}</div>
+      ${delta(d)}
+    </div>`;
+  const leads      = v.leads??0;
+  const agendas    = v.agendas??0;
+  const cerrados   = v.cerrados??0;
+  const calls      = v.calls??0;
+  const shows      = v.shows??0;
+  const pctAgend   = leads  > 0 ? Math.round(agendas  / leads  * 100) : 0;
+  const showRate   = calls  > 0 ? Math.round(shows    / calls  * 100) : 0;
+  const pctCShows  = shows  > 0 ? Math.round(cerrados / shows  * 100) : 0;
+  const pctCTotal  = leads  > 0 ? Math.round(cerrados / leads  * 100) : 0;
+  return `
+    <div class="reps-section-label">Ventas</div>
+    <div class="reps-kpi-grid">
+      ${kpi('Seguidores Nuevos', v.seguidores_nuevos??0,        'var(--text1)',  comp.delta_seguidores)}
+      ${kpi('Leads Generados',   leads,                          'var(--text1)',  comp.delta_leads)}
+      ${kpi('Agendas',           agendas,                        'var(--gold)',   '')}
+      ${kpi('% Agendamiento',    pctAgend+'%',                   '#6090d4',      '')}
+      ${kpi('Llamadas',          calls,                          'var(--text1)', comp.delta_calls)}
+      ${kpi('% Show Up',         showRate+'%',                   showRate>=70?'#5cb87a':showRate>=50?'var(--gold)':'#d46060', '')}
+      ${kpi('Cierres',           cerrados,                       '#5cb87a',      comp.delta_cerrados)}
+      ${kpi('% Cierre/Shows',    pctCShows+'%',                  '#5cb87a',      '')}
+      ${kpi('% Cierre Total',    pctCTotal+'%',                  '#5cb87a',      '')}
+      ${kpi('Facturación',       fmtMoney(v.facturacion??0),     '#5cb87a',      comp.delta_facturacion)}
+      ${kpi('Cash Collected',    fmtMoney(v.cash_collected??0),  '#5cb87a',      comp.delta_cash_collected)}
+      ${kpi('AOV',               fmtMoney(v.aov??0),             'var(--text1)', '')}
+    </div>`;
+}
+
+function _repsComparativa(v,comp){
+  if(!comp?.semana_anterior) return '';
+  const ant = comp.semana_anterior;
+  const row = (label,curr,prev,d) => {
+    const up = (d||'').startsWith('+');
+    const neu = !d||d==='0%';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.03)">
+      <td style="font-size:12px;color:var(--text2);padding:6px 0">${label}</td>
+      <td style="font-size:13px;font-weight:700;color:var(--text1);text-align:right">${curr}</td>
+      <td style="font-size:12px;color:var(--text3);text-align:right">${prev}</td>
+      <td style="text-align:right;padding-left:8px"><span style="font-size:11px;font-weight:700;color:${neu?'var(--text3)':up?'#5cb87a':'#d46060'}">${d||'—'}</span></td>
+    </tr>`;
+  };
+  return `
+    <div class="reps-section-label" style="margin-top:4px">Comparativa semana anterior</div>
+    <div class="reps-card" style="margin-bottom:20px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:left;padding-bottom:8px">Métrica</th>
+          <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding-bottom:8px">Esta semana</th>
+          <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding-bottom:8px">Semana ant.</th>
+          <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding-bottom:8px;padding-left:8px">Δ</th>
+        </tr></thead>
+        <tbody>
+          ${row('Seguidores Nuevos', v.seguidores_nuevos??'—',         ant.seguidores_nuevos??'—',  comp.delta_seguidores)}
+          ${row('Leads',             v.leads??'—',                     ant.leads??'—',              comp.delta_leads)}
+          ${row('Cerrados',          v.cerrados??'—',                  ant.cerrados??'—',           comp.delta_cerrados)}
+          ${row('Facturación',       fmtMoney(v.facturacion??0),       fmtMoney(ant.facturacion??0), comp.delta_facturacion)}
+          ${row('Cash Collected',    fmtMoney(v.cash_collected??0),    fmtMoney(ant.cash_collected??0), comp.delta_cash_collected)}
+          ${row('Calls',             v.calls??'—',                     ant.calls??'—',              comp.delta_calls)}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function _repsFunnel(funnel){
+  if(!funnel?.fases?.length) return '';
+  const total = Math.max(funnel.total||1, 1);
+  const FASE_COL = {'Primer Contacto':'#9a9690','Descubrimiento':'#6090d4','Nutrición':'#a070d8','Agendamiento':'#e0a848','Cierre':'#d4a832','Cerrados':'#5cb87a'};
+  return `
+    <div class="reps-section-label" style="margin-top:4px">Funnel
+      <span style="font-weight:400;margin-left:6px">${funnel.total??0} activos · ${funnel.perdidos??0} perdidos</span>
+    </div>
+    <div class="reps-card" style="margin-bottom:20px">
+      ${funnel.fases.map(f=>{
+        const w = Math.min(100, Math.round(f.count/total*100));
+        const col = FASE_COL[f.label]||'var(--gold)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0">
+          <div style="width:110px;font-size:11px;color:${col};font-weight:600;flex-shrink:0">${f.label}</div>
+          <div style="flex:1;background:rgba(255,255,255,.05);border-radius:4px;height:7px;overflow:hidden">
+            <div style="width:${w}%;height:100%;background:${col};border-radius:4px;opacity:.75"></div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:var(--text1);min-width:22px;text-align:right">${f.count}</div>
+          <div style="font-size:10px;color:var(--text3);min-width:28px;text-align:right">${f.pct}%</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function _repsTopContent(topAng,topPiez){
+  if(!topAng.length&&!topPiez.length) return `
+    <div class="reps-section-label" style="margin-top:4px">Contenido y Atribución</div>
+    <div class="reps-card" style="margin-bottom:20px;text-align:center;color:var(--text3);font-size:12px">
+      Sin datos de atribución de contenido para esta semana.
+    </div>`;
+
+  const angRows = topAng.slice(0,5).map((a,i)=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.03)">
+      <td style="padding:7px 0;font-size:12px;font-weight:${i===0?'700':'500'};color:${i===0?'var(--gold)':'var(--text1)'}">
+        ${i===0?'<span style="color:var(--gold);margin-right:4px">★</span>':''}${escHtml(a.angulo)}
+      </td>
+      <td style="text-align:center;font-size:12px;color:var(--gold)">${a.agendas}</td>
+      <td style="text-align:center;font-size:12px;font-weight:700;color:#5cb87a">${a.ventas}</td>
+      <td style="text-align:center;font-size:12px;color:var(--text2)">${a.close_rate}%</td>
+      <td style="text-align:right;font-size:12px;color:#5cb87a;font-weight:600">${a.facturacion>0?fmtMoney(a.facturacion):'—'}</td>
+    </tr>`).join('');
+
+  const TIPO_COL = {Reel:'#6090d4',Carrusel:'#e0a848',Historia:'#a070d8',YouTube:'#d46060'};
+  const piezRows = topPiez.slice(0,8).map(p=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.03)">
+      <td style="padding:6px 0">
+        <span style="font-size:10px;font-weight:700;color:${TIPO_COL[p.tipo]||'var(--text3)'};background:${TIPO_COL[p.tipo]||'#555'}18;padding:2px 6px;border-radius:4px">${escHtml(p.tipo||'')}</span>
+        <span style="font-size:12px;color:var(--text2);margin-left:6px">${escHtml(p.label)}</span>
+      </td>
+      <td style="font-size:11px;color:var(--text3);padding:6px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.angulo||'—')}</td>
+      <td style="text-align:center;font-size:12px;color:var(--text3)">${p.leads_generados??0}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gold)">${p.agendas}</td>
+      <td style="text-align:center;font-size:12px;font-weight:700;color:#5cb87a">${p.ventas}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="reps-section-label" style="margin-top:4px">Contenido y Atribución</div>
+    <div class="reps-card" style="margin-bottom:20px">
+      ${topAng.length?`
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Top Ángulos</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:${topPiez.length?'16':'0'}px">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:left;padding-bottom:6px">Ángulo</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding:0 6px 6px">Agendas</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding:0 6px 6px">Ventas</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding:0 6px 6px">Cierre</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding-bottom:6px">Facturación</th>
+          </tr></thead>
+          <tbody>${angRows}</tbody>
+        </table>`:''}
+      ${topPiez.length?`
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Top Piezas de Contenido</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:left;padding-bottom:6px">Pieza</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:left;padding:0 6px 6px">Ángulo</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding:0 6px 6px">Leads</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding:0 6px 6px">Agendas</th>
+            <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:center;padding-bottom:6px">Ventas</th>
+          </tr></thead>
+          <tbody>${piezRows}</tbody>
+        </table>`:''}
+    </div>`;
+}
+
+function _repsInsightsBlock(report){
+  const aiRaw = report.insights_ia;
+  if(!aiRaw){
+    if(!report.id) return '';
+    return `
+      <div id="reps-ai-block">
+        <div class="reps-section-label" style="margin-top:4px">Insights IA</div>
+        <div class="reps-card" style="text-align:center;padding:24px">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Generá un análisis automático con IA de esta semana</div>
+          <button onclick="repsGenInsights()" ${_repsAIBusy?'disabled':''} style="background:var(--gold);color:#111;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer${_repsAIBusy?';opacity:.6':''}">
+            ${_repsAIBusy?'⏳ Generando…':'✦ Generar insights IA'}
+          </button>
+        </div>
+      </div>`;
+  }
+  let ins = null;
+  try {
+    let raw = typeof aiRaw === 'string' ? aiRaw : JSON.stringify(aiRaw);
+    raw = raw.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    ins = JSON.parse(raw);
+  } catch(e) {}
+  return `
+    <div id="reps-ai-block">
+      <div class="reps-section-label" style="margin-top:4px;display:flex;align-items:center;justify-content:space-between">
+        <span>Insights IA</span>
+        <button onclick="repsGenInsights()" ${_repsAIBusy?'disabled':''} style="background:none;border:1px solid rgba(224,181,74,.25);color:var(--gold);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0">
+          ${_repsAIBusy?'⏳…':'↻ Regenerar'}
+        </button>
+      </div>
+      ${ins ? _repsRenderInsightsJSON(ins) : `<div class="reps-card"><p style="font-size:12px;color:var(--text2);line-height:1.7;white-space:pre-wrap">${escHtml(aiRaw)}</p></div>`}
+    </div>`;
+}
+
+function _repsRenderInsightsJSON(ins){
+  const block = (icon,title,content,accent) => {
+    if(!content||(Array.isArray(content)&&!content.length)) return '';
+    const body = Array.isArray(content)
+      ? `<ul style="margin:4px 0 0;padding-left:16px">${content.map(it=>`<li style="font-size:12px;color:var(--text2);margin-bottom:4px;line-height:1.5">${escHtml(it)}</li>`).join('')}</ul>`
+      : `<p style="margin:4px 0 0;font-size:12px;color:var(--text2);line-height:1.6">${escHtml(content)}</p>`;
+    return `<div style="margin-bottom:10px;padding:12px 14px;border-radius:8px;background:${accent}0d;border-left:3px solid ${accent}">
+      <div style="font-size:11px;font-weight:700;color:${accent};letter-spacing:.02em">${icon} ${title}</div>
+      ${body}
+    </div>`;
+  };
+  return block('📋','Resumen ejecutivo',    ins.resumen_ejecutivo,      '#e0b54a')
+       + block('✅','Qué funcionó',          ins.que_funciono,           '#5cb87a')
+       + block('⚠️','Problemas detectados', ins.problemas_detectados,   '#d46060')
+       + block('🎯','Recomendaciones',       ins.recomendaciones,        '#6090d4')
+       + block('🚨','Riesgos',              ins.riesgos,                '#e07840');
+}
+
+async function repsGenerate(){
+  if(_repsGenBusy) return;
+  const fromEl = document.getElementById('reps-from');
+  const toEl   = document.getElementById('reps-to');
+  if(!fromEl||!toEl) return;
+  const from = fromEl.value, to = toEl.value;
+  if(!from||!to){ toast('Seleccioná un rango de fechas'); return; }
+  if(from>to){ toast('La fecha inicio debe ser anterior a la fecha fin'); return; }
+  _repsGenBusy = true;
+  _repsRenderPage();
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly/generate`, {
+      method:'POST', body:JSON.stringify({fecha_inicio:from,fecha_fin:to}),
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+    _repsData = await res.json();
+    _repsChatHistory = [];
+    const hRes = await apiFetch(`${API_URL}/reports/weekly`);
+    if(hRes.ok) _repsHistory = await hRes.json();
+    toast('Reporte generado ✓');
+  } catch(e){ toast('Error al generar: '+e.message); }
+  finally { _repsGenBusy=false; _repsRenderPage(); }
+}
+
+async function repsGenInsights(){
+  if(_repsAIBusy||!_repsData) return;
+  _repsAIBusy = true;
+  const aiBlock = document.getElementById('reps-ai-block');
+  if(aiBlock) aiBlock.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">⏳ Generando análisis IA…</div>`;
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly/insights`, {
+      method:'POST',
+      body:JSON.stringify({
+        report_id:    _repsData.id,
+        metricas:     _repsData.metricas,
+        fecha_inicio: _repsData.fecha_inicio,
+        fecha_fin:    _repsData.fecha_fin,
+      }),
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+    const data = await res.json();
+    _repsData.insights_ia = data.insights_ia;
+    // Update history entry to show "con IA"
+    const hi = _repsHistory.find(r=>r.id===_repsData.id);
+    if(hi) hi.insights_ia = data.insights_ia;
+    toast('Insights IA generados ✓');
+  } catch(e){ toast('Error al generar insights: '+e.message); }
+  finally {
+    _repsAIBusy = false;
+    const main = document.getElementById('reps-main');
+    if(main&&_repsData) main.innerHTML = _repsRenderMain(_repsData);
+    const sidebar = document.getElementById('reps-sidebar');
+    if(sidebar) sidebar.innerHTML = _repsHistory.length===0
+      ? `<div class="reps-section-label">Historial</div><div style="font-size:12px;color:var(--text3)">Sin reportes aún</div>`
+      : `<div class="reps-section-label">Historial</div>`+_repsHistory.map(r=>{
+          const active=_repsData?.id===r.id;
+          return `<div class="reps-history-item${active?' active':''}" style="position:relative" onclick="repsLoadReport('${escHtml(r.id)}')">
+            <div style="font-size:12px;font-weight:${active?'700':'600'};color:${active?'var(--gold)':'var(--text1)'};padding-right:18px">${_repsWeekLabel(r.fecha_inicio,r.fecha_fin)}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.insights_ia?'✦ con IA':'sin IA'}</div>
+            <button onclick="event.stopPropagation();repsDeleteReport('${escHtml(r.id)}')" style="position:absolute;top:6px;right:6px;background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;line-height:1;padding:2px 3px;border-radius:3px" onmouseover="this.style.color='#d46060'" onmouseout="this.style.color='var(--text3)'">×</button>
+          </div>`;
+        }).join('');
+  }
+}
+
+async function repsDeleteReport(id){
+  if(!confirm('¿Eliminar este reporte?')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly/${id}`, { method:'DELETE' });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    _repsHistory = _repsHistory.filter(r=>r.id!==id);
+    if(_repsData?.id===id) _repsData = null;
+    _repsRenderPage();
+    toast('Reporte eliminado');
+  } catch(e){ toast('Error al eliminar: '+e.message); }
+}
+
+async function repsLoadReport(id){
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly/${id}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    _repsData = await res.json();
+    _repsChatHistory = [];
+    _repsRenderPage();
+  } catch(e){ toast('Error al cargar reporte: '+e.message); }
+}
+
+function repsExportPDF(){
+  if(!_repsData) return;
+  const _pName = prompt('Nombre del cliente para el reporte:');
+  if(_pName===null) return; // cancelled
+  const clientName = _pName.trim();
+  const m     = _repsData.metricas||{};
+  const v     = m.ventas||{};
+  const comp  = m.comparativa||{};
+  const topAng  = m.top_angulos||[];
+  const topPiez = m.top_piezas||[];
+  const weekLabel = _repsWeekLabel(_repsData.fecha_inicio,_repsData.fecha_fin);
+  const MES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  let aiHtml='';
+  if(_repsData.insights_ia){
+    let ins=null;
+    try{
+      let raw=typeof _repsData.insights_ia==='string'?_repsData.insights_ia:JSON.stringify(_repsData.insights_ia);
+      raw=raw.replace(/^```(?:json)?\s*\n?/,'').replace(/\n?```\s*$/,'');
+      ins=JSON.parse(raw);
+    }catch(e){}
+    if(ins){
+      const sec=(title,items)=>{
+        if(!items||(Array.isArray(items)&&!items.length)) return '';
+        return `<div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#777;margin-bottom:5px">${title}</div>
+          ${Array.isArray(items)
+            ?`<ul style="margin:0;padding-left:16px">${items.map(i=>`<li style="font-size:11px;color:#222;margin-bottom:3px;line-height:1.5">${i}</li>`).join('')}</ul>`
+            :`<p style="margin:0;font-size:11px;color:#333;line-height:1.6">${items}</p>`
+          }
+        </div>`;
+      };
+      aiHtml=`<div style="margin-top:20px;padding-top:16px;border-top:2px solid #e0b54a">
+        <div style="font-size:13px;font-weight:800;color:#111;margin-bottom:12px">✦ Insights IA</div>
+        ${sec('Resumen ejecutivo',ins.resumen_ejecutivo)}
+        ${sec('Qué funcionó',ins.que_funciono)}
+        ${sec('Problemas detectados',ins.problemas_detectados)}
+        ${sec('Recomendaciones',ins.recomendaciones)}
+        ${sec('Riesgos',ins.riesgos)}
+      </div>`;
+    }
+  }
+
+  let chatHtml='';
+  if(_repsChatHistory.length){
+    const bubbles=_repsChatHistory.map(m=>{
+      const isUser=m.role==='user';
+      return `<div style="display:flex;justify-content:${isUser?'flex-end':'flex-start'};margin-bottom:8px">
+        <div style="max-width:78%;padding:8px 12px;border-radius:${isUser?'10px 10px 2px 10px':'10px 10px 10px 2px'};background:${isUser?'#fdf6e3':'#f5f5f5'};border:1px solid ${isUser?'#e0b54a55':'#e5e5e5'};font-size:11px;color:#222;line-height:1.55;white-space:pre-wrap">
+          <div style="font-size:9px;font-weight:700;color:${isUser?'#b8922a':'#888'};margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em">${isUser?'Vos':'Consultor IA'}</div>
+          ${m.content}
+        </div>
+      </div>`;
+    }).join('');
+    chatHtml=`<div style="margin-top:20px;padding-top:16px;border-top:2px solid #e0b54a">
+      <div style="font-size:13px;font-weight:800;color:#111;margin-bottom:14px">💬 Conversación con IA</div>
+      ${bubbles}
+    </div>`;
+  }
+
+  const kpiBox=(l,val)=>`<div style="flex:1;padding:10px 12px;border:1px solid #e5e5e5;border-radius:8px;min-width:80px">
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#999;margin-bottom:4px">${l}</div>
+    <div style="font-size:17px;font-weight:800;color:#111">${val}</div>
+  </div>`;
+
+  const angRows=topAng.slice(0,5).map(a=>`<tr>
+    <td style="padding:5px 0;font-size:11px;color:#111;font-weight:600">${a.angulo}</td>
+    <td style="text-align:center;font-size:11px">${a.agendas}</td>
+    <td style="text-align:center;font-size:11px;font-weight:700;color:#2a7a4f">${a.ventas}</td>
+    <td style="text-align:center;font-size:11px;color:#555">${a.close_rate}%</td>
+    <td style="text-align:right;font-size:11px;color:#2a7a4f">${a.facturacion>0?fmtMoney(a.facturacion):'—'}</td>
+  </tr>`).join('');
+
+  const piezRows=topPiez.slice(0,10).map(p=>`<tr>
+    <td style="padding:5px 0;font-size:11px;color:#111;font-weight:600">${p.label}</td>
+    <td style="font-size:10px;color:#666">${p.tipo||''}</td>
+    <td style="font-size:10px;color:#666;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.angulo||'—'}</td>
+    <td style="text-align:center;font-size:11px;color:#555">${p.leads_generados??0}</td>
+    <td style="text-align:center;font-size:11px;color:#555">${p.agendas}</td>
+    <td style="text-align:center;font-size:11px;font-weight:700;color:#2a7a4f">${p.ventas}</td>
+  </tr>`).join('');
+
+  const ant = comp.semana_anterior||null;
+  const compRow=(label,curr,prev,d)=>{
+    const up=(d||'').startsWith('+'), neu=!d||d==='0%';
+    return `<tr>
+      <td style="font-size:11px;color:#444;padding:5px 0">${label}</td>
+      <td style="font-size:12px;font-weight:700;color:#111;text-align:right">${curr}</td>
+      <td style="font-size:11px;color:#888;text-align:right">${prev}</td>
+      <td style="text-align:right;padding-left:8px;font-size:11px;font-weight:700;color:${neu?'#aaa':up?'#2a7a4f':'#c0392b'}">${d||'—'}</td>
+    </tr>`;
+  };
+
+  const funnelRows=(m.funnel?.fases||[]).map(f=>`<tr>
+    <td style="font-size:11px;padding:4px 0;color:#333">${f.label}</td>
+    <td style="text-align:right;font-size:11px;font-weight:700">${f.count}</td>
+    <td style="text-align:right;font-size:11px;color:#888">${f.pct}%</td>
+  </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Reporte Semanal${clientName?' — '+clientName:''} — ${weekLabel}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111;padding:36px;max-width:820px;margin:0 auto}
+  @media print{body{padding:18px}button{display:none!important}@page{margin:1.5cm}}
+  table{width:100%;border-collapse:collapse}
+  th{color:#888;font-size:10px;font-weight:600;text-align:left;border-bottom:1px solid #eee;padding-bottom:6px}
+  td{border-bottom:1px solid #f5f5f5}
+</style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #e0b54a">
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:6px">Reporte Semanal${clientName?' — '+clientName:''}</div>
+      <div style="font-size:24px;font-weight:800;color:#111">${weekLabel}</div>
+      <div style="font-size:11px;color:#bbb;margin-top:4px">${_repsData.fecha_inicio} → ${_repsData.fecha_fin}</div>
+    </div>
+    <div style="font-size:11px;color:#ccc;text-align:right">Generado: ${new Date().toLocaleDateString('es-AR')}</div>
+  </div>
+
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;margin-bottom:8px">KPIs de la semana</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    ${(()=>{
+      const pL=v.leads??0, pA=v.agendas??0, pC=v.cerrados??0, pCalls=v.calls??0, pShows=v.shows??0;
+      const pPctAgend  = pL     >0 ? Math.round(pA/pL*100)     : 0;
+      const pShowRate  = pCalls >0 ? Math.round(pShows/pCalls*100) : 0;
+      const pPctCShows = pShows >0 ? Math.round(pC/pShows*100) : 0;
+      const pPctCTotal = pL     >0 ? Math.round(pC/pL*100)     : 0;
+      return [
+        ['Seguidores Nuevos', v.seguidores_nuevos??0],
+        ['Leads Generados',   pL],
+        ['Agendas',           pA],
+        ['% Agendamiento',    pPctAgend+'%'],
+        ['Llamadas',          pCalls],
+        ['% Show Up',         pShowRate+'%'],
+        ['Cierres',           pC],
+        ['% Cierre/Shows',    pPctCShows+'%'],
+        ['% Cierre Total',    pPctCTotal+'%'],
+        ['Facturación',       fmtMoney(v.facturacion??0)],
+        ['Cash Collected',    fmtMoney(v.cash_collected??0)],
+        ['AOV',               fmtMoney(v.aov??0)],
+      ].map(([l,val])=>kpiBox(l,val)).join('');
+    })()}
+  </div>
+
+  ${ant?`
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;margin-bottom:8px;margin-top:16px">Comparativa semana anterior</div>
+  <table style="margin-bottom:16px">
+    <thead><tr>
+      <th>Métrica</th>
+      <th style="text-align:right">Esta semana</th>
+      <th style="text-align:right">Semana ant.</th>
+      <th style="text-align:right;padding-left:8px">Δ</th>
+    </tr></thead>
+    <tbody>
+      ${compRow('Seguidores Nuevos', v.seguidores_nuevos??'—',      ant.seguidores_nuevos??'—',  comp.delta_seguidores)}
+      ${compRow('Leads',             v.leads??'—',                  ant.leads??'—',              comp.delta_leads)}
+      ${compRow('Cerrados',          v.cerrados??'—',               ant.cerrados??'—',           comp.delta_cerrados)}
+      ${compRow('Facturación',       fmtMoney(v.facturacion??0),    fmtMoney(ant.facturacion??0), comp.delta_facturacion)}
+      ${compRow('Cash Collected',    fmtMoney(v.cash_collected??0), fmtMoney(ant.cash_collected??0), comp.delta_cash_collected)}
+      ${compRow('Calls',             v.calls??'—',                  ant.calls??'—',              comp.delta_calls)}
+    </tbody>
+  </table>`:''}
+
+  ${topAng.length?`
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;margin-bottom:8px;margin-top:16px">Top Ángulos</div>
+  <table style="margin-bottom:16px">
+    <thead><tr>
+      <th>Ángulo</th><th style="text-align:center">Agendas</th>
+      <th style="text-align:center">Ventas</th><th style="text-align:center">Cierre</th>
+      <th style="text-align:right">Facturación</th>
+    </tr></thead>
+    <tbody>${angRows}</tbody>
+  </table>`:''}
+
+  ${piezRows?`
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;margin-bottom:8px;margin-top:16px">Top Piezas de Contenido</div>
+  <table style="margin-bottom:16px">
+    <thead><tr>
+      <th>Pieza</th><th>Tipo</th><th>Ángulo</th>
+      <th style="text-align:center">Leads</th>
+      <th style="text-align:center">Agendas</th>
+      <th style="text-align:center">Ventas</th>
+    </tr></thead>
+    <tbody>${piezRows}</tbody>
+  </table>`:''}
+
+  ${funnelRows?`
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;margin-bottom:8px;margin-top:16px">Funnel</div>
+  <table style="margin-bottom:16px">
+    <thead><tr><th>Fase</th><th style="text-align:right">Leads</th><th style="text-align:right">%</th></tr></thead>
+    <tbody>${funnelRows}</tbody>
+  </table>`:''}
+
+  ${aiHtml}
+  ${chatHtml}
+  <p style="margin-top:32px;text-align:center">
+    <button onclick="window.print()" style="background:#e0b54a;color:#111;border:none;border-radius:8px;padding:10px 26px;font-size:13px;font-weight:700;cursor:pointer">
+      Imprimir / Guardar PDF
+    </button>
+  </p>
+</body></html>`;
+
+  const w = window.open('','_blank');
+  if(!w){ toast('Permitir popups para exportar PDF'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+// ── CHAT IA ──────────────────────────────────────────────────
+
+function _repsChatSection(report){
+  if(!report?.id) return '<div id="reps-chat-section"></div>';
+  const msgs = _repsChatHistory.map(m=>{
+    const isUser = m.role==='user';
+    return `<div style="display:flex;justify-content:${isUser?'flex-end':'flex-start'};margin-bottom:8px">
+      <div style="max-width:82%;padding:9px 13px;border-radius:${isUser?'10px 10px 2px 10px':'10px 10px 10px 2px'};background:${isUser?'rgba(224,181,74,.13)':'rgba(255,255,255,.04)'};border:1px solid ${isUser?'rgba(224,181,74,.28)':'rgba(255,255,255,.06)'};font-size:12px;color:var(--text1);line-height:1.55;white-space:pre-wrap">
+        ${escHtml(m.content)}
+      </div>
+    </div>`;
+  }).join('');
+  const loadingBubble = _repsChatBusy ? `
+    <div style="display:flex;justify-content:flex-start;margin-bottom:8px">
+      <div style="padding:9px 14px;border-radius:10px 10px 10px 2px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font-size:14px;color:var(--text3);letter-spacing:2px">···</div>
+    </div>` : '';
+  return `
+    <div id="reps-chat-section">
+      <div class="reps-section-label" style="margin-top:4px">Consultor IA</div>
+      <div class="reps-card" style="padding:0;overflow:hidden">
+        ${msgs||loadingBubble ? `<div id="reps-chat-msgs" style="padding:12px 14px;max-height:360px;overflow-y:auto;display:flex;flex-direction:column">${msgs}${loadingBubble}</div>` : ''}
+        <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.05)">
+          <input id="reps-chat-input" type="text"
+            placeholder="Preguntale algo sobre esta semana…"
+            style="flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--text1);outline:none"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();repsChat()}"
+            ${_repsChatBusy?'disabled':''}>
+          <button onclick="repsChat()" ${_repsChatBusy?'disabled':''} style="background:var(--gold);color:#111;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer${_repsChatBusy?';opacity:.6;cursor:default':''}">
+            ${_repsChatBusy?'…':'Enviar'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _repsRenderChatOnly(){
+  const el = document.getElementById('reps-chat-section');
+  if(el) el.outerHTML = _repsChatSection(_repsData);
+  setTimeout(()=>{
+    const msgsEl = document.getElementById('reps-chat-msgs');
+    if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+  }, 0);
+}
+
+async function repsChat(){
+  if(_repsChatBusy || !_repsData?.id) return;
+  const input = document.getElementById('reps-chat-input');
+  if(!input) return;
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value = '';
+  _repsChatBusy = true;
+  _repsChatHistory.push({ role:'user', content: msg });
+  _repsRenderChatOnly();
+  try {
+    const res = await apiFetch(`${API_URL}/reports/weekly/chat`, {
+      method: 'POST',
+      body: JSON.stringify({
+        report_id: _repsData.id,
+        message:   msg,
+        history:   _repsChatHistory.slice(0, -1),
+      }),
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+    const data = await res.json();
+    _repsChatHistory.push({ role:'assistant', content: data.reply });
+  } catch(e) {
+    _repsChatHistory.push({ role:'assistant', content:'Error al procesar la consulta. Intentá de nuevo.' });
+  } finally {
+    _repsChatBusy = false;
+    _repsRenderChatOnly();
+  }
+}
+
+// ── Baúl de Ideas (CRM / equipo de ventas) ───────────────────────────────────
+let _crmIdeas = [];
+let _crmIdeasFilter = 'todos';
+
+async function fetchCrmIdeas() {
+  const r = await apiFetch(`${API_URL}/ideas`);
+  _crmIdeas = r.ok ? await r.json() : [];
+}
+
+function setCrmIdeasFilter(f, btn) {
+  _crmIdeasFilter = f;
+  document.querySelectorAll('#crm-idea-filters .lab-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderCrmIdeas();
+}
+
+function renderCrmIdeas() {
+  const tbody = document.getElementById('crm-ideas-tbody');
+  const empty = document.getElementById('crm-ideas-empty');
+  if (!tbody) return;
+  const visible = _crmIdeasFilter === 'todos' ? _crmIdeas : _crmIdeas.filter(i => i.area === _crmIdeasFilter);
+  if (!visible.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  tbody.innerHTML = visible.map(i => {
+    const fecha = new Date(i.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `<tr class="ideas-tr">
+      <td style="text-align:center;padding-top:13px"><input type="checkbox" class="ideas-check" title="Marcar como usada (se elimina)" onchange="if(this.checked)markCrmIdeaUsed('${i.id}')" /></td>
+      <td class="td-idea">${esc(i.idea)}</td>
+      <td class="td-motivo">${i.motivo ? esc(i.motivo) : '<span style="color:var(--text3);font-style:italic">—</span>'}</td>
+      <td><span class="area-badge ${i.area}">${i.area}</span></td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${fecha}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddIdeaCRM() {
+  document.getElementById('crm-idea-txt').value = '';
+  document.getElementById('crm-idea-motivo').value = '';
+  document.getElementById('crm-idea-area').value = '';
+  document.getElementById('modal-idea-crm').style.display = 'flex';
+  setTimeout(() => document.getElementById('crm-idea-txt').focus(), 100);
+}
+
+async function saveCrmIdea() {
+  const idea = document.getElementById('crm-idea-txt').value.trim();
+  const motivo = document.getElementById('crm-idea-motivo').value.trim();
+  const area = document.getElementById('crm-idea-area').value;
+  if (!idea) { toast('✗ Escribí la idea'); return; }
+  if (!area) { toast('✗ Seleccioná un área'); return; }
+  try {
+    const r = await apiFetch(`${API_URL}/ideas`, { method: 'POST', body: JSON.stringify({ idea, motivo, area }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Error');
+    _crmIdeas.unshift(d);
+    document.getElementById('modal-idea-crm').style.display = 'none';
+    renderCrmIdeas();
+    toast('✓ Idea guardada');
+  } catch (e) { toast('✗ ' + e.message); }
+}
+
+async function markCrmIdeaUsed(id) {
+  try {
+    const r = await apiFetch(`${API_URL}/ideas/${id}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Error');
+    _crmIdeas = _crmIdeas.filter(i => i.id !== id);
+    renderCrmIdeas();
+    toast('✓ Idea marcada como usada');
+  } catch (e) { toast('✗ ' + e.message); }
+}
+

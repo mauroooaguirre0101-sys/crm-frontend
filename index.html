@@ -156,6 +156,26 @@
 .hist-frame{width:64px;height:112px;border-radius:6px;object-fit:cover;background:var(--surface-2);border:1px solid var(--line-strong)}
 .hist-frame-add{width:64px;height:112px;border-radius:6px;border:1.5px dashed var(--line-strong);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;color:var(--text3)}
 .hist-frame-add:hover{border-color:var(--gold);color:var(--gold)}
+.tasks-col-drop{background:rgba(224,181,74,.06)!important;outline:1.5px dashed var(--gold)!important}
+.task-card-dragging{opacity:.35;transform:scale(.97)}
+.reps-card{background:var(--surface-2,#1a1d2b);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.reps-section-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.reps-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.reps-kpi{background:var(--surface-2,#1a1d2b);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
+.reps-history-item{cursor:pointer;padding:8px 10px;border-radius:8px;margin-bottom:4px;border:1px solid transparent;background:rgba(255,255,255,.02);transition:background .15s,border-color .15s}
+.reps-history-item:hover{background:rgba(255,255,255,.04)}
+.reps-history-item.active{border-color:var(--gold);background:rgba(224,181,74,.07)}
+/* Ideas */
+.ideas-tr{border-bottom:1px solid var(--line);transition:background .12s}
+.ideas-tr:hover{background:rgba(255,255,255,.03)}
+.ideas-tr td{padding:11px 14px;vertical-align:top;font-size:12.5px;line-height:1.5;color:var(--text2)}
+.ideas-tr td.td-idea{color:var(--text);font-weight:600;max-width:220px}
+.ideas-tr td.td-motivo{max-width:240px}
+.area-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.area-badge.Marketing{background:rgba(96,144,212,.12);color:#6090d4;border:1px solid rgba(96,144,212,.2)}
+.area-badge.Ventas{background:rgba(92,184,122,.10);color:#5cb87a;border:1px solid rgba(92,184,122,.2)}
+.area-badge.Producto{background:rgba(224,181,74,.10);color:#e0b54a;border:1px solid rgba(224,181,74,.2)}
+.ideas-check{width:17px;height:17px;cursor:pointer;accent-color:#5cb87a}
 </style>
 </head>
 <body>
@@ -371,6 +391,12 @@
     <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><div class="nav-dot"></div><span class="nav-text">Finanzas</span></div>
     <div class="nav-item" id="nav-equipo" onclick="nav('equipo',this)"><div class="nav-dot"></div><span class="nav-text">Equipo</span></div>
     <div class="nav-item" id="nav-forms" onclick="nav('forms',this)"><div class="nav-dot"></div><span class="nav-text">Formularios</span></div>
+    <div class="nav-item" id="nav-ideas" onclick="nav('ideas',this)"><div class="nav-dot"></div><span class="nav-text">💡 Baúl de Ideas</span></div>
+    <div id="nav-tasks-section" style="display:none">
+      <div class="nav-section-label">Gestión</div>
+      <div class="nav-item" id="nav-tasks" onclick="nav('tasks',this)"><div class="nav-dot"></div><span class="nav-text">Tareas</span></div>
+      <div class="nav-item" id="nav-reports" onclick="nav('reports',this)"><div class="nav-dot"></div><span class="nav-text">Reportes</span></div>
+    </div>
   </div>
 </nav>
 
@@ -476,7 +502,7 @@
   <div class="page-sub">Calendario de Contenido — Planificá tu estrategia de contenido</div>
 
   <!-- Counters -->
-  <div id="cont-counters" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+  <div id="cont-stats-section" style="margin-bottom:20px"></div>
 
   <!-- Calendar card -->
   <div class="card" style="margin-bottom:20px">
@@ -496,58 +522,90 @@
     <div id="cal-grid"></div>
   </div>
 
-  <!-- Filter tabs for tables -->
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-    <div class="tabs" id="cont-type-tabs" style="margin-bottom:0">
-      <div class="tab active" onclick="contFilter('tipo','Todos',this)">Todos</div>
-      <div class="tab" onclick="contFilter('tipo','Reel',this)">Reels</div>
-      <div class="tab" onclick="contFilter('tipo','Carrusel',this)">Carruseles</div>
-      <div class="tab" onclick="contFilter('tipo','Historia',this)">Historias</div>
-      <div class="tab" onclick="contFilter('tipo','YouTube',this)">YouTube</div>
+  <!-- View switcher -->
+  <div class="tabs" style="margin-bottom:14px">
+    <div class="tab active" id="cont-view-prod" onclick="setContView('produccion',this)">En producción</div>
+    <div class="tab" id="cont-view-sub" onclick="setContView('subido',this)">Contenido Subido</div>
+  </div>
+
+  <!-- ── EN PRODUCCIÓN ── -->
+  <div id="cont-main-section">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <div class="tabs" id="cont-type-tabs" style="margin-bottom:0">
+        <div class="tab active" onclick="contFilter('tipo','Todos',this)">Todos</div>
+        <div class="tab" onclick="contFilter('tipo','Reel',this)">Reels</div>
+        <div class="tab" onclick="contFilter('tipo','Carrusel',this)">Carruseles</div>
+        <div class="tab" onclick="contFilter('tipo','Historia',this)">Historias</div>
+        <div class="tab" onclick="contFilter('tipo','YouTube',this)">YouTube</div>
+      </div>
+      <div class="tabs" id="cont-time-tabs" style="margin-bottom:0">
+        <div class="tab active" onclick="contFilter('time','todo',this)">Todo</div>
+        <div class="tab" onclick="contFilter('time','mes',this)">Este mes</div>
+        <div class="tab" onclick="contFilter('time','semana',this)">Esta semana</div>
+        <div class="tab" onclick="contFilter('time','hoy',this)">Hoy</div>
+      </div>
+      <button class="btn btn-outline" id="btn-cont-winner" onclick="contFilter('winner',null,this)" style="padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.03em">★ Winners</button>
     </div>
-    <div class="tabs" id="cont-time-tabs" style="margin-bottom:0">
-      <div class="tab active" onclick="contFilter('time','todo',this)">Todo</div>
-      <div class="tab" onclick="contFilter('time','mes',this)">Este mes</div>
-      <div class="tab" onclick="contFilter('time','semana',this)">Esta semana</div>
-      <div class="tab" onclick="contFilter('time','hoy',this)">Hoy</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Reels</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="reel-table"></tbody>
+      </table></div>
     </div>
-    <button class="btn btn-outline" id="btn-cont-winner" onclick="contFilter('winner',null,this)" style="padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.03em">★ Winners</button>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Carruseles</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="carrusel-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Historias</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Estructura</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="hist-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-header"><h3>YouTube</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="yt-table"></tbody>
+      </table></div>
+    </div>
   </div>
 
-  <!-- Reels table -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="section-header"><h3>Reels</h3></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
-      <tbody id="reel-table"></tbody>
-    </table></div>
-  </div>
-
-  <!-- Carruseles table -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="section-header"><h3>Carruseles</h3></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
-      <tbody id="carrusel-table"></tbody>
-    </table></div>
-  </div>
-
-  <!-- Historias table -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="section-header"><h3>Historias</h3></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Estructura</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
-      <tbody id="hist-table"></tbody>
-    </table></div>
-  </div>
-
-  <!-- YouTube table -->
-  <div class="card" style="margin-bottom:20px">
-    <div class="section-header"><h3>YouTube</h3></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
-      <tbody id="yt-table"></tbody>
-    </table></div>
+  <!-- ── CONTENIDO SUBIDO ── -->
+  <div id="cont-subido-section" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Reels subidos</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="reel-s-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Carruseles subidos</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="carrusel-s-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header"><h3>Historias subidas</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Estructura</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="hist-s-table"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-header"><h3>YouTube subidos</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Ángulo/Dolor</th><th>Formato</th><th>Objetivo</th><th>CTA</th><th>Estado</th><th>Guión</th><th>Agendas</th><th>Cal</th><th>Descal</th><th>%Ag</th><th>Ventas</th><th>Cash</th><th></th></tr></thead>
+        <tbody id="yt-s-table"></tbody>
+      </table></div>
+    </div>
   </div>
 
   <!-- Analytics por pieza -->
@@ -620,6 +678,23 @@
 <section class="page" id="page-leads">
   <div class="page-title">Leads</div>
   <div class="page-sub">Pipeline de prospectos · <span class="api-badge">ManyChat webhook activo</span></div>
+
+  <!-- Vista tabs: Pipeline / IA Chats -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--line);padding-bottom:12px">
+    <button id="leads-view-btn-tabla" onclick="setLeadsView('tabla')"
+      style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);
+             background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em">
+      Pipeline de leads
+    </button>
+    <button id="leads-view-btn-ia" onclick="setLeadsView('ia')"
+      style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);
+             background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em">
+      ✦ IA Análisis de chats
+    </button>
+  </div>
+
+  <!-- VISTA: PIPELINE (TABLA) -->
+  <div id="leads-tabla-view">
 
   <div class="metric-grid" style="grid-template-columns:repeat(5,1fr)" id="leads-metrics"></div>
 
@@ -731,6 +806,13 @@
     </table></div>
     <div id="leads-pagination" style="display:none;align-items:center;justify-content:center;gap:16px;padding:12px 0 4px"></div>
   </div>
+  </div><!-- /leads-tabla-view -->
+
+  <!-- VISTA: IA ANÁLISIS DE CHATS -->
+  <div id="leads-ia-view" style="display:none">
+    <div id="leads-ia-root"></div>
+  </div>
+
 </section>
 
 <!-- FUNNEL MÉTRICAS -->
@@ -903,6 +985,22 @@
   <div class="metric-grid metric-grid-4" id="calls-metrics"></div>
   <div class="metric-grid metric-grid-4" id="calls-metrics2" style="margin-top:12px"></div>
 
+  <!-- Vista tabs: Tabla / IA -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--line);padding-bottom:12px">
+    <button id="calls-view-btn-tabla" onclick="setCallsView('tabla')"
+      style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);
+             background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em">
+      Tabla de llamadas
+    </button>
+    <button id="calls-view-btn-ia" onclick="setCallsView('ia')"
+      style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);
+             background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em">
+      ✦ IA Análisis de llamadas
+    </button>
+  </div>
+
+  <!-- VISTA: TABLA -->
+  <div id="calls-tabla-view">
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
     <div class="tabs" id="calls-filter-tabs" style="margin-bottom:0">
       <div class="tab" data-period="dia" onclick="setCallsFilter('dia',this)">Día</div>
@@ -923,6 +1021,10 @@
       <option value="10">Noviembre</option><option value="11">Diciembre</option>
     </select>
     <div id="calls-loading" style="font-size:11px;color:var(--text3);display:none">⏳ Cargando…</div>
+    <input id="calls-busqueda" type="text" placeholder="Buscar por nombre o instagram…"
+      oninput="onCallsBusquedaInput()"
+      style="padding:7px 12px;font-size:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+             border-radius:var(--rs);color:var(--text);min-width:220px;flex:1;max-width:320px">
     <button id="btn-new-call" class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-call')">+ Nueva llamada</button>
   </div>
 
@@ -937,6 +1039,7 @@
         <th>Nombre</th>
         <th>Instagram</th>
         <th>WhatsApp</th>
+        <th>Origen</th>
         <th>Info previa</th>
         <th>Estado</th>
         <th>Motivo</th>
@@ -944,12 +1047,20 @@
         <th>Responde</th>
         <th id="calls-th-link">Link</th>
         <th>Reporte</th>
+        <th>Reporte GHL</th>
         <th style="color:var(--text3);font-size:11px">Registro</th>
         <th></th>
       </tr></thead>
       <tbody id="calls-table"></tbody>
     </table></div>
   </div>
+  </div><!-- /calls-tabla-view -->
+
+  <!-- VISTA: IA ANÁLISIS -->
+  <div id="calls-ia-view" style="display:none">
+    <div id="calls-ia-root"></div>
+  </div>
+
 </section>
 
 <!-- INSTAGRAM -->
@@ -1106,6 +1217,120 @@
   </div>
 </section>
 
+<!-- BAÚL DE IDEAS -->
+<section class="page" id="page-ideas">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <div class="page-title" style="margin-bottom:4px">💡 Baúl de Ideas para contenido</div>
+      <div class="page-sub">Ideas de contenido del equipo — marcalas como usadas para eliminarlas</div>
+    </div>
+    <button onclick="openAddIdeaCRM()" style="background:var(--gold);color:#111;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Nueva idea</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap" id="crm-idea-filters">
+    <button class="lab-tab active" onclick="setCrmIdeasFilter('todos',this)">Todas</button>
+    <button class="lab-tab" onclick="setCrmIdeasFilter('Marketing',this)">Marketing</button>
+    <button class="lab-tab" onclick="setCrmIdeasFilter('Ventas',this)">Ventas</button>
+    <button class="lab-tab" onclick="setCrmIdeasFilter('Producto',this)">Producto</button>
+  </div>
+  <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse" id="crm-ideas-table">
+      <thead>
+        <tr>
+          <th style="width:36px;padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--line);text-align:left"></th>
+          <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--line);text-align:left">Idea</th>
+          <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--line);text-align:left">Motivo</th>
+          <th style="width:110px;padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--line);text-align:left">Área</th>
+          <th style="width:130px;padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--line);text-align:left">Fecha</th>
+        </tr>
+      </thead>
+      <tbody id="crm-ideas-tbody"></tbody>
+    </table>
+    <div id="crm-ideas-empty" style="display:none;padding:50px 20px;text-align:center;color:var(--text3);font-size:13px">No hay ideas cargadas todavía.</div>
+  </div>
+</section>
+
+<!-- TAREAS -->
+<section class="page" id="page-tasks">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <div class="page-title" style="margin-bottom:4px">Tareas</div>
+      <div class="page-sub">Kanban de tareas del negocio</div>
+    </div>
+    <button onclick="openTaskModal()" style="background:var(--gold);color:#111;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Nueva tarea</button>
+  </div>
+  <div id="tasks-root"></div>
+</section>
+
+<!-- Modal Tarea -->
+<div class="modal-bg" id="modal-task" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:500px">
+    <div class="modal-header">
+      <span id="task-modal-title">Nueva tarea</span>
+      <button onclick="closeModal('modal-task')" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">×</button>
+    </div>
+    <input type="hidden" id="task-modal-id">
+    <div class="form-group">
+      <label class="form-label">Título *</label>
+      <input type="text" id="task-f-titulo" class="form-input" placeholder="Nombre de la tarea">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <textarea id="task-f-desc" class="form-input" rows="2" placeholder="¿Qué hay que hacer?" style="resize:vertical"></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Responsables</label>
+        <div id="task-responsables-list" style="background:var(--surface-2,#1a1d2b);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:60px;max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:11px;color:var(--text3)">Cargando…</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Área</label>
+          <select id="task-f-area" class="form-input">
+            <option value="">Sin área</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Ventas">Ventas</option>
+            <option value="Productos">Productos</option>
+            <option value="Sistemas">Sistemas</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Prioridad</label>
+          <select id="task-f-prioridad" class="form-input">
+            <option value="">Sin prioridad</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Fecha límite</label>
+          <input type="date" id="task-f-fecha" class="form-input">
+        </div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">Columna</label>
+      <select id="task-f-columna" class="form-input">
+        <option value="por_hacer">Por hacer</option>
+        <option value="en_proceso">En proceso</option>
+        <option value="en_revision">En revisión</option>
+        <option value="terminado">Terminado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Recursos</label>
+      <textarea id="task-f-recursos" class="form-input" rows="2" placeholder="Links, referencias, materiales…" style="resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="saveTask()" style="flex:1;background:var(--gold);color:#111;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer">Guardar</button>
+      <button id="task-delete-btn" onclick="deleteTask()" style="display:none;background:#d4606022;color:#d46060;border:1px solid #d4606044;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Formatos -->
 <div class="modal-bg" id="modal-formato" onclick="closeBg(event,this)">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
@@ -1173,6 +1398,11 @@
     </div>
   </div>
 </div>
+
+<!-- REPORTES SEMANALES -->
+<section class="page" id="page-reports">
+  <div id="reports-root"></div>
+</section>
 
 </main>
 
@@ -1306,16 +1536,81 @@
   </div>
 </div></div>
 
+<!-- MODAL IA CONFIG -->
+<div class="modal-bg" id="modal-ia-config" onclick="closeBg(event,this)">
+<div class="modal" style="width:580px">
+  <div class="modal-title">⚙ Configuración de IA</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:18px">Personalizá cómo la IA analiza tus llamadas. Estos cambios aplican a todos los análisis futuros.</div>
+
+  <div style="margin-bottom:16px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Contexto del negocio</div>
+    <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Describí tu negocio, producto, ticket, buyer persona, etc. La IA usará esto como contexto base.</div>
+    <textarea id="ia-config-context" rows="5"
+      placeholder="Ej: Vendemos un programa de coaching de negocios de alto ticket ($3,000–$10,000). Nuestro buyer persona es emprendedores entre 28–45 años que ya tienen un negocio pero están estancados..."
+      style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+             border-radius:var(--rs);padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.7;
+             resize:vertical;box-sizing:border-box;font-family:inherit;min-height:100px"></textarea>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Instrucciones adicionales</div>
+    <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Reglas o focos específicos para el análisis (opcional).</div>
+    <textarea id="ia-config-prompt" rows="3"
+      placeholder="Ej: Prestá especial atención a objeciones de precio. Detectá si el prospecto mencionó competidores..."
+      style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+             border-radius:var(--rs);padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.7;
+             resize:vertical;box-sizing:border-box;font-family:inherit;min-height:72px"></textarea>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-ia-config')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveAIConfig()">Guardar configuración</button>
+  </div>
+</div></div>
+
+<!-- MODAL CHAT IA CONFIG -->
+<div class="modal-bg" id="modal-chat-ia-config" onclick="closeBg(event,this)">
+<div class="modal" style="width:580px">
+  <div class="modal-title">⚙ Configuración IA — Análisis de Chats</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:18px">Personalizá cómo la IA analiza las conversaciones con leads. Aplica a todos los análisis futuros de chats.</div>
+
+  <div style="margin-bottom:16px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Contexto del negocio</div>
+    <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Describí tu negocio, producto, precios, buyer persona, etc. La IA usará esto como contexto base.</div>
+    <textarea id="chat-ia-config-context" rows="5"
+      placeholder="Ej: Vendemos un programa de coaching de negocios de alto ticket ($3,000–$10,000). Nuestro setter habla por Instagram DM con emprendedores entre 28–45 años que ya tienen un negocio pero están estancados..."
+      style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+             border-radius:var(--rs);padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.7;
+             resize:vertical;box-sizing:border-box;font-family:inherit;min-height:100px"></textarea>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Instrucciones adicionales</div>
+    <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Focos específicos para el análisis (opcional).</div>
+    <textarea id="chat-ia-config-prompt" rows="3"
+      placeholder="Ej: Detectá específicamente si el setter preguntó sobre el presupuesto. Enfocate en errores de manejo de objeciones de precio..."
+      style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+             border-radius:var(--rs);padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.7;
+             resize:vertical;box-sizing:border-box;font-family:inherit;min-height:72px"></textarea>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-chat-ia-config')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveChatAIConfig()">Guardar configuración</button>
+  </div>
+</div></div>
+
 <!-- MODAL INFO PREVIA -->
 <div class="modal-bg" id="modal-info-previa" onclick="closeBg(event,this)">
 <div class="modal">
   <div class="modal-title">📋 Info previa</div>
   <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="modal-info-meta"></div>
-  <div id="modal-info-body" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
-       border-radius:var(--rs);padding:16px;font-size:13px;color:var(--text2);white-space:pre-wrap;
-       line-height:1.7;max-height:60vh;overflow-y:auto"></div>
+  <textarea id="modal-info-body" rows="8" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+       border-radius:var(--rs);padding:16px;font-size:13px;color:var(--text2);line-height:1.7;
+       resize:vertical;box-sizing:border-box;font-family:inherit;min-height:120px;max-height:60vh"></textarea>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-info-previa')">Cerrar</button>
+    <button class="btn" id="modal-info-save-btn" onclick="guardarInfoPrevia()" style="display:none">Guardar</button>
   </div>
 </div></div>
 
@@ -1836,6 +2131,31 @@
     <button class="btn btn-gold" style="width:100%;margin-top:14px;font-size:14px" onclick="saveNickname()">
       Guardar apodo
     </button>
+  </div>
+</div>
+
+<!-- MODAL NUEVA IDEA (CRM) -->
+<div class="modal-bg" id="modal-idea-crm" onclick="closeBg(event,this)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
+    <div class="modal-title">💡 Nueva idea</div>
+    <div class="form-group" style="margin-top:16px">
+      <label class="form-label">Idea *</label>
+      <textarea id="crm-idea-txt" class="form-input" rows="3" placeholder="Desarrollá la idea…" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Motivo / Nacimiento de la idea</label>
+      <textarea id="crm-idea-motivo" class="form-input" rows="3" placeholder="¿De dónde surgió esta idea?" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Área *</label>
+      <select id="crm-idea-area" class="form-input">
+        <option value="">— Seleccioná un área —</option>
+        <option value="Marketing">Marketing</option>
+        <option value="Ventas">Ventas</option>
+        <option value="Producto">Producto</option>
+      </select>
+    </div>
+    <button class="btn btn-gold" style="width:100%;margin-top:8px" onclick="saveCrmIdea()">Guardar idea</button>
   </div>
 </div>
 
