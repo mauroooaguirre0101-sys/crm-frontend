@@ -1242,23 +1242,12 @@ function renderContCounters(){
   const items=(from&&to)?_calAllItems().filter(inRange):[];
   const total=items.length;
 
-  const fmtTTDate = d => { const p=d.split('-'); return `${parseInt(p[2])}/${parseInt(p[1])}`; };
-  const fmtTTItem = x => {
-    const label = (x.angulo||x.tipo||'Sin título').slice(0,28) + ((x.angulo||'').length>28?'…':'');
-    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:11.5px"><span style="color:#e0eaff">${label}</span><span style="color:var(--text3);white-space:nowrap;flex-shrink:0">${fmtTTDate(x.fecha)}</span></div>`;
-  };
-  const buildTT = (its, col, label) => {
-    if (!its.length) return '';
-    return `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${col};margin-bottom:6px">${label}</div>`
-      + its.map(fmtTTItem).join('')
-      + (its.length===0?`<div style="color:var(--text3);font-size:11px">Sin piezas</div>`:'');
-  };
   const tipos=[
-    {label:'Reels',     its:items.filter(x=>x.tipo==='Reel'&&!x.esHistoria), col:'var(--gold)'},
-    {label:'Carruseles',its:items.filter(x=>x.tipo==='Carrusel'),             col:'#6A9FE0'},
-    {label:'Historias', its:items.filter(x=>x.esHistoria),                    col:'#B890F0'},
-    {label:'YouTube',   its:items.filter(x=>x.tipo==='YouTube'),              col:'#FF5555'},
-  ].map(t=>({...t, n:t.its.length}));
+    {label:'Reels',     n:items.filter(x=>x.tipo==='Reel'&&!x.esHistoria).length, col:'var(--gold)'},
+    {label:'Carruseles',n:items.filter(x=>x.tipo==='Carrusel').length,             col:'#6A9FE0'},
+    {label:'Historias', n:items.filter(x=>x.esHistoria).length,                    col:'#B890F0'},
+    {label:'YouTube',   n:items.filter(x=>x.tipo==='YouTube').length,              col:'#FF5555'},
+  ];
 
   const tab=(f,label)=>`<button onclick="contStatsSetFilter('${f}')" style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid ${_contStatsFilter===f?'var(--gold)':'rgba(255,255,255,.1)'};background:${_contStatsFilter===f?'rgba(224,181,74,.12)':'transparent'};color:${_contStatsFilter===f?'var(--gold)':'var(--text3)'};cursor:pointer">${label}</button>`;
 
@@ -1287,11 +1276,8 @@ function renderContCounters(){
       </div>
       ${customPickers}
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;${_contStatsFilter==='custom'&&(!from||!to)?'opacity:.4':''}margin-top:${customPickers?'12':'0'}px">
-        ${tipos.map(({label,n,col,its})=>`
-          <div style="text-align:center;padding:14px 8px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);cursor:${n?'default':'default'};transition:border-color .15s"
-            onmouseenter="${n?`showTT(event,${JSON.stringify(buildTT(its,col,label))})`:'hideTT()'}"
-            onmousemove="if(document.getElementById('crm-tt').style.display!=='none')_posTT(event)"
-            onmouseleave="hideTT()">
+        ${tipos.map(({label,n,col})=>`
+          <div style="text-align:center;padding:14px 8px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05)">
             <div style="font-size:28px;font-weight:800;color:${col};line-height:1">${n}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.5px">${label}</div>
           </div>`).join('')}
@@ -8859,30 +8845,6 @@ async function repsChat(){
     _repsChatBusy = false;
     _repsRenderChatOnly();
   }
-}
-
-// ── Tooltip flotante ─────────────────────────────────────────────────────────
-function showTT(e, html) {
-  const tt = document.getElementById('crm-tt');
-  if (!tt || !html) return;
-  tt.innerHTML = html;
-  tt.style.display = 'block';
-  _posTT(e);
-}
-function _posTT(e) {
-  const tt = document.getElementById('crm-tt');
-  if (!tt) return;
-  const margin = 12;
-  const tw = tt.offsetWidth, th = tt.offsetHeight;
-  let x = e.clientX + margin, y = e.clientY + margin;
-  if (x + tw > window.innerWidth  - 8) x = e.clientX - tw - margin;
-  if (y + th > window.innerHeight - 8) y = e.clientY - th - margin;
-  tt.style.left = x + 'px';
-  tt.style.top  = y + 'px';
-}
-function hideTT() {
-  const tt = document.getElementById('crm-tt');
-  if (tt) tt.style.display = 'none';
 }
 
 // ── Baúl de Ideas (CRM / equipo de ventas) ───────────────────────────────────
