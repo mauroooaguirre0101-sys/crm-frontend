@@ -126,6 +126,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .rep-count-badge{background:var(--surface-3);border:1px solid var(--line-strong);color:var(--text2);font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
 .expand-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:all .15s;font-family:inherit}
 .expand-btn:hover{background:var(--surface-3);color:var(--text)}
+.exito-toggle{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s;font-family:inherit;white-space:nowrap}
+.exito-toggle.on{background:rgba(224,181,74,.12);border-color:rgba(224,181,74,.4);color:var(--gold)}
+.exito-toggle.off{background:transparent;border-color:var(--line-strong);color:var(--text3)}
+.exito-toggle:hover{opacity:.8}
 .alumno-reports-list{border-top:1px solid var(--line)}
 .alumno-rep-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s;gap:10px}
 .alumno-rep-row:last-child{border-bottom:none}
@@ -739,11 +743,12 @@ function renderMetrics(){
   const at=w.filter(r=>r.estado==='dificil'||r.estado==='regular').length;
   const impl=w.filter(r=>r.implementacion==='todas').length;
   const pct=rec?Math.round(impl/rec*100):0;
+  const exitos=alumnos.filter(a=>a.es_caso_exito).length;
   document.getElementById('metrics-grid').innerHTML=
     mc('Total alumnos','🎓',tot,'activos en el sistema','100%','var(--gold)')+
     mc('Reportes recibidos','📋',rec,'en el período',(tot?Math.round(rec/tot*100):0)+'%','var(--blue)')+
     mc('Necesitan atención','⚠️',at,'Regular o difícil',(rec?Math.round(at/rec*100):0)+'%','var(--red)','color:var(--red)')+
-    mc('Impl. recomendaciones','✅',pct+'%',rec+' reportaron',''+pct+'%','var(--green-t)','color:var(--green-t)');
+    mc('Casos de éxito','⭐',exitos,exitos===1?'alumno marcado':'alumnos marcados',(tot?Math.round(exitos/tot*100):0)+'%','var(--gold)','color:var(--gold)');
 }
 function mc(label,icon,val,sub,w,bg,vs=''){
   return '<div class="metric-card"><div class="metric-top"><span class="metric-lbl">'+label+'</span><span class="metric-icon">'+icon+'</span></div>'+
@@ -950,6 +955,7 @@ function renderAlumnosList(){
       (nextSess?'<span style="color:var(--blue);font-size:10.5px">📅 Próx: '+new Date(nextSess.fecha+'T00:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})+'</span>':'')+
       '</div></div></div>'+
       '<div class="alumno-rep-count">'+
+      (a.es_caso_exito?'<span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(224,181,74,.12);border:1px solid rgba(224,181,74,.3);color:var(--gold);font-weight:700;white-space:nowrap">⭐ Caso de éxito</span>':'')+
       (completoOnboarding?'<span style="font-size:9px;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.15);border:1px solid rgba(92,184,122,.3);color:#5cb87a;font-weight:700;white-space:nowrap">✓ Onboarding</span>':'')+
       '<span class="badge" style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+';font-size:9.5px">'+st.label+'</span>'+
       '<span class="rep-count-badge">'+total+' reporte'+(total!==1?'s':'')+'</span>'+
@@ -974,6 +980,7 @@ function renderAlumnosList(){
             : '<span style="font-size:10px;color:var(--orange);padding:4px 8px;border:1px solid rgba(224,168,72,.3);border-radius:6px">⚠ Alumno incompleto</span>'))+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(\''+a.id+'\')">Ver detalle</button>'+
       '<button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openAddSession(\''+a.id+'\')">📅 Próxima sesión</button>'+
+      '<button class="exito-toggle '+(a.es_caso_exito?'on':'off')+'" onclick="event.stopPropagation();toggleCasoExito(\''+a.id+'\','+!!a.es_caso_exito+')">'+(a.es_caso_exito?'⭐ Caso de éxito':'☆ Marcar éxito')+'</button>'+
       '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delAlumno(\''+a.id+'\')" style="width:auto">Eliminar</button>'+
       '</div></div>';
   }).join('');
@@ -981,6 +988,18 @@ function renderAlumnosList(){
 
 function toggleAlumno(id){if(expandedAlumnos.has(id))expandedAlumnos.delete(id);else expandedAlumnos.add(id);renderAlumnosList();}
 function toggleReporteGroup(id){if(collapsedReporteGroups.has(id))collapsedReporteGroups.delete(id);else collapsedReporteGroups.add(id);renderReportesList();}
+
+async function toggleCasoExito(id,current){
+  const nuevo=!current;
+  const payload={es_caso_exito:nuevo};
+  if(nuevo) payload.caso_exito_at=new Date().toISOString();
+  const res=await fetch(API_URL+'/alumnos/'+id,{method:'PATCH',headers:apiH(),body:JSON.stringify(payload)});
+  if(!res.ok){toast('Error al actualizar');return;}
+  const a=alumnos.find(x=>x.id===id);
+  if(a){a.es_caso_exito=nuevo;if(nuevo)a.caso_exito_at=payload.caso_exito_at;}
+  toast(nuevo?'⭐ Marcado como caso de éxito':'Caso de éxito eliminado');
+  renderAlumnosList();renderMetrics();
+}
 
 async function saveInstagram(alumnoId){
   const input=document.getElementById('ig-'+alumnoId);

@@ -118,6 +118,46 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .btn-danger:hover{background:rgba(212,96,96,.22)}
 .btn-ghost{background:transparent;border:1px solid var(--line-strong);color:var(--text3)}
 .btn-ghost:hover{border-color:var(--text3)}
+
+/* ── Config table ── */
+.cfg-table{width:100%;border-collapse:collapse;font-size:12px}
+.cfg-table th{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:8px 14px;text-align:left;border-bottom:1px solid var(--line-strong)}
+.cfg-table td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.cfg-table tr:last-child td{border-bottom:none}
+.cfg-table tr:hover td{background:var(--surface-2)}
+.pct-inp{background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none;width:80px;text-align:right}
+.pct-inp:focus{border-color:var(--gold)}
+.btn-save{padding:5px 14px;border-radius:6px;font-size:11.5px;font-weight:700;border:1px solid var(--gold);color:var(--gold);background:rgba(224,181,74,.08);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.btn-save:hover{background:rgba(224,181,74,.18)}
+
+/* ── Financial summary cards ── */
+.fin-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.fin-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;border-left:3px solid}
+.fin-card-lbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.fin-card-val{font-size:22px;font-weight:800;line-height:1}
+.fin-card-sub{font-size:10.5px;color:var(--text3);margin-top:4px}
+
+/* ── Snapshots table ── */
+.snap-table{width:100%;border-collapse:collapse;font-size:12px}
+.snap-table th{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--line-strong);text-align:right}
+.snap-table th:first-child,.snap-table th:nth-child(2){text-align:left}
+.snap-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
+.snap-table td:first-child,.snap-table td:nth-child(2){text-align:left}
+
+/* ── Éxitos ── */
+.exito-rank{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.exito-rank-row{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line);gap:12px;transition:background .12s}
+.exito-rank-row:last-child{border-bottom:none}
+.exito-rank-row:hover{background:var(--surface-2)}
+.exito-num{font-size:18px;font-weight:800;color:var(--text3);width:28px;flex-shrink:0}
+.exito-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.exito-label{font-size:13px;font-weight:600;flex:1}
+.exito-count{font-size:18px;font-weight:800}
+.exito-bar-wrap{flex:2;max-width:180px}
+.exito-bar{height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.exito-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.exito-alumni-list{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px;background:var(--surface-2);border-top:1px solid var(--line)}
+.exito-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(92,184,122,.12);color:#5cb87a;border:1px solid rgba(92,184,122,.28)}
 </style>
 </head>
 <body>
@@ -125,6 +165,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <!-- Tab nav -->
 <div class="tab-nav">
   <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" id="tab-finanzas" onclick="switchTab('finanzas')">💰 Finanzas Holding</button>
+  <button class="tab-btn" id="tab-exito" onclick="switchTab('exito')">🏆 Casos de Éxito</button>
   <button class="tab-btn" id="tab-tareas" onclick="switchTab('tareas')">Tareas Holding</button>
 </div>
 
@@ -172,6 +214,55 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <div id="main-content"><div class="empty">Cargando…</div></div>
 </div>
 </div><!-- /section-dashboard -->
+
+<!-- ── Finanzas Holding ── -->
+<div id="section-finanzas" style="display:none">
+  <div class="content">
+    <!-- Config de porcentajes -->
+    <div class="chart-panel" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="chart-title">⚙️ Porcentaje de participación por negocio</div>
+        <button class="btn-sm btn-gold2" onclick="reloadFinanzas()">↺ Actualizar</button>
+      </div>
+      <table class="cfg-table">
+        <thead><tr><th>Negocio</th><th>% Holding</th><th style="text-align:right">Acción</th></tr></thead>
+        <tbody id="cfg-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Resumen global financiero -->
+    <div class="chart-title" style="margin-bottom:12px">📊 Resumen global — período seleccionado</div>
+    <div class="fin-summary" id="fin-summary"></div>
+
+    <!-- Per-client financial cards -->
+    <div class="chart-title" style="margin-bottom:12px">💼 Por negocio</div>
+    <div id="fin-client-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:24px"></div>
+
+    <!-- Monthly chart -->
+    <div class="chart-panel" style="margin-bottom:20px">
+      <div class="chart-title">📈 Evolución mensual — Balance neto e Ingreso Holding</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="fin-chart-line"></canvas></div>
+    </div>
+
+    <!-- Snapshots históricos -->
+    <div class="chart-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="chart-title">📸 Snapshots mensuales guardados</div>
+        <button class="btn-sm btn-gold2" onclick="saveCurrentSnapshot()">Guardar snapshot del mes actual</button>
+      </div>
+      <div id="snapshots-container"><div class="empty" style="padding:20px">Sin snapshots guardados.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Casos de Éxito ── -->
+<div id="section-exito" style="display:none">
+  <div class="content">
+    <div class="metrics-row" id="exito-metrics" style="margin-bottom:20px"></div>
+    <div class="chart-title" style="margin-bottom:12px">🏆 Ranking de negocios por casos de éxito</div>
+    <div id="exito-ranking"></div>
+  </div>
+</div>
 
 <!-- ── Tareas Holding ── -->
 <div id="section-tareas" style="display:none">
@@ -367,9 +458,13 @@ function fmt(n){
 }
 
 function render(){
-  const totalFact=metricsData.reduce((s,c)=>s+c.facturacion,0);
-  const totalCC=metricsData.reduce((s,c)=>s+c.cash_collected,0);
-  const totalCloses=metricsData.reduce((s,c)=>s+c.closes,0);
+  const totalFact    =metricsData.reduce((s,c)=>s+c.facturacion,0);
+  const totalCC      =metricsData.reduce((s,c)=>s+c.cash_collected,0);
+  const totalGastos  =metricsData.reduce((s,c)=>s+(c.gastos||0),0);
+  const totalBalance =metricsData.reduce((s,c)=>s+(c.balance_neto||0),0);
+  const totalHolding =metricsData.reduce((s,c)=>s+(c.ingreso_holding||0),0);
+  const totalCloses  =metricsData.reduce((s,c)=>s+c.closes,0);
+  const totalExitos  =metricsData.reduce((s,c)=>s+(c.casos_exito||0),0);
 
   if(totalFact===0&&totalCC===0&&totalCloses===0){
     document.getElementById('main-content').innerHTML='<div class="empty">Sin datos para el período seleccionado.</div>';
@@ -380,11 +475,15 @@ function render(){
 
   let html='';
 
-  /* 3 compact metric cards */
-  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">';
+  /* Summary cards row */
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px">';
   html+=mcard('💰 Facturación',fmt(totalFact),'Facturado en el período','var(--gold)');
-  html+=mcard('💵 Cash collected',fmt(totalCC),'Cobrado del período','var(--green)');
-  html+=mcard('🏆 Cierres (ventas)',String(totalCloses),'Cerrados + señas','var(--blue)');
+  html+=mcard('💵 Cash Collected',fmt(totalCC),'Cobrado del período','var(--green)');
+  html+=mcard('📉 Gastos',fmt(totalGastos),'Egresos del período','var(--red)');
+  html+=mcard('⚖️ Balance Neto',fmt(totalBalance),'Cash Collected − Gastos',totalBalance>=0?'var(--green)':'var(--red)');
+  html+=mcard('🏢 Ingreso Holding',fmt(totalHolding),'Suma de participaciones','var(--gold)');
+  html+=mcard('🏆 Cierres',String(totalCloses),'Cerrados + señas','var(--blue)');
+  html+=mcard('⭐ Casos Éxito',String(totalExitos),'Alumnos marcados','var(--orange)');
   html+='</div>';
 
   /* Per-client cards */
@@ -392,14 +491,19 @@ function render(){
   metricsData.forEach((c)=>{
     const col=CLIENT_COLORS[allClients.indexOf(c.cliente_id)%CLIENT_COLORS.length];
     const label=clientLabel(c.cliente_id);
-    const pct=totalCC>0?Math.round(c.cash_collected/totalCC*100):0;
+    const pctCC=totalCC>0?Math.round(c.cash_collected/totalCC*100):0;
+    const bal=c.balance_neto||0;
     html+=`<div class="ccard" style="border-left:3px solid ${col}">
       <div class="ccard-title"><div class="ccard-dot" style="background:${col}"></div>${label}</div>
       <div class="ccard-row"><span class="ccard-key">Facturación</span><span class="ccard-val" style="color:${col}">${fmt(c.facturacion)}</span></div>
-      <div class="ccard-row"><span class="ccard-key">Cash collected</span><span class="ccard-val">${fmt(c.cash_collected)}</span></div>
-      <div class="ccard-row"><span class="ccard-key">Cierres</span><span class="ccard-val">${c.closes}</span></div>
-      ${c.closes>0?`<div class="ccard-row"><span class="ccard-key">Ticket prom.</span><span class="ccard-val">${fmt(Math.round(c.cash_collected/c.closes))}</span></div>`:''}
-      <div class="ccard-row"><span class="ccard-key">% del total</span><span class="ccard-val">${pct}%</span></div>
+      <div class="ccard-row"><span class="ccard-key">Cash Collected</span><span class="ccard-val">${fmt(c.cash_collected)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">Gastos</span><span class="ccard-val" style="color:var(--red)">${fmt(c.gastos||0)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">Balance Neto</span><span class="ccard-val" style="color:${bal>=0?'var(--green)':'var(--red)'}">${fmt(bal)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">% Holding</span><span class="ccard-val" style="color:var(--gold)">${c.porcentaje||0}%</span></div>
+      <div class="ccard-row"><span class="ccard-key">Ingreso Holding</span><span class="ccard-val" style="color:var(--gold);font-weight:800">${fmt(c.ingreso_holding||0)}</span></div>
+      ${c.closes>0?`<div class="ccard-row"><span class="ccard-key">Cierres</span><span class="ccard-val">${c.closes}</span></div>`:''}
+      <div class="ccard-row"><span class="ccard-key">⭐ Casos Éxito</span><span class="ccard-val" style="color:var(--orange)">${c.casos_exito||0}</span></div>
+      <div class="ccard-row"><span class="ccard-key">% del total CC</span><span class="ccard-val">${pctCC}%</span></div>
     </div>`;
   });
   html+='</div>';
@@ -407,11 +511,11 @@ function render(){
   /* Charts */
   html+=`<div class="charts-grid">
     <div class="chart-panel">
-      <div class="chart-title">📊 Comparativa por cliente — período seleccionado</div>
+      <div class="chart-title">📊 Comparativa por negocio — período seleccionado</div>
       <div class="chart-wrap" style="height:280px"><canvas id="chart-bar"></canvas></div>
     </div>
     <div class="chart-panel">
-      <div class="chart-title">📈 Evolución mensual ${new Date().getFullYear()} — Facturación</div>
+      <div class="chart-title">📈 Evolución mensual ${new Date().getFullYear()} — Cash Collected</div>
       <div class="chart-wrap" style="height:280px"><canvas id="chart-line"></canvas></div>
     </div>
   </div>`;
@@ -493,11 +597,15 @@ function toast(msg){
 let _activeTab = 'dashboard';
 function switchTab(tab){
   _activeTab = tab;
-  document.getElementById('section-dashboard').style.display = tab==='dashboard' ? '' : 'none';
-  document.getElementById('section-tareas').style.display    = tab==='tareas'    ? '' : 'none';
+  ['dashboard','finanzas','exito','tareas'].forEach(t=>{
+    const s=document.getElementById('section-'+t);
+    if(s) s.style.display=t===tab?'':'none';
+  });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='tareas' && allClients.length) renderNegocioBar();
+  if(tab==='finanzas') reloadFinanzas();
+  if(tab==='exito') reloadExito();
 }
 
 // ── Kanban ──
@@ -707,6 +815,252 @@ async function deleteTask(){
     tareasData=tareasData.filter(t=>String(t.id)!==String(_editTaskId));
     closeTaskModal();renderKanban();toast('Tarea eliminada');
   }catch(e){toast('Error al eliminar');}
+}
+
+// ══════════════════════════════════════════
+// 💰  FINANZAS HOLDING
+// ══════════════════════════════════════════
+let _finConfigs=[], _finSnaps=[], _finLineChart=null;
+
+async function reloadFinanzas(){
+  if(!allClients.length) return;
+  const ids=allClients.join(',');
+
+  // Auto-snapshot del mes anterior (silencioso — no bloquea la UI)
+  fetch(`${API_URL}/holding/auto-snapshot-previous?cliente_ids=${encodeURIComponent(ids)}`,
+    {method:'POST',headers:apiH()})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{
+      if(d?.created?.length){
+        const mn=MONTH_NAMES[d.month-1]||d.month;
+        toast(`📸 Auto-snapshot ${mn} ${d.year}: ${d.created.length} negocio${d.created.length!==1?'s':''}`);
+        // Recargar snapshots para mostrar el nuevo
+        fetch(`${API_URL}/holding/snapshots?cliente_ids=${encodeURIComponent(ids)}`,{headers:apiH()})
+          .then(r=>r.ok?r.json():[]).then(d2=>{_finSnaps=d2;renderSnapshotsTable();}).catch(()=>{});
+      }
+    }).catch(()=>{});
+
+  const[cfgRes,snapRes]=await Promise.all([
+    fetch(`${API_URL}/holding/config`,{headers:apiH()}),
+    fetch(`${API_URL}/holding/snapshots?cliente_ids=${encodeURIComponent(ids)}`,{headers:apiH()}),
+  ]);
+  _finConfigs=cfgRes.ok?await cfgRes.json():[];
+  _finSnaps=snapRes.ok?await snapRes.json():[];
+  renderFinanzas();
+}
+
+function renderFinanzas(){
+  renderCfgTable();
+  renderFinSummary();
+  renderFinClientCards();
+  renderFinLineChart();
+  renderSnapshotsTable();
+}
+
+function renderCfgTable(){
+  const el=document.getElementById('cfg-table-body');if(!el)return;
+  if(!allClients.length){el.innerHTML='<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:14px">Sin negocios cargados.</td></tr>';return;}
+  el.innerHTML=allClients.map((cid,i)=>{
+    const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
+    const cfg=_finConfigs.find(c=>c.cliente_id===cid);
+    const pct=cfg?cfg.porcentaje:0;
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block"></span><strong>${clientLabel(cid)}</strong></span></td>
+      <td><input class="pct-inp" id="pct-${cid}" type="number" min="0" max="100" step="0.5" value="${pct}" placeholder="0"> %</td>
+      <td style="text-align:right"><button class="btn-save" onclick="saveHoldingConfig('${cid}')">Guardar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveHoldingConfig(cid){
+  const inp=document.getElementById('pct-'+cid);
+  if(!inp)return;
+  const pct=parseFloat(inp.value);
+  if(isNaN(pct)||pct<0||pct>100){toast('Ingresá un porcentaje entre 0 y 100');return;}
+  const res=await fetch(`${API_URL}/holding/config/${cid}`,{method:'PUT',headers:{...apiH(),'Content-Type':'application/json'},body:JSON.stringify({porcentaje:pct})});
+  if(!res.ok){toast('Error al guardar');return;}
+  toast(`✓ ${clientLabel(cid)}: ${pct}% guardado`);
+  const idx=_finConfigs.findIndex(c=>c.cliente_id===cid);
+  if(idx>=0)_finConfigs[idx].porcentaje=pct; else _finConfigs.push({cliente_id:cid,porcentaje:pct});
+  // Refresh dashboard metrics so cards update
+  reloadMetrics();
+  renderFinSummary();
+  renderFinClientCards();
+  renderFinLineChart();
+}
+
+function renderFinSummary(){
+  const el=document.getElementById('fin-summary');if(!el)return;
+  const d=metricsData;
+  const totalFact   =d.reduce((s,c)=>s+c.facturacion,0);
+  const totalCC     =d.reduce((s,c)=>s+c.cash_collected,0);
+  const totalGastos =d.reduce((s,c)=>s+(c.gastos||0),0);
+  const totalBalance=d.reduce((s,c)=>s+(c.balance_neto||0),0);
+  const totalHolding=d.reduce((s,c)=>s+(c.ingreso_holding||0),0);
+  const cards=[
+    {label:'Total Facturado',val:fmt(totalFact),sub:'Suma de ingresos',color:'var(--gold)'},
+    {label:'Cash Collected',val:fmt(totalCC),sub:'Cobrado en el período',color:'var(--green)'},
+    {label:'Total Gastos',val:fmt(totalGastos),sub:'Suma de egresos',color:'var(--red)'},
+    {label:'Balance Neto',val:fmt(totalBalance),sub:'CC − Gastos',color:totalBalance>=0?'var(--green)':'var(--red)'},
+    {label:'Ingreso Holding',val:fmt(totalHolding),sub:'Suma participaciones',color:'var(--gold)'},
+  ];
+  el.innerHTML=cards.map(c=>`<div class="fin-card" style="border-left-color:${c.color}">
+    <div class="fin-card-lbl">${c.label}</div>
+    <div class="fin-card-val" style="color:${c.color}">${c.val}</div>
+    <div class="fin-card-sub">${c.sub}</div>
+  </div>`).join('');
+}
+
+function renderFinClientCards(){
+  const el=document.getElementById('fin-client-cards');if(!el)return;
+  if(!metricsData.length){el.innerHTML='<div class="empty" style="padding:20px">Sin datos para el período.</div>';return;}
+  el.innerHTML=metricsData.map((c,i)=>{
+    const col=CLIENT_COLORS[allClients.indexOf(c.cliente_id)%CLIENT_COLORS.length];
+    const bal=c.balance_neto||0;
+    return `<div class="ccard" style="border-left:3px solid ${col}">
+      <div class="ccard-title"><div class="ccard-dot" style="background:${col}"></div>${clientLabel(c.cliente_id)}</div>
+      <div class="ccard-row"><span class="ccard-key">Cash Collected</span><span class="ccard-val">${fmt(c.cash_collected)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">Gastos</span><span class="ccard-val" style="color:var(--red)">${fmt(c.gastos||0)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">Balance Neto</span><span class="ccard-val" style="color:${bal>=0?'var(--green)':'var(--red);'}">${fmt(bal)}</span></div>
+      <div class="ccard-row"><span class="ccard-key">% Holding</span><span class="ccard-val" style="color:var(--gold)">${c.porcentaje||0}%</span></div>
+      <div class="ccard-row"><span class="ccard-key" style="font-weight:700">💰 Ingreso Holding</span><span class="ccard-val" style="color:var(--gold);font-size:16px;font-weight:800">${fmt(c.ingreso_holding||0)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderFinLineChart(){
+  const canvas=document.getElementById('fin-chart-line');if(!canvas)return;
+  if(_finLineChart){_finLineChart.destroy();_finLineChart=null;}
+  if(!metricsData.length) return;
+  const datasets=metricsData.flatMap((c,i)=>{
+    const col=CLIENT_COLORS[allClients.indexOf(c.cliente_id)%CLIENT_COLORS.length];
+    const label=clientLabel(c.cliente_id);
+    return[
+      {label:label+' — Balance',data:(c.monthly||[]).map(m=>m.balance_neto||0),
+        borderColor:col,backgroundColor:col+(i===0?'15':'00'),borderWidth:2,pointBackgroundColor:col,pointRadius:3,tension:0.35,fill:i===0},
+      {label:label+' — Holding',data:(c.monthly||[]).map(m=>m.ingreso_holding||0),
+        borderColor:col,backgroundColor:'transparent',borderWidth:1.5,borderDash:[4,3],pointBackgroundColor:col,pointRadius:2,tension:0.35,fill:false}
+    ];
+  });
+  _finLineChart=new Chart(canvas,{
+    type:'line',
+    data:{labels:MONTH_NAMES,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#9ba0b4',font:{size:10},boxWidth:20,padding:8}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10}}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10},callback:v=>fmt(v)}}
+      }
+    }
+  });
+}
+
+function renderSnapshotsTable(){
+  const el=document.getElementById('snapshots-container');if(!el)return;
+  if(!_finSnaps.length){el.innerHTML='<div class="empty" style="padding:16px">Sin snapshots guardados. Hacé clic en "Guardar snapshot del mes actual" para crear el primero.</div>';return;}
+  const MONTHS=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const html=`<div style="overflow-x:auto"><table class="snap-table">
+    <thead><tr><th>Negocio</th><th>Período</th><th>Facturación</th><th>Cash Coll.</th><th>Gastos</th><th>Balance</th><th>%</th><th>Ingreso Holding</th></tr></thead>
+    <tbody>${_finSnaps.map(s=>`<tr>
+      <td style="color:var(--text);font-weight:600">${clientLabel(s.cliente_id)}</td>
+      <td style="color:var(--text2)">${MONTHS[s.month]||s.month} ${s.year}</td>
+      <td>${fmt(s.facturacion||0)}</td>
+      <td>${fmt(s.cash_collected||0)}</td>
+      <td style="color:var(--red)">${fmt(s.gastos||0)}</td>
+      <td style="color:${(s.balance_neto||0)>=0?'var(--green)':'var(--red)'}">${fmt(s.balance_neto||0)}</td>
+      <td style="color:var(--gold)">${s.porcentaje||0}%</td>
+      <td style="color:var(--gold);font-weight:700">${fmt(s.ingreso_holding||0)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+  el.innerHTML=html;
+}
+
+async function saveCurrentSnapshot(){
+  if(!metricsData.length){toast('Cargá datos primero');return;}
+  const now=new Date();
+  const year=now.getFullYear(), month=now.getMonth()+1;
+  let saved=0;
+  for(const c of metricsData){
+    const res=await fetch(`${API_URL}/holding/snapshot`,{
+      method:'POST',headers:{...apiH(),'Content-Type':'application/json'},
+      body:JSON.stringify({
+        cliente_id:c.cliente_id,year,month,
+        facturacion:c.facturacion,cash_collected:c.cash_collected,
+        gastos:c.gastos||0,balance_neto:c.balance_neto||0,
+        porcentaje:c.porcentaje||0,ingreso_holding:c.ingreso_holding||0
+      })
+    });
+    if(res.ok) saved++;
+  }
+  toast(`✓ ${saved} snapshot${saved!==1?'s':''} guardado${saved!==1?'s':''}`);
+  await reloadFinanzas();
+}
+
+
+// ══════════════════════════════════════════
+// 🏆  CASOS DE ÉXITO
+// ══════════════════════════════════════════
+let _exitoCases={};
+
+async function reloadExito(){
+  if(!allClients.length) return;
+  const ids=allClients.join(',');
+  const res=await fetch(`${API_URL}/holding/success-cases?cliente_ids=${encodeURIComponent(ids)}`,{headers:apiH()});
+  _exitoCases=res.ok?await res.json():{};
+  renderExito();
+}
+
+function renderExito(){
+  const metrEl=document.getElementById('exito-metrics');
+  const rankEl=document.getElementById('exito-ranking');
+  if(!metrEl||!rankEl)return;
+
+  const total=Object.values(_exitoCases).reduce((s,arr)=>s+arr.length,0);
+  const totalAlumnos=Object.values(_exitoCases).reduce((s,arr)=>s+arr.length,0);
+
+  metrEl.innerHTML=
+    `<div class="mcard mcard-accent" style="border-left-color:var(--orange)">
+      <div class="mcard-label">⭐ Total Casos de Éxito</div>
+      <div class="mcard-val" style="color:var(--orange)">${total}</div>
+      <div class="mcard-sub">Entre todos los negocios</div>
+    </div>`+
+    allClients.map((cid,i)=>{
+      const arr=_exitoCases[cid]||[];
+      const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
+      return `<div class="mcard mcard-accent" style="border-left-color:${col}">
+        <div class="mcard-label" style="color:${col}">${clientLabel(cid)}</div>
+        <div class="mcard-val" style="color:${col}">${arr.length}</div>
+        <div class="mcard-sub">Casos de éxito</div>
+      </div>`;
+    }).join('');
+
+  // Build ranking sorted by count desc
+  const ranked=[...allClients].map((cid,i)=>({
+    cid,i,count:(_exitoCases[cid]||[]).length,cases:_exitoCases[cid]||[]
+  })).sort((a,b)=>b.count-a.count);
+  const maxCount=ranked[0]?.count||1;
+
+  if(total===0){
+    rankEl.innerHTML='<div class="empty" style="padding:40px">Sin casos de éxito marcados todavía.</div>';
+    return;
+  }
+
+  rankEl.innerHTML=ranked.map((r,pos)=>{
+    const col=CLIENT_COLORS[r.i%CLIENT_COLORS.length];
+    const pct=Math.round(r.count/maxCount*100);
+    const names=r.cases.map(a=>`<span class="exito-badge">${(a.nombre||'')+' '+(a.apellido||'')}</span>`).join('');
+    return `<div class="exito-rank">
+      <div class="exito-rank-row">
+        <div class="exito-num">${pos+1}</div>
+        <div class="exito-dot" style="background:${col}"></div>
+        <div class="exito-label">${clientLabel(r.cid)}</div>
+        <div class="exito-bar-wrap"><div class="exito-bar"><div class="exito-fill" style="width:${pct}%;background:${col}"></div></div></div>
+        <div class="exito-count" style="color:${col}">${r.count}</div>
+      </div>
+      ${r.cases.length?'<div class="exito-alumni-list">'+names+'</div>':''}
+    </div>`;
+  }).join('');
 }
 
 init();

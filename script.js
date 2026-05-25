@@ -176,6 +176,14 @@ let S=(()=>{const K=getKeys();return{
 let leadsCache = [];
 window.leadsCache = leadsCache;
 
+let _holdingPct = 0; // % de participación holding para el cliente actual (cargado en nav 'fin')
+async function fetchHoldingPct(){
+  try{
+    const r=await apiFetch(`${API_URL}/holding-pct`);
+    if(r.ok){const d=await r.json();_holdingPct=parseFloat(d.porcentaje)||0;}
+  }catch(e){/* silencioso — holding-pct es opcional */}
+}
+
 function save(key){sv(getKeys()[key],S[key]);}
 
 // ========== DEFAULT TASKS ==========
@@ -339,7 +347,7 @@ function nav(id,el){
   const refetch={
     cont:fetchContenido, found:fetchFundaciones, ang:fetchAngulos,
     ref:fetchReferentes, ig:fetchIG,
-    clients:fetchClients, fin:()=>{fetchIngresos();fetchEgresos();},
+    clients:fetchClients, fin:()=>{fetchHoldingPct();fetchIngresos();fetchEgresos();},
     formatos:fetchFormatos, lab:fetchLaboratorio,
     ideas:fetchCrmIdeas,
   };
@@ -3564,13 +3572,15 @@ function renderFin(){
   const ganancia =finCC-totalGas;
   const gananciaP=finCCP-totalGasP;
   const margen   =finCC>0?((ganancia/finCC)*100).toFixed(1):0;
+  const ingresoHolding=_holdingPct>0?ganancia*_holdingPct/100:null;
 
   document.getElementById('fin-metrics').innerHTML=
     metCard('Ingresos',fmtMoney(totalIng),'green',_delta(totalIng,totalIngP))+
     metCard('Egresos',fmtMoney(totalGas),'red',_delta(totalGas,totalGasP))+
     metCard('Cash Collected',fmtMoney(finCC),'green',_delta(finCC,finCCP))+
-    metCard('Ganancia Total',fmtMoney(ganancia),ganancia>=0?'green':'red',_delta(ganancia,gananciaP))+
-    metCard('Margen',margen+'%',+margen>=30?'green':+margen>=15?'':'red');
+    metCard('Balance Neto',fmtMoney(ganancia),ganancia>=0?'green':'red',_delta(ganancia,gananciaP))+
+    metCard('Margen',margen+'%',+margen>=30?'green':+margen>=15?'':'red')+
+    (ingresoHolding!==null?`<div class="metric-card" style="border-left:3px solid var(--gold-light)"><div class="metric-label">🏢 Ingreso Holding</div><div class="metric-value green">${fmtMoney(ingresoHolding)}</div><div class="metric-delta" style="color:var(--text3);font-size:10px">${_holdingPct}% del balance neto</div></div>`:'');
 
   document.getElementById('ing-table').innerHTML=ing.map(x=>{
     let cc=null;
