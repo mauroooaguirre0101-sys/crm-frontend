@@ -177,6 +177,7 @@ let leadsCache = [];
 window.leadsCache = leadsCache;
 
 let _holdingPct = 0; // % de participación holding para el cliente actual (cargado en nav 'fin')
+const HOLDING_VIS_EMAILS=['maurooo.aguirre0101@gmail.com','tomasfernandezhuguenine@gmail.com','lopezvalen.biz@gmail.com'];
 async function fetchHoldingPct(){
   try{
     const r=await apiFetch(`${API_URL}/holding-pct`);
@@ -3572,7 +3573,8 @@ function renderFin(){
   const ganancia =finCC-totalGas;
   const gananciaP=finCCP-totalGasP;
   const margen   =finCC>0?((ganancia/finCC)*100).toFixed(1):0;
-  const ingresoHolding=_holdingPct>0?ganancia*_holdingPct/100:null;
+  const _canSeeHolding=HOLDING_VIS_EMAILS.includes((localStorage.getItem('userEmail')||'').toLowerCase());
+  const ingresoHolding=_holdingPct>0&&_canSeeHolding?ganancia*_holdingPct/100:null;
 
   document.getElementById('fin-metrics').innerHTML=
     metCard('Ingresos',fmtMoney(totalIng),'green',_delta(totalIng,totalIngP))+
