@@ -4433,8 +4433,11 @@ function _renderCallsTable(rows){
       const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
       if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
     }
+    const fechaProg=estado==='Pendiente'&&r.fecha_llamada
+      ?`<div style="font-size:10px;color:#6090d4;font-weight:600;margin-top:3px">📅 ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+      :'';
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}`;
+      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${fechaProg}`;
 
     const infoPrevia=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="abrirInfoPreviaEdit('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">${r.info_previa?'Ver / Editar':'+ Agregar'}</button>`;
 
@@ -4519,7 +4522,9 @@ async function savePreCall(){
   if(!instagram){toast('✗ Instagram es obligatorio');return;}
 
   const pendingLead=_pendingReporteLeadId?leadsCache.find(l=>l.id===_pendingReporteLeadId):leadsCache.find(l=>(l.instagram||'').toLowerCase()===instagram.toLowerCase());
-  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||''};
+  const rawFechaPC=(document.getElementById('pc-fecha-llamada')?.value||'').trim();
+  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||'',
+    fecha_llamada:rawFechaPC?new Date(rawFechaPC).toISOString():null};
   console.log('DATA ENVIADA (pre-call):',data);
 
   const btn=document.getElementById('pc-save-btn');
@@ -4567,6 +4572,8 @@ function abrirEditCall(id){
   document.getElementById('ec-info').value=r.info_previa||'';
   const estadoEl=document.getElementById('ec-estado');
   if(estadoEl) estadoEl.value=r.estado||r.estado_llamada||'Cierre';
+  const fechaEl=document.getElementById('ec-fecha-llamada');
+  if(fechaEl) fechaEl.value=r.fecha_llamada?r.fecha_llamada.slice(0,16):'';
   document.getElementById('ec-motivo').value=r.motivo_no_cierre||'';
   document.getElementById('ec-seguimientos').value=r.seguimientos||0;
   if(r.responde){document.getElementById('ec-resp-si').checked=true;}
@@ -4594,12 +4601,15 @@ function abrirEditCall(id){
 function onEditCallEstadoChange(){
   const estado=document.getElementById('ec-estado')?.value||'';
   const isPostCall = estado === 'Seguimiento Post Call';
+  const isPendiente = estado === 'Pendiente';
   const motivoWrap=document.getElementById('ec-motivo-wrap');
   const segWrap=document.getElementById('ec-seg-wrap');
   const respWrap=document.getElementById('ec-resp-wrap');
+  const fechaWrap=document.getElementById('ec-fecha-wrap');
   if(motivoWrap) motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
   if(segWrap)   segWrap.style.display=isPostCall?'block':'none';
   if(respWrap)  respWrap.style.display=isPostCall?'block':'none';
+  if(fechaWrap) fechaWrap.style.display=isPendiente?'block':'none';
 }
 
 // ========== CLOSER: saveEditCall ==========
@@ -4624,6 +4634,7 @@ async function saveEditCall(){
     aporte_marketing:(document.getElementById('ec-aporte')?.value||'').trim(),
   });
 
+  const rawFecha=(document.getElementById('ec-fecha-llamada')?.value||'').trim();
   const payload={
     estado,
     motivo_no_cierre:CALL_ESTADOS_MOTIVO.has(estado)?motivo:'',
@@ -4631,6 +4642,7 @@ async function saveEditCall(){
     responde:document.getElementById('ec-resp-si')?.checked===true,
     link_llamada:link,
     reporte,
+    fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
   };
 
   console.log('DATA ENVIADA (edit-call):',payload);

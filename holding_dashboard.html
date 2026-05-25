@@ -894,9 +894,6 @@ function renderFinSummary(){
     {label:'Total Gastos',val:fmt(totalGastos),sub:'Suma de egresos',color:'var(--red)'},
     {label:'Balance Neto',val:fmt(totalBalance),sub:'CC − Gastos',color:totalBalance>=0?'var(--green)':'var(--red)'},
     {label:'Ingreso Holding',val:fmt(totalHolding),sub:'Suma participaciones',color:'var(--gold)'},
-    {label:'Agendas',val:String(totalAgendas),sub:'Leads agendados',color:'var(--blue)'},
-    {label:'Cierres',val:String(totalCierres),sub:'Ventas cerradas',color:'var(--teal)'},
-    {label:'AOV',val:totalAOV>0?fmt(totalAOV):'—',sub:'Ticket promedio',color:'var(--purple)'},
   ];
   el.innerHTML=cards.map(c=>`<div class="fin-card" style="border-left-color:${c.color}">
     <div class="fin-card-lbl">${c.label}</div>
