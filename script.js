@@ -3716,12 +3716,12 @@ let callsCache      = window.callsCache = [];
 const ROLE_PAGES = {
   admin:  ['dash','acc','found','cont','ang','ref','leads','calls','clients','fin','ig','equipo'],
   closer: ['dash','acc','leads','calls'],
-  setter: ['dash','acc','leads'],
+  setter: ['dash','acc','leads','calls'],
 };
 const ROLE_ALLOWED = {
   admin:   ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','fin','ig','formatos','lab','equipo','forms'],
   closer:  ['dash','acc','leads','funnel','calls'],
-  setter:  ['dash','acc','leads','funnel'],
+  setter:  ['dash','acc','leads','funnel','calls'],
   content: ['acc','found','cont','ang','ref','ig','formatos','lab'],
 };
 
