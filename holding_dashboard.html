@@ -475,35 +475,23 @@ function render(){
 
   let html='';
 
-  /* Summary cards row */
-  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px">';
+  /* Summary — 3 key cards only */
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">';
   html+=mcard('💰 Facturación',fmt(totalFact),'Facturado en el período','var(--gold)');
   html+=mcard('💵 Cash Collected',fmt(totalCC),'Cobrado del período','var(--green)');
-  html+=mcard('📉 Gastos',fmt(totalGastos),'Egresos del período','var(--red)');
-  html+=mcard('⚖️ Balance Neto',fmt(totalBalance),'Cash Collected − Gastos',totalBalance>=0?'var(--green)':'var(--red)');
   html+=mcard('🏢 Ingreso Holding',fmt(totalHolding),'Suma de participaciones','var(--gold)');
-  html+=mcard('🏆 Cierres',String(totalCloses),'Cerrados + señas','var(--blue)');
-  html+=mcard('⭐ Casos Éxito',String(totalExitos),'Alumnos marcados','var(--orange)');
   html+='</div>';
 
-  /* Per-client cards */
+  /* Per-client cards — simplified */
   html+='<div class="clients-row">';
   metricsData.forEach((c)=>{
     const col=CLIENT_COLORS[allClients.indexOf(c.cliente_id)%CLIENT_COLORS.length];
     const label=clientLabel(c.cliente_id);
-    const pctCC=totalCC>0?Math.round(c.cash_collected/totalCC*100):0;
-    const bal=c.balance_neto||0;
     html+=`<div class="ccard" style="border-left:3px solid ${col}">
       <div class="ccard-title"><div class="ccard-dot" style="background:${col}"></div>${label}</div>
       <div class="ccard-row"><span class="ccard-key">Facturación</span><span class="ccard-val" style="color:${col}">${fmt(c.facturacion)}</span></div>
       <div class="ccard-row"><span class="ccard-key">Cash Collected</span><span class="ccard-val">${fmt(c.cash_collected)}</span></div>
-      <div class="ccard-row"><span class="ccard-key">Gastos</span><span class="ccard-val" style="color:var(--red)">${fmt(c.gastos||0)}</span></div>
-      <div class="ccard-row"><span class="ccard-key">Balance Neto</span><span class="ccard-val" style="color:${bal>=0?'var(--green)':'var(--red)'}">${fmt(bal)}</span></div>
-      <div class="ccard-row"><span class="ccard-key">% Holding</span><span class="ccard-val" style="color:var(--gold)">${c.porcentaje||0}%</span></div>
-      <div class="ccard-row"><span class="ccard-key">Ingreso Holding</span><span class="ccard-val" style="color:var(--gold);font-weight:800">${fmt(c.ingreso_holding||0)}</span></div>
-      ${c.closes>0?`<div class="ccard-row"><span class="ccard-key">Cierres</span><span class="ccard-val">${c.closes}</span></div>`:''}
-      <div class="ccard-row"><span class="ccard-key">⭐ Casos Éxito</span><span class="ccard-val" style="color:var(--orange)">${c.casos_exito||0}</span></div>
-      <div class="ccard-row"><span class="ccard-key">% del total CC</span><span class="ccard-val">${pctCC}%</span></div>
+      <div class="ccard-row"><span class="ccard-key" style="font-weight:700">🏢 Ingreso Holding</span><span class="ccard-val" style="color:var(--gold);font-weight:800">${fmt(c.ingreso_holding||0)}</span></div>
     </div>`;
   });
   html+='</div>';
@@ -897,12 +885,18 @@ function renderFinSummary(){
   const totalGastos =d.reduce((s,c)=>s+(c.gastos||0),0);
   const totalBalance=d.reduce((s,c)=>s+(c.balance_neto||0),0);
   const totalHolding=d.reduce((s,c)=>s+(c.ingreso_holding||0),0);
+  const totalCierres=d.reduce((s,c)=>s+(c.closes||0),0);
+  const totalAgendas=d.reduce((s,c)=>s+(c.agendas||0),0);
+  const totalAOV    =totalCierres>0?Math.round(totalFact/totalCierres):0;
   const cards=[
     {label:'Total Facturado',val:fmt(totalFact),sub:'Suma de ingresos',color:'var(--gold)'},
     {label:'Cash Collected',val:fmt(totalCC),sub:'Cobrado en el período',color:'var(--green)'},
     {label:'Total Gastos',val:fmt(totalGastos),sub:'Suma de egresos',color:'var(--red)'},
     {label:'Balance Neto',val:fmt(totalBalance),sub:'CC − Gastos',color:totalBalance>=0?'var(--green)':'var(--red)'},
     {label:'Ingreso Holding',val:fmt(totalHolding),sub:'Suma participaciones',color:'var(--gold)'},
+    {label:'Agendas',val:String(totalAgendas),sub:'Leads agendados',color:'var(--blue)'},
+    {label:'Cierres',val:String(totalCierres),sub:'Ventas cerradas',color:'var(--teal)'},
+    {label:'AOV',val:totalAOV>0?fmt(totalAOV):'—',sub:'Ticket promedio',color:'var(--purple)'},
   ];
   el.innerHTML=cards.map(c=>`<div class="fin-card" style="border-left-color:${c.color}">
     <div class="fin-card-lbl">${c.label}</div>
@@ -924,6 +918,9 @@ function renderFinClientCards(){
       <div class="ccard-row"><span class="ccard-key">Balance Neto</span><span class="ccard-val" style="color:${bal>=0?'var(--green)':'var(--red);'}">${fmt(bal)}</span></div>
       <div class="ccard-row"><span class="ccard-key">% Holding</span><span class="ccard-val" style="color:var(--gold)">${c.porcentaje||0}%</span></div>
       <div class="ccard-row"><span class="ccard-key" style="font-weight:700">💰 Ingreso Holding</span><span class="ccard-val" style="color:var(--gold);font-size:16px;font-weight:800">${fmt(c.ingreso_holding||0)}</span></div>
+      <div class="ccard-row" style="margin-top:6px;padding-top:8px;border-top:1px solid var(--line-strong)"><span class="ccard-key">Agendas</span><span class="ccard-val" style="color:var(--blue)">${c.agendas||0}</span></div>
+      <div class="ccard-row"><span class="ccard-key">Cierres</span><span class="ccard-val" style="color:var(--teal)">${c.closes||0}</span></div>
+      <div class="ccard-row"><span class="ccard-key">AOV</span><span class="ccard-val" style="color:var(--purple)">${(c.closes||0)>0?fmt(c.aov||0):'—'}</span></div>
     </div>`;
   }).join('');
 }
