@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conectar Discord — Evoluciona</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0f;--surface:#141621;--surface-2:#1a1d2b;--surface-3:#222637;
+  --line:rgba(255,255,255,0.08);--line-strong:rgba(255,255,255,0.13);
+  --text:#f0eee8;--text2:#9ba0b4;--text3:#5a607a;
+  --gold:#e0b54a;--green:#5cb87a;--red:#d46060;
+  --discord:#5865F2;--discord-dark:#4752c4;--discord-light:rgba(88,101,242,.15);
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.5}
+body{display:flex;align-items:center;justify-content:center;padding:40px 16px 60px;min-height:100vh}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 16px 60px rgba(0,0,0,.6)}
+
+.card-header{padding:32px 36px 24px;border-bottom:1px solid var(--line);text-align:center}
+.brand{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.avatar-wrap{width:64px;height:64px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0}
+.card-name{font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px}
+.card-sub{font-size:12.5px;color:var(--text2)}
+
+.card-body{padding:32px 36px}
+
+/* States */
+.state{display:none}
+.state.active{display:block}
+
+/* Connect state */
+.discord-cta{text-align:center;padding:8px 0}
+.discord-icon{width:72px;height:72px;background:var(--discord-light);border:1px solid rgba(88,101,242,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.discord-icon svg{width:36px;height:36px;fill:var(--discord)}
+.cta-title{font-size:18px;font-weight:700;margin-bottom:8px}
+.cta-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px;max-width:340px;margin-left:auto;margin-right:auto}
+.cta-perks{list-style:none;margin:16px 0 28px;text-align:left;max-width:280px;margin-left:auto;margin-right:auto}
+.cta-perks li{font-size:12.5px;color:var(--text2);padding:5px 0;display:flex;align-items:flex-start;gap:8px}
+.cta-perks li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;margin-top:1px}
+.btn-discord{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 24px;background:var(--discord);color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:-.1px}
+.btn-discord:hover{background:var(--discord-dark);transform:translateY(-2px);box-shadow:0 6px 24px rgba(88,101,242,.35)}
+.btn-discord:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-discord svg{width:20px;height:20px;fill:currentColor;flex-shrink:0}
+
+/* Loading state */
+.loading-wrap{text-align:center;padding:20px 0}
+.spinner{width:40px;height:40px;border:3px solid var(--surface-3);border-top-color:var(--discord);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text2)}
+
+/* Success state */
+.success-wrap{text-align:center;padding:8px 0}
+.success-icon{width:72px;height:72px;background:rgba(88,101,242,.12);border:1px solid rgba(88,101,242,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 20px;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.success-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.success-sub{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:24px}
+.info-grid{background:var(--surface-2);border:1px solid rgba(88,101,242,.15);border-radius:10px;padding:14px 16px;text-align:left;margin-bottom:20px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--line);font-size:12px}
+.info-row:last-child{border-bottom:none}
+.info-lbl{color:var(--text3)}
+.info-val{color:var(--text2);font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.success-next{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--text2);line-height:1.6;text-align:left}
+.success-next strong{color:var(--text);display:block;margin-bottom:5px;font-size:12.5px}
+
+/* Error state */
+.error-wrap{text-align:center;padding:8px 0}
+.error-icon{width:64px;height:64px;background:rgba(212,96,96,.1);border:1px solid rgba(212,96,96,.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px}
+.error-title{font-size:17px;font-weight:700;color:var(--red);margin-bottom:8px}
+.error-sub{font-size:12.5px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.btn-retry{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 24px;background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-retry:hover{border-color:var(--discord);color:var(--discord)}
+
+/* Already connected state */
+.connected-wrap{text-align:center;padding:8px 0}
+.connected-icon{font-size:32px;margin-bottom:14px}
+.connected-title{font-size:17px;font-weight:700;color:var(--green);margin-bottom:6px}
+.connected-sub{font-size:12.5px;color:var(--text2);line-height:1.6}
+
+.divider{height:1px;background:var(--line);margin:20px 0}
+.footer{padding:16px 36px;border-top:1px solid var(--line);text-align:center}
+.footer-text{font-size:11px;color:var(--text3);line-height:1.5}
+
+/* Invalid link */
+.invalid-wrap{text-align:center;padding:20px 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div class="brand">Evoluciona</div>
+    <div class="avatar-wrap" id="alumno-avatar" style="background:#5865F2">?</div>
+    <div class="card-name" id="alumno-name">Cargando…</div>
+    <div class="card-sub" id="alumno-sub">Onboarding Discord</div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- LOADING -->
+    <div class="state active" id="state-loading">
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-text">Verificando estado…</div>
+      </div>
+    </div>
+
+    <!-- CONNECT -->
+    <div class="state" id="state-connect">
+      <div class="discord-cta">
+        <div class="discord-icon">
+          <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+        </div>
+        <div class="cta-title">Conectá tu Discord</div>
+        <div class="cta-desc">Recibí recordatorios, novedades y mensajes directos de tu consultor en tu canal privado.</div>
+        <ul class="cta-perks">
+          <li>Canal privado creado automáticamente</li>
+          <li>Recordatorio cada lunes y viernes</li>
+          <li>Notificaciones de sesiones y feedback</li>
+        </ul>
+        <button class="btn-discord" id="btn-connect" onclick="startConnect()">
+          <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+          Conectar Discord
+        </button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="state" id="state-success">
+      <div class="success-wrap">
+        <div class="success-icon">🎮</div>
+        <div class="success-title">¡Discord conectado!</div>
+        <div class="success-sub" id="success-sub">Tu cuenta fue vinculada correctamente. Ya podés recibir mensajes automáticos.</div>
+        <div class="info-grid" id="success-info"></div>
+        <div class="success-next">
+          <strong>¿Qué sigue?</strong>
+          Vas a recibir un mensaje de bienvenida en tu canal privado de Discord. Cada lunes y viernes vas a recibir el link de tu reporte semanal ahí.
+        </div>
+      </div>
+    </div>
+
+    <!-- ALREADY CONNECTED -->
+    <div class="state" id="state-already">
+      <div class="connected-wrap">
+        <div class="connected-icon">✅</div>
+        <div class="connected-title">Ya estás conectado</div>
+        <div class="connected-sub" id="already-sub">Tu cuenta de Discord ya está vinculada. Recibirás los recordatorios automáticamente.</div>
+        <div class="divider"></div>
+        <div class="info-grid" id="already-info"></div>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="state" id="state-error">
+      <div class="error-wrap">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title" id="error-title">No se pudo conectar</div>
+        <div class="error-sub" id="error-sub">Ocurrió un error durante el proceso. Podés intentarlo nuevamente.</div>
+        <button class="btn-retry" onclick="retry()">↩ Intentar de nuevo</button>
+      </div>
+    </div>
+
+    <!-- INVALID LINK -->
+    <div class="state" id="state-invalid">
+      <div class="invalid-wrap">
+        <div style="font-size:32px;margin-bottom:14px">🔗</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Link inválido</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6">Este link no es válido o ya expiró.<br>Pedile a tu consultor que te comparta el link correcto.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-text">Al conectar tu Discord aceptás que el bot de Evoluciona<br>pueda enviarte mensajes en tu canal privado.</div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://noble-determination-production.up.railway.app';
+const params  = new URLSearchParams(window.location.search);
+const alumnoId  = params.get('alumno_id')  || '';
+const clienteId = params.get('cliente_id') || '';
+const discordResult = params.get('discord') || '';
+const discordReason = params.get('reason')  || '';
+
+// Color for avatar
+function avatarColor(str){
+  const c=['#5865F2','#e0b54a','#5cb87a','#6090d4','#e0a848','#9b8cf2'];
+  let h=0;for(const ch of str)h=(h*31+ch.charCodeAt(0))&0xfffffff;
+  return c[h%c.length];
+}
+function ini(n,a){return((n||'?')[0]+(a?(a[0]||''):'')[0]||'').toUpperCase();}
+
+function show(stateId){
+  document.querySelectorAll('.state').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('state-'+stateId);
+  if(el)el.classList.add('active');
+}
+
+function renderInfoGrid(containerId, rows){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  el.innerHTML=rows.map(([l,v])=>
+    '<div class="info-row"><span class="info-lbl">'+l+'</span><span class="info-val">'+v+'</span></div>'
+  ).join('');
+}
+
+function setAlumnoHeader(nombre, apellido){
+  const n=nombre||'Alumno', a=apellido||'';
+  document.getElementById('alumno-name').textContent=n+' '+a;
+  const av=document.getElementById('alumno-avatar');
+  av.style.background=avatarColor(n+a);
+  av.textContent=ini(n,a);
+}
+
+function startConnect(){
+  const btn=document.getElementById('btn-connect');
+  btn.disabled=true;
+  btn.innerHTML='<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> Conectando…';
+  const url=API_URL+'/auth/discord/login'
+    +'?alumno_id='+encodeURIComponent(alumnoId)
+    +'&cliente_id='+encodeURIComponent(clienteId)
+    +'&return_to=onboarding';
+  window.location.href=url;
+}
+
+function retry(){
+  // Clean URL and go back to connect state
+  const clean=new URL(window.location.href);
+  clean.searchParams.delete('discord');
+  clean.searchParams.delete('reason');
+  window.history.replaceState(null,'',clean.toString());
+  show('connect');
+}
+
+function showSuccessState(discordData){
+  const rows=[
+    ['Estado','✅ Conectado'],
+  ];
+  if(discordData?.discord_username) rows.push(['Discord','@'+discordData.discord_username]);
+  if(discordData?.discord_channel_id) rows.push(['Canal privado',discordData.discord_channel_id]);
+  if(discordData?.discord_connected_at){
+    const d=new Date(discordData.discord_connected_at);
+    rows.push(['Conectado',d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})]);
+  }
+  rows.push(['Recordatorios','✓ Activos — Lun y Vie 09:00']);
+  renderInfoGrid('success-info', rows);
+  show('success');
+}
+
+function showAlreadyState(discordData){
+  const rows=[];
+  if(discordData?.discord_username) rows.push(['Discord','@'+discordData.discord_username]);
+  if(discordData?.discord_channel_id) rows.push(['Canal privado',discordData.discord_channel_id]);
+  if(discordData?.discord_connected_at){
+    const d=new Date(discordData.discord_connected_at);
+    rows.push(['Conectado el',d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'})]);
+  }
+  rows.push(['Recordatorios','✓ Activos — Lun y Vie 09:00']);
+  renderInfoGrid('already-info', rows);
+  show('already');
+}
+
+async function init(){
+  // Invalid link guard
+  if(!alumnoId || !clienteId){
+    show('invalid');
+    return;
+  }
+
+  // Clean discord result params from URL
+  const clean=new URL(window.location.href);
+  const hadResult=clean.searchParams.has('discord');
+  clean.searchParams.delete('discord');
+  clean.searchParams.delete('reason');
+  if(hadResult) window.history.replaceState(null,'',clean.toString());
+
+  // Load alumno name
+  try{
+    const r=await fetch(API_URL+'/alumno/'+encodeURIComponent(alumnoId));
+    if(r.ok){
+      const d=await r.json();
+      setAlumnoHeader(d.nombre, d.apellido);
+    }
+  }catch(_){}
+
+  // Handle OAuth return
+  if(discordResult==='error'){
+    const msgs={
+      missing_params:'Parámetros de sesión inválidos.',
+      invalid_state:'Estado de sesión inválido.',
+      alumno_not_found:'No se encontró tu cuenta en el sistema.',
+      server_error:'Error en el servidor al procesar la conexión.',
+    };
+    document.getElementById('error-sub').textContent=msgs[discordReason]||'Error desconocido. Intentá de nuevo.';
+    show('error');
+    return;
+  }
+
+  // Fetch current Discord status
+  try{
+    const r=await fetch(API_URL+'/alumnos/'+encodeURIComponent(alumnoId)+'/discord');
+    if(!r.ok) throw new Error('status '+r.status);
+    const d=await r.json();
+
+    if(discordResult==='connected'){
+      // Just came back from OAuth — show success
+      showSuccessState(d);
+    } else if(d.connected){
+      // Already connected before
+      showAlreadyState(d);
+    } else {
+      show('connect');
+    }
+  }catch(err){
+    console.error('[Discord Onboarding] status check failed:', err.message);
+    // If we just came back from OAuth with success, trust it
+    if(discordResult==='connected'){
+      showSuccessState(null);
+    } else {
+      show('connect');
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>

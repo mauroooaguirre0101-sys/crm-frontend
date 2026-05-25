@@ -77,6 +77,12 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
 .success-screen h2{font-size:20px;font-weight:700;margin-bottom:8px}
 .success-screen p{font-size:13px;color:var(--text2);line-height:1.6;max-width:360px;margin:0 auto}
 .success-next{margin-top:20px;padding:14px 18px;background:var(--surface-2);border-radius:10px;font-size:12px;color:var(--text2);display:inline-block;border:1px solid var(--line)}
+.discord-section{margin-top:22px;padding:16px 18px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;text-align:center}
+.discord-section .ds-label{font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.discord-section .ds-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:13px}
+.btn-discord{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;background:#5865F2;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-discord:hover{background:#4752c4;transform:translateY(-1px)}
+.btn-discord.connected{background:rgba(88,101,242,.12);color:#8891f5;border:1px solid rgba(88,101,242,.25);cursor:default;pointer-events:none}
 </style>
 </head>
 <body>
@@ -223,6 +229,49 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
       <div class="success-next">📅 Recordá tu próxima sesión y tené a mano tus preguntas principales.</div>
     </div>
 
+    <!-- DISCORD SECTION (shared — shown in success and locked) -->
+    <div id="discord-section" style="display:none" class="discord-section">
+      <div class="ds-label">Discord</div>
+      <div id="ds-body">
+        <div class="ds-desc">Conectá tu Discord para recibir recordatorios automáticos y notificaciones de tu consultor.</div>
+        <a id="discord-connect-btn" href="#" class="btn-discord" target="_self">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+          Conectar Discord
+        </a>
+      </div>
+    </div>
+
+    <!-- LOCKED -->
+    <div id="locked-screen" style="display:none;padding:8px 0 8px">
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="font-size:32px;margin-bottom:10px">🔒</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:6px">Reporte enviado</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">Ya completaste el reporte de esta semana.<br>Si necesitás hacer una corrección, solicitá una edición.</div>
+      </div>
+      <div id="locked-answers" style="margin-bottom:20px"></div>
+      <div id="edit-request-area" style="text-align:center">
+        <div id="pending-notice" style="display:none;font-size:12px;color:var(--gold);background:rgba(224,181,74,.08);border:1px solid rgba(224,181,74,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px">
+          ⏳ Tu solicitud de edición está pendiente de aprobación.
+        </div>
+        <button id="btn-request-edit" onclick="showEditRequestModal()" class="btn btn-next" style="font-size:13px;padding:10px 24px">
+          Solicitar edición
+        </button>
+      </div>
+    </div>
+
+    <!-- EDIT REQUEST MODAL -->
+    <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;padding:28px;max-width:440px;width:100%">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Solicitar edición</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.5">Contanos brevemente por qué necesitás editar el reporte. Tu consultor lo revisará y te habilitará la edición.</div>
+        <textarea id="edit-motivo" rows="4" maxlength="400" placeholder="Ej: Me equivoqué en los objetivos, quiero corregir un dato…" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 13px;font-size:13px;font-family:inherit;color:var(--text);resize:none;outline:none;line-height:1.6"></textarea>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button onclick="hideEditModal()" class="btn btn-back" style="padding:9px 18px;border:1px solid var(--line-strong);border-radius:9px;color:var(--text2)">Cancelar</button>
+          <button onclick="submitEditRequest()" class="btn btn-submit" style="padding:9px 22px">Enviar solicitud</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -231,6 +280,8 @@ const API_URL = 'https://noble-determination-production.up.railway.app';
 const params = new URLSearchParams(window.location.search);
 const clienteId = params.get('cliente_id') || '';
 const alumnoId  = params.get('alumno_id')  || '';
+let _lockedReporteId = null;
+let _isEditMode = false;
 
 // Week label
 (function(){
@@ -242,24 +293,92 @@ const alumnoId  = params.get('alumno_id')  || '';
   document.getElementById('week-label').textContent='Semana del '+m+' — '+s;
 })();
 
-// Pre-fill from alumno_id — si el link es personal, ocultar el campo instagram (ya identificado)
-if(alumnoId){
-  document.getElementById('instagram-field').style.display='none';
-  fetch(API_URL+'/alumno/'+alumnoId).then(function(r){return r.ok?r.json():null;}).then(function(d){
-    if(d){
-      if(d.nombre)document.getElementById('nombre').value=d.nombre;
-      if(d.apellido)document.getElementById('apellido').value=d.apellido;
-    }
-  }).catch(function(){});
-}
-
-// Show error if no cliente_id
 if(!clienteId){
   document.querySelector('.form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px">Link inválido. Pedile a tu consultor que te comparta el link correcto.</div>';
 }
 
-function updateProgress(step){document.getElementById('progress').style.width=((step-1)/5*100)+'%';}
+// ── Chequear si ya envió el reporte esta semana ──
+async function checkExisting(){
+  if(!alumnoId||!clienteId)return;
+  try{
+    const r=await fetch(API_URL+'/reportes/check/'+encodeURIComponent(alumnoId)+'?cliente_id='+encodeURIComponent(clienteId));
+    if(!r.ok)return;
+    const d=await r.json();
+    if(!d.hasReport)return; // Sin reporte → flujo normal
+    _lockedReporteId=d.reporte_id;
+    if(d.editable){
+      // Edición aprobada y vigente — prefill y modo edición
+      _isEditMode=true;
+      prefillForm(d.report);
+      const editableUntil=new Date(d.editable_until);
+      const mins=Math.max(0,Math.round((editableUntil-new Date())/60000));
+      document.getElementById('week-label').textContent='✏️ Modo edición — quedan ~'+mins+' min';
+      document.getElementById('btn-submit').textContent='Actualizar reporte ✓';
+    } else {
+      // Bloqueado → mostrar vista readonly
+      showLockedView(d.report, d.pendingRequest);
+    }
+  }catch(e){console.warn('[checkExisting]',e);}
+}
 
+function prefillForm(rep){
+  if(rep.nombre)  document.getElementById('nombre').value=rep.nombre;
+  if(rep.apellido)document.getElementById('apellido').value=rep.apellido;
+  if(rep.situacion)document.getElementById('situacion').value=rep.situacion;
+  if(rep.objetivos)document.getElementById('objetivos').value=rep.objetivos;
+  if(rep.logros)   document.getElementById('logros').value=rep.logros;
+  if(rep.problemas)document.getElementById('problemas').value=rep.problemas;
+  if(rep.extra)    document.getElementById('extra').value=rep.extra;
+  if(rep.estado){const r=document.querySelector('input[name="estado"][value="'+rep.estado+'"]');if(r)r.checked=true;}
+  if(rep.implementacion){const r=document.querySelector('input[name="implementacion"][value="'+rep.implementacion+'"]');if(r){r.checked=true;togglePorque(r);}}
+  if(rep.porque_no)document.getElementById('porque_no').value=rep.porque_no;
+  if(Array.isArray(rep.ayuda))rep.ayuda.forEach(function(v){const c=document.querySelector('input[name="ayuda"][value="'+v+'"]');if(c)c.checked=true;});
+}
+
+function showLockedView(rep, pending){
+  document.querySelectorAll('.step').forEach(function(s){s.style.display='none';});
+  const lbl={muy_bien:'🚀 Muy bien',bien:'✅ Bien',regular:'😐 Regular',dificil:'⚠️ Difícil'};
+  const impl={todas:'Sí, todas',algunas:'Algunas',ninguna:'Ninguna',primera_vez:'Primera vez'};
+  const esc=function(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  const row=function(t,v){return v?'<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">'+t+'</div><div style="font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-wrap">'+esc(v)+'</div></div>':'';};
+  document.getElementById('locked-answers').innerHTML=
+    (rep.estado?'<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Semana en general</div><div style="font-size:13px;color:var(--gold);font-weight:600">'+(lbl[rep.estado]||rep.estado)+'</div></div>':'')+
+    row('Situación',rep.situacion)+row('Objetivos',rep.objetivos)+row('Logros',rep.logros)+
+    row('Problemas',rep.problemas)+row('Implementación de recomendaciones',impl[rep.implementacion]||rep.implementacion)+
+    (rep.porque_no?row('¿Por qué no?',rep.porque_no):'')+row('Extra',rep.extra);
+  if(pending){
+    document.getElementById('pending-notice').style.display='block';
+    document.getElementById('btn-request-edit').style.display='none';
+  }
+  document.getElementById('locked-screen').style.display='block';
+  document.getElementById('progress').style.width='100%';
+  // Move discord section inside locked screen so it appears below
+  document.getElementById('locked-screen').appendChild(document.getElementById('discord-section'));
+  showDiscordSection();
+}
+
+function showEditModal(){document.getElementById('edit-modal').style.display='flex';}
+function hideEditModal(){document.getElementById('edit-modal').style.display='none';}
+function showEditRequestModal(){showEditModal();}
+
+async function submitEditRequest(){
+  const motivo=document.getElementById('edit-motivo').value.trim();
+  if(!motivo){document.getElementById('edit-motivo').focus();return;}
+  try{
+    const r=await fetch(API_URL+'/reportes/'+_lockedReporteId+'/request-edit',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({alumno_id:alumnoId,cliente_id:clienteId,motivo:motivo}),
+    });
+    const d=await r.json().catch(function(){return{};});
+    if(!r.ok){alert(d.error||'Error al enviar solicitud');return;}
+    hideEditModal();
+    document.getElementById('pending-notice').style.display='block';
+    document.getElementById('btn-request-edit').style.display='none';
+  }catch(e){alert('Error: '+e.message);}
+}
+
+// ── Form navigation ──
+function updateProgress(step){document.getElementById('progress').style.width=((step-1)/5*100)+'%';}
 function next(from){
   if(from===1&&!document.getElementById('nombre').value.trim()){document.getElementById('nombre').focus();return;}
   showStep(from+1);
@@ -267,33 +386,21 @@ function next(from){
 function prev(from){showStep(from-1);}
 function showStep(n){
   document.querySelectorAll('.step').forEach(function(s){s.classList.remove('active');});
-  var el=document.getElementById('step-'+n);
-  if(el)el.classList.add('active');
-  updateProgress(n);
-  window.scrollTo({top:0,behavior:'smooth'});
+  var el=document.getElementById('step-'+n);if(el)el.classList.add('active');
+  updateProgress(n);window.scrollTo({top:0,behavior:'smooth'});
 }
-
-function updateCount(inputId,countId,max){
-  document.getElementById(countId).textContent=document.getElementById(inputId).value.length;
-}
-
-function togglePorque(radio){
-  document.getElementById('field-porque').style.display=(radio.value==='ninguna'||radio.value==='algunas')?'block':'none';
-}
+function updateCount(inputId,countId,max){document.getElementById(countId).textContent=document.getElementById(inputId).value.length;}
+function togglePorque(radio){document.getElementById('field-porque').style.display=(radio.value==='ninguna'||radio.value==='algunas')?'block':'none';}
 
 async function submitForm(){
   const btn=document.getElementById('btn-submit');
   btn.disabled=true;btn.textContent='Enviando…';
-
-  // Week range for semana field
   const now=new Date(),day=now.getDay();
   const mon=new Date(now);mon.setDate(now.getDate()+(day===0?-6:1-day));
   const sun=new Date(mon);sun.setDate(mon.getDate()+6);
   const semana=mon.toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' — '+sun.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
-
   const payload={
-    cliente_id:clienteId,
-    alumno_id:alumnoId||null,
+    cliente_id:clienteId,alumno_id:alumnoId||null,
     nombre:document.getElementById('nombre').value.trim(),
     apellido:document.getElementById('apellido').value.trim(),
     instagram:document.getElementById('instagram').value.trim().replace(/^@/,''),
@@ -308,37 +415,98 @@ async function submitForm(){
     porque_no:document.getElementById('porque_no').value.trim(),
     extra:document.getElementById('extra').value.trim(),
   };
-
   try{
     const res=await fetch(API_URL+'/reportes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!res.ok){const e=await res.json().catch(function(){return{};});throw new Error(e.error||'Error al enviar');}
     document.querySelectorAll('.step').forEach(function(s){s.style.display='none';});
     document.getElementById('progress').style.width='100%';
     document.getElementById('success').style.display='block';
+    // Move discord section inside success screen
+    document.getElementById('success').appendChild(document.getElementById('discord-section'));
+    showDiscordSection();
   }catch(err){
-    btn.disabled=false;btn.textContent='Enviar reporte ✓';
+    btn.disabled=false;btn.textContent=_isEditMode?'Actualizar reporte ✓':'Enviar reporte ✓';
     alert('Error al enviar el reporte: '+err.message);
   }
 }
 
 updateProgress(1);
 
-// Load dynamic question titles from backend template
+// ── Discord section ──────────────────────────────────────────────
+function _buildDiscordURL(){
+  return API_URL+'/auth/discord/login?alumno_id='+encodeURIComponent(alumnoId)+'&cliente_id='+encodeURIComponent(clienteId);
+}
+
+function showDiscordSection(){
+  if(!alumnoId||!clienteId) return;
+  document.getElementById('discord-section').style.display='block';
+  document.getElementById('discord-connect-btn').href=_buildDiscordURL();
+  checkDiscordStatus();
+}
+
+async function checkDiscordStatus(){
+  if(!alumnoId) return;
+  try{
+    const r=await fetch(API_URL+'/alumnos/'+encodeURIComponent(alumnoId)+'/discord');
+    if(!r.ok) return;
+    const d=await r.json();
+    if(d.connected){
+      const btn=document.getElementById('discord-connect-btn');
+      btn.className='btn-discord connected';
+      btn.textContent='✓ Discord conectado';
+      btn.removeAttribute('href');
+      const desc=document.querySelector('#ds-body .ds-desc');
+      if(desc) desc.textContent=(d.discord_username?'Cuenta: @'+d.discord_username:'Discord vinculado')+'. Recibirás notificaciones automáticamente.';
+    }
+  }catch(e){ /* silent */ }
+}
+
+// Handle ?discord= param on return from OAuth callback
+(function(){
+  const disc=params.get('discord');
+  if(!disc) return;
+  // Clean URL without reloading (keeps alumno_id / cliente_id)
+  const clean=new URL(window.location.href);
+  clean.searchParams.delete('discord');
+  clean.searchParams.delete('reason');
+  window.history.replaceState(null,'',clean.toString());
+  if(disc==='connected'){
+    const notice=document.createElement('div');
+    notice.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#5865F2;color:#fff;font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+    notice.textContent='✓ Discord conectado correctamente';
+    document.body.appendChild(notice);
+    setTimeout(function(){notice.remove();},4000);
+  } else if(disc==='error'){
+    const reason=params.get('reason')||'desconocido';
+    const msgs={missing_params:'Parámetros inválidos.',invalid_state:'Estado de sesión inválido.',alumno_not_found:'No se encontró tu cuenta.',server_error:'Error en el servidor.'};
+    alert('No se pudo conectar Discord: '+(msgs[reason]||reason));
+  }
+})();
+// ────────────────────────────────────────────────────────────────
+
+// Pre-fill nombre/apellido si hay alumno_id, y chequear período
+if(alumnoId){
+  document.getElementById('instagram-field').style.display='none';
+  Promise.all([
+    fetch(API_URL+'/alumno/'+alumnoId).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  ]).then(function(results){
+    var d=results[0];
+    if(d){if(d.nombre)document.getElementById('nombre').value=d.nombre;if(d.apellido)document.getElementById('apellido').value=d.apellido;}
+  });
+  checkExisting();
+}
+
+// Load dynamic question titles
 if(clienteId){
   fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(clienteId)+'&tipo=reporte_semanal')
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
+    .then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(!d||!Array.isArray(d.questions))return;
       d.questions.forEach(function(q){
-        var el=document.getElementById('lbl-'+q.id);
-        if(!el||!q.titulo)return;
-        // Update text node only, keeping child elements (e.g. the "(opcional)" span)
+        var el=document.getElementById('lbl-'+q.id);if(!el||!q.titulo)return;
         var tn=Array.prototype.find.call(el.childNodes,function(n){return n.nodeType===3;});
-        if(tn)tn.textContent=q.titulo+(el.childNodes.length>1?' ':'');
-        else el.textContent=q.titulo;
+        if(tn)tn.textContent=q.titulo+(el.childNodes.length>1?' ':'');else el.textContent=q.titulo;
       });
-    })
-    .catch(function(){});
+    }).catch(function(){});
 }
 </script>
 </body>

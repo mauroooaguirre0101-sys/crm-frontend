@@ -428,10 +428,10 @@ function apiH(){return{'Content-Type':'application/json','x-cliente-id':localSto
 // ── Discord connect ──────────────────────────────────────────────────────────
 function discordConnect(alumnoId, clienteId){
   if(!alumnoId || !clienteId){ toast('⚠ Faltan datos del alumno'); return; }
-  console.log('[Discord Connect]', { alumno_id: alumnoId, cliente_id: clienteId });
-  const url = API_URL+'/auth/discord/login?alumno_id='+encodeURIComponent(alumnoId)+'&cliente_id='+encodeURIComponent(clienteId);
-  window.open(url, '_blank');
-  toast('Abriendo autorización Discord…');
+  const url = window.location.origin+'/discord_onboarding.html?alumno_id='+encodeURIComponent(alumnoId)+'&cliente_id='+encodeURIComponent(clienteId);
+  navigator.clipboard.writeText(url)
+    .then(()=>toast('Link de Discord copiado ✓'))
+    .catch(()=>{ prompt('Copiá este link y enviáselo al alumno:',url); });
 }
 
 async function discordDebugModal(){
