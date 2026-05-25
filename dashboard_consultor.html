@@ -111,6 +111,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .info-row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .impl-note{font-size:11.5px;color:var(--text3);font-style:italic;padding:7px 11px;background:rgba(255,255,255,0.02);border-radius:6px;border-left:2px solid var(--gold-border)}
 .rep-card-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--line);background:rgba(255,255,255,0.015)}
+/* Grouped reports */
+.rep-group{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.rep-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;transition:background .15s;gap:12px}
+.rep-group-hdr:hover{background:var(--surface-2)}
+.rep-group-body{border-top:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.rep-group-body .rep-card{margin-bottom:0}
 .rep-time{font-size:10px;color:var(--text3);margin-top:2px}
 /* Alumno cards */
 .alumno-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
@@ -312,9 +318,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="view-hdr">
       <div class="view-title">📋 Reportes <span class="week-badge" id="rep-week-badge">—</span></div>
     </div>
-    <!-- Solicitudes de edición pendientes -->
+    <!-- Solicitudes de edición -->
     <div id="edit-requests-panel" style="display:none;margin-bottom:18px;background:rgba(224,181,74,.06);border:1px solid rgba(224,181,74,.2);border-radius:10px;padding:14px 16px">
-      <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px">⚠️ Solicitudes de edición pendientes</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold)">✏️ Solicitudes de edición</div>
+        <div id="edit-req-tabs" style="display:flex;gap:5px"></div>
+      </div>
       <div id="edit-requests-list"></div>
     </div>
     <div id="reportes-list"></div>
@@ -518,6 +527,8 @@ let alumnos=[],reportes=[],sesiones=[],onboardings=[],activeFilter='todos',expan
 let dateFilter={type:'week',from:null,to:null};
 let editingSessionId=null;
 let editRequests=[];
+let collapsedReporteGroups=new Set();
+let editRequestsTab='pending';
 
 /* ── Week helpers ── */
 function weekRange(){
@@ -757,43 +768,65 @@ function setFilter(f,btn){
 }
 
 /* ── Reportes view ── */
+function _buildRepCard(rep,a){
+  const st=stCfg(rep.estado),ic=icCfg(rep.implementacion);
+  let body='';
+  if(rep.situacion||rep.objetivos||rep.logros){
+    body+='<div class="info-row">';
+    if(rep.situacion)body+='<div class="ib"><div class="ib-lbl">Situación</div><div class="ib-txt">'+rep.situacion+'</div></div>';
+    if(rep.objetivos||rep.logros){let ovl='';if(rep.objetivos)ovl+='Obj: '+rep.objetivos;if(rep.objetivos&&rep.logros)ovl+='\nLogró: '+rep.logros;else if(rep.logros)ovl+='Logró: '+rep.logros;body+='<div class="ib"><div class="ib-lbl">Objetivos vs Logros</div><div class="ib-txt" style="white-space:pre-line">'+ovl+'</div></div>';}
+    body+='</div>';
+  }
+  if(rep.problemas)body+='<div class="ib full"><div class="ib-lbl">Problemas reportados</div><div class="ib-txt">'+rep.problemas+'</div></div>';
+  if(rep.porque_no)body+='<div class="impl-note">♦ '+rep.porque_no+'</div>';
+  if(rep.ayuda&&rep.ayuda.length)body+='<div class="htags">'+rep.ayuda.map(t=>'<span class="htag">'+al(t)+'</span>').join('')+'</div>';
+  const detFn=a?'openDetail(\''+a.id+'\')':'openReport(\''+rep.id+'\')';
+  return '<div class="rep-card" data-s="'+rep.estado+'">'
+    +'<div class="rep-card-hdr" style="padding-top:10px;padding-bottom:8px">'
+    +'<div class="rep-time" style="font-size:10.5px;color:var(--text3)">'+fdatetime(rep.created_at)+'</div>'
+    +'<div style="display:flex;gap:5px;flex-wrap:wrap">'
+    +'<span class="badge" style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+'">'+st.label+'</span>'
+    +(ic?'<span class="badge" style="background:rgba(90,96,122,.12);color:'+ic.color+';border:1px solid rgba(90,96,122,.15)">'+ic.label+'</span>':'')
+    +(rep.locked?'<span class="badge" style="background:rgba(224,181,74,.08);color:var(--gold);border:1px solid rgba(224,181,74,.2)">🔒 Bloqueado</span>':'')
+    +'</div></div>'
+    +(body?'<div class="rep-card-body">'+body+'</div>':'')
+    +'<div class="rep-card-footer">'
+    +'<button class="btn btn-ghost btn-sm" onclick="'+detFn+'">Ver detalle completo</button>'
+    +'<div style="display:flex;gap:7px">'
+    +(a?'<button class="btn btn-ghost btn-sm" onclick="copyLink(\''+a.id+'\')">🔗 Compartir</button>':'')
+    +'<button class="btn btn-danger btn-sm" onclick="deleteReport(\''+rep.id+'\')">Eliminar</button>'
+    +'</div></div></div>';
+}
+
 function renderReportesList(){
   const w=filteredReports(),el=document.getElementById('reportes-list');
   document.getElementById('rep-week-badge').textContent=filterLabel();
   if(!w.length){el.innerHTML='<div class="empty-st">No hay reportes en este período.</div>';return;}
-  el.innerHTML=w.map(rep=>{
-    const a=alumnos.find(x=>x.id===rep.alumno_id);
-    const nombre=a?a.nombre:(rep.nombre||'Sin nombre');
-    const apellido=a?(a.apellido||''):(rep.apellido||'');
+  // group by alumno, preserving order by most recent report
+  const groupOrder=[],groups={};
+  w.forEach(rep=>{if(!groups[rep.alumno_id]){groups[rep.alumno_id]=[];groupOrder.push(rep.alumno_id);}groups[rep.alumno_id].push(rep);});
+  el.innerHTML=groupOrder.map(aid=>{
+    const reps=groups[aid];
+    const a=alumnos.find(x=>x.id===aid);
+    const nombre=a?a.nombre:(reps[0].nombre||'Sin nombre');
+    const apellido=a?(a.apellido||''):(reps[0].apellido||'');
     const negocio=a?(a.negocio||'Sin negocio'):'Sin negocio';
-    const st=stCfg(rep.estado),ic=icCfg(rep.implementacion);
     const col=aColor(nombre+apellido);
-    let body='';
-    if(rep.situacion||rep.objetivos||rep.logros){
-      body+='<div class="info-row">';
-      if(rep.situacion)body+='<div class="ib"><div class="ib-lbl">Situación</div><div class="ib-txt">'+rep.situacion+'</div></div>';
-      if(rep.objetivos||rep.logros){let ovl='';if(rep.objetivos)ovl+='Obj: '+rep.objetivos;if(rep.objetivos&&rep.logros)ovl+='\nLogró: '+rep.logros;else if(rep.logros)ovl+='Logró: '+rep.logros;body+='<div class="ib"><div class="ib-lbl">Objetivos vs Logros</div><div class="ib-txt" style="white-space:pre-line">'+ovl+'</div></div>';}
-      body+='</div>';
-    }
-    if(rep.problemas)body+='<div class="ib full"><div class="ib-lbl">Problemas reportados</div><div class="ib-txt">'+rep.problemas+'</div></div>';
-    if(rep.porque_no)body+='<div class="impl-note">♦ '+rep.porque_no+'</div>';
-    if(rep.ayuda&&rep.ayuda.length)body+='<div class="htags">'+rep.ayuda.map(t=>'<span class="htag">'+al(t)+'</span>').join('')+'</div>';
-    const detFn=a?'openDetail(\''+a.id+'\')':'openReport(\''+rep.id+'\')';
-    return '<div class="rep-card" data-s="'+rep.estado+'">'+
-      '<div class="rep-card-hdr"><div class="ci"><div class="avatar" style="background:'+col+'">'+ini(nombre,apellido)+'</div>'+
-      '<div><div class="cn">'+nombre+' '+apellido+(rep.instagram&&!a?' <span style="color:var(--text3);font-size:11px">@'+rep.instagram+'</span>':'')+'</div>'+
-      '<div class="cm">'+negocio+'</div><div class="rep-time">'+fdatetime(rep.created_at)+'</div></div></div>'+
-      '<div style="display:flex;gap:5px;flex-wrap:wrap"><span class="badge" style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+'">'+st.label+'</span>'+
-      (ic?'<span class="badge" style="background:rgba(90,96,122,.12);color:'+ic.color+';border:1px solid rgba(90,96,122,.15)">'+ic.label+'</span>':'')+
-      (rep.locked?'<span class="badge" style="background:rgba(224,181,74,.08);color:var(--gold);border:1px solid rgba(224,181,74,.2)">🔒 Bloqueado</span>':'')+
-      '</div></div>'+
-      (body?'<div class="rep-card-body">'+body+'</div>':'')+
-      '<div class="rep-card-footer">'+
-      '<button class="btn btn-ghost btn-sm" onclick="'+detFn+'">Ver detalle completo</button>'+
-      '<div style="display:flex;gap:7px">'+
-      (a?'<button class="btn btn-ghost btn-sm" onclick="copyLink(\''+a.id+'\')">🔗 Compartir</button>':'')+
-      '<button class="btn btn-danger btn-sm" onclick="deleteReport(\''+rep.id+'\')">Eliminar</button>'+
-      '</div></div></div>';
+    const isOpen=!collapsedReporteGroups.has(aid);
+    const st=stCfg(reps[0].estado);
+    const ig=a&&a.instagram?'<span style="color:var(--text3);font-size:10px;font-weight:400"> @'+a.instagram+'</span>':'';
+    return '<div class="rep-group" id="rg-'+aid+'">'
+      +'<div class="rep-group-hdr" onclick="toggleReporteGroup(\''+aid+'\')">'
+      +'<div class="ci"><div class="avatar" style="background:'+col+'">'+ini(nombre,apellido)+'</div>'
+      +'<div><div class="cn">'+nombre+' '+apellido+ig+'</div>'
+      +'<div class="cm">'+negocio+'</div></div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span class="badge" style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+'">'+st.label+'</span>'
+      +'<span class="rep-count-badge">'+reps.length+' reporte'+(reps.length!==1?'s':'')+'</span>'
+      +'<button class="expand-btn">'+(isOpen?'▲':'▼')+'</button>'
+      +'</div></div>'
+      +(isOpen?'<div class="rep-group-body">'+reps.map(r=>_buildRepCard(r,a)).join('')+'</div>':'')
+      +'</div>';
   }).join('');
 }
 
@@ -869,6 +902,7 @@ function renderAlumnosList(){
 }
 
 function toggleAlumno(id){if(expandedAlumnos.has(id))expandedAlumnos.delete(id);else expandedAlumnos.add(id);renderAlumnosList();}
+function toggleReporteGroup(id){if(collapsedReporteGroups.has(id))collapsedReporteGroups.delete(id);else collapsedReporteGroups.add(id);renderReportesList();}
 
 async function saveInstagram(alumnoId){
   const input=document.getElementById('ig-'+alumnoId);
@@ -1523,29 +1557,58 @@ async function load(){
   }
 }
 
+function setEditRequestsTab(tab){editRequestsTab=tab;renderEditRequests();}
+
 function renderEditRequests(){
   const pending=editRequests.filter(r=>r.estado==='pending');
   const panel=document.getElementById('edit-requests-panel');
   const list=document.getElementById('edit-requests-list');
+  const tabsEl=document.getElementById('edit-req-tabs');
   if(!panel||!list)return;
-  if(!pending.length){panel.style.display='none';return;}
+  if(!editRequests.length){panel.style.display='none';return;}
   panel.style.display='block';
-  list.innerHTML=pending.map(function(req){
+  // tabs
+  if(tabsEl){
+    tabsEl.innerHTML=[
+      {k:'pending',label:'Pendientes',n:pending.length},
+      {k:'all',label:'Historial',n:editRequests.length}
+    ].map(t=>'<button onclick="setEditRequestsTab(\''+t.k+'\')" class="filter-btn'+(editRequestsTab===t.k?' active':'')+'" style="font-size:10.5px;padding:3px 9px">'+t.label
+      +(t.n?'<span style="display:inline-block;background:'+(t.k==='pending'&&t.n?'var(--gold)':'var(--surface-3)')+';color:'+(t.k==='pending'&&t.n?'#000':'var(--text2)')+';padding:1px 6px;border-radius:20px;font-size:9px;font-weight:700;margin-left:4px">'+t.n+'</span>':'')
+      +'</button>').join('');
+  }
+  const toShow=editRequestsTab==='pending'?pending:editRequests;
+  if(!toShow.length){
+    list.innerHTML='<div style="padding:10px 0;color:var(--text3);font-size:11.5px;text-align:center">'+(editRequestsTab==='pending'?'No hay solicitudes pendientes ✓':'Sin historial de solicitudes')+'</div>';
+    return;
+  }
+  const sc={
+    pending:{label:'Pendiente',bg:'rgba(224,181,74,.12)',color:'var(--gold)',border:'rgba(224,181,74,.25)'},
+    approved:{label:'Aprobada',bg:'rgba(92,184,122,.1)',color:'#5cb87a',border:'rgba(92,184,122,.25)'},
+    rejected:{label:'Rechazada',bg:'rgba(212,96,96,.08)',color:'var(--red)',border:'rgba(212,96,96,.2)'},
+  };
+  list.innerHTML=toShow.map(req=>{
     const rep=req.reporte||{};
     const nombre=(rep.nombre||'')+(rep.apellido?' '+rep.apellido:'');
     const ig=rep.instagram?'@'+rep.instagram:'';
     const fa=new Date(req.created_at).toLocaleString('es-AR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const s=sc[req.estado]||sc.pending;
     return '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">'
       +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:12px;font-weight:600;color:var(--text)">'+(nombre||ig||'Alumno')+(ig&&nombre?' · <span style="color:var(--text3)">'+ig+'</span>':'')+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);margin-top:2px;line-height:1.4">'+rep.semana+'</div>'
-      +'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">"'+(req.motivo||'')+'"</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">'
+      +'<span style="font-size:12px;font-weight:600;color:var(--text)">'+(nombre||ig||'Alumno')+'</span>'
+      +(ig&&nombre?'<span style="color:var(--text3);font-size:10.5px">'+ig+'</span>':'')
+      +'<span class="badge" style="background:'+s.bg+';color:'+s.color+';border:1px solid '+s.border+'">'+s.label+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--text2)">'+(rep.semana||'—')+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:3px;font-style:italic">"'+(req.motivo||'')+'"</div>'
       +'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+fa+'</div>'
       +'</div>'
-      +'<div style="display:flex;gap:6px;flex-shrink:0">'
-      +'<button onclick="resolveEditRequest(\''+req.id+'\',\'approve\')" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(92,184,122,.3);background:rgba(92,184,122,.1);color:#5cb87a;font-size:11px;font-weight:600;cursor:pointer">Aprobar</button>'
-      +'<button onclick="resolveEditRequest(\''+req.id+'\',\'reject\')" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(212,96,96,.25);background:rgba(212,96,96,.07);color:#d46060;font-size:11px;font-weight:600;cursor:pointer">Rechazar</button>'
-      +'</div>'
+      +(req.estado==='pending'
+        ?'<div style="display:flex;gap:6px;flex-shrink:0">'
+          +'<button onclick="resolveEditRequest(\''+req.id+'\',\'approve\')" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(92,184,122,.3);background:rgba(92,184,122,.1);color:#5cb87a;font-size:11px;font-weight:600;cursor:pointer">Aprobar</button>'
+          +'<button onclick="resolveEditRequest(\''+req.id+'\',\'reject\')" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(212,96,96,.25);background:rgba(212,96,96,.07);color:#d46060;font-size:11px;font-weight:600;cursor:pointer">Rechazar</button>'
+          +'</div>'
+        :'')
       +'</div>';
   }).join('');
 }
