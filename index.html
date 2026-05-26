@@ -1449,7 +1449,11 @@
   <div class="form-group"><label class="form-label">Info previa <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:10px">(contexto del prospecto)</span></label>
     <textarea id="pc-info" placeholder="Situación del prospecto, objeciones esperadas, por qué podría cerrar…" style="min-height:110px"></textarea>
   </div>
-  <div class="modal-footer">
+  <div id="pc-duplicate-notice" style="display:none;background:rgba(255,180,50,0.08);border:1px solid rgba(255,180,50,0.25);border-radius:var(--rs);padding:14px 16px;margin-bottom:4px">
+    <div style="font-size:13px;font-weight:700;color:#e0b54a;margin-bottom:10px">⚠️ Esta llamada ya ha sido agendada</div>
+    <div id="pc-duplicate-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+  <div class="modal-footer" id="pc-footer-normal">
     <button class="btn btn-outline" onclick="closeModal('modal-call')">Cancelar</button>
     <button class="btn btn-gold" id="pc-save-btn" onclick="savePreCall()">Guardar y agendar</button>
   </div>

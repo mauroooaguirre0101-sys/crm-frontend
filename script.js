@@ -4554,6 +4554,27 @@ function onCallModalEstadoChange(){
 }
 
 // ========== SETTER: savePreCall ==========
+function _showPcDuplicate(call){
+  const notice=document.getElementById('pc-duplicate-notice');
+  const actions=document.getElementById('pc-duplicate-actions');
+  const footer=document.getElementById('pc-footer-normal');
+  if(!notice||!actions) return;
+  notice.style.display='block';
+  if(footer) footer.style.display='none';
+  const hasInfo=!!(call.info_previa&&call.info_previa.trim());
+  const n=(call.nombre||'').replace(/'/g,"\\'");
+  actions.innerHTML=
+    `<button class="btn btn-gold" onclick="abrirInfoPreviaEdit('${call.id}','${n}');closeModal('modal-call')">${hasInfo?'Editar Info Previa':'Agregar info previa'}</button>`+
+    `<button class="btn btn-outline" onclick="closeModal('modal-call')">Cerrar</button>`;
+}
+
+function _resetPcModal(){
+  const notice=document.getElementById('pc-duplicate-notice');
+  const footer=document.getElementById('pc-footer-normal');
+  if(notice) notice.style.display='none';
+  if(footer) footer.style.display='';
+}
+
 async function savePreCall(){
   const nombre   =(document.getElementById('pc-nombre')?.value||'').trim();
   const instagram=(document.getElementById('pc-instagram')?.value||'').trim().replace(/^@/,'').toLowerCase();
@@ -4561,6 +4582,13 @@ async function savePreCall(){
   const info_previa=(document.getElementById('pc-info')?.value||'').trim();
 
   if(!instagram){toast('✗ Instagram es obligatorio');return;}
+
+  // Reset any previous duplicate notice
+  _resetPcModal();
+
+  // Check for existing pending call with the same instagram
+  const existingPending=callsCache.find(c=>(c.instagram||'').toLowerCase()===instagram&&c.estado==='Pendiente');
+  if(existingPending){ _showPcDuplicate(existingPending); return; }
 
   const pendingLead=_pendingReporteLeadId?leadsCache.find(l=>l.id===_pendingReporteLeadId):leadsCache.find(l=>(l.instagram||'').toLowerCase()===instagram.toLowerCase());
   const rawFechaPC=(document.getElementById('pc-fecha-llamada')?.value||'').trim();
@@ -4894,7 +4922,7 @@ function guardarReporteAgenda(){
   toast('Usá el formulario de Pre-Call para guardar el reporte.');
 }
 
-function openAddCallModal(){openModal('modal-call');}
+function openAddCallModal(){_resetPcModal();openModal('modal-call');}
 async function _addCall(){}
 
 // ========== HELPER ==========
