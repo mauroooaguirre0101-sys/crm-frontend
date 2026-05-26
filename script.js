@@ -4440,6 +4440,25 @@ async function fetchCalls(){
 }
 function renderCallsPage(){_applyCallsFilter();fetchCalls();}
 
+function _getCalendlyFormText(r){
+  try{
+    const cf=typeof r.calendly_form_responses==='string'?JSON.parse(r.calendly_form_responses):r.calendly_form_responses;
+    if(cf&&typeof cf==='object'){
+      const entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
+      if(entries.length) return entries.map(([q,a])=>`${q}: ${a}`).join('\n');
+    }
+  }catch{}
+  if(r.origen==='Calendly'&&r.info_previa&&r.info_previa.trim()) return r.info_previa.trim();
+  return '';
+}
+
+function verCalendlyForm(callId){
+  const call=callsCache.find(c=>c.id===callId);
+  if(!call) return;
+  const text=_getCalendlyFormText(call);
+  if(text) verInfoPreviaModal(text, (call.nombre||'')+'  — Formulario Calendly');
+}
+
 function _renderCallsTable(rows){
   const tbody=document.getElementById('calls-table');
   if(!tbody) return;
@@ -4467,8 +4486,11 @@ function _renderCallsTable(rows){
     const fechaProg=estado==='Pendiente'&&r.fecha_llamada
       ?`<div style="font-size:10px;color:#6090d4;font-weight:600;margin-top:3px">📅 ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
       :'';
+    const reagendadaBadge=r.reagendada&&r.fecha_llamada
+      ?`<div style="font-size:10px;color:#e0b54a;font-weight:600;margin-top:3px">🔄 Re Agendada para el ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+      :'';
     const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${fechaProg}`;
+      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${reagendadaBadge||fechaProg}`;
 
     const infoPrevia=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="abrirInfoPreviaEdit('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">${r.info_previa?'Ver / Editar':'+ Agregar'}</button>`;
 
@@ -4487,26 +4509,16 @@ function _renderCallsTable(rows){
       ?`<a href="${r.link_grabacion}" target="_blank" class="link-btn">▶ Ver</a>`
       :'<span style="color:var(--text3)">—</span>';
 
-    // Priority: calendly_form_responses (JSONB) → info_previa fallback for old Calendly calls → —
-    let calendlyFormHtml='';
-    try{
-      const cf=typeof r.calendly_form_responses==='string'?JSON.parse(r.calendly_form_responses):r.calendly_form_responses;
-      if(cf&&typeof cf==='object'){
-        const entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
-        if(entries.length) calendlyFormHtml=entries.map(([q,a])=>`${q}: ${a}`).join('\n');
-      }
-    }catch{}
-    if(!calendlyFormHtml&&r.origen==='Calendly'&&r.info_previa&&r.info_previa.trim()){
-      calendlyFormHtml=r.info_previa.trim();
-    }
-    const reporteCalendlyCell=calendlyFormHtml
-      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verInfoPreviaModal(${JSON.stringify(calendlyFormHtml)},${JSON.stringify(r.nombre+' — Formulario')});event.stopPropagation()">Ver</button>`
+    const hasCalendlyForm=_getCalendlyFormText(r)!=='';
+    const reporteCalendlyCell=hasCalendlyForm
+      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verCalendlyForm('${r.id}');event.stopPropagation()">Ver</button>`
       :'<span style="color:var(--text3)">—</span>';
 
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
 
-    return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
+    const rowBg=estado==='No asistió'?'background:rgba(200,60,60,0.1);':'';
+    return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer;${rowBg}" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
       <td style="color:var(--text3);font-size:10px;text-align:center">${idx+1}</td>
       <td style="color:var(--text);font-weight:600">${r.nombre||'—'}${callNum}</td>
       <td><a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">@${r.instagram||'—'}</a></td>
