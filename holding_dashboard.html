@@ -315,6 +315,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
               <th>Discord Server ID</th>
               <th>Category ID</th>
               <th>Admin Role ID</th>
+              <th>Rol Alumno ID</th>
               <th>Invite Link</th>
               <th>Días recordatorio</th>
               <th>Hora (UTC)</th>
@@ -1170,7 +1171,7 @@ const DAY_LABELS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
 function renderDiscordCfg(){
   const el=document.getElementById('discord-cfg-body');if(!el)return;
-  if(!allClients.length){el.innerHTML='<tr><td colspan="10" style="color:var(--text3);text-align:center;padding:16px">Sin negocios cargados.</td></tr>';return;}
+  if(!allClients.length){el.innerHTML='<tr><td colspan="11" style="color:var(--text3);text-align:center;padding:16px">Sin negocios cargados.</td></tr>';return;}
   el.innerHTML=allClients.map((cid,i)=>{
     const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
     const cfg=_discordCfgs[cid]||{};
@@ -1187,6 +1188,7 @@ function renderDiscordCfg(){
       <td><input class="d-inp" id="dc-guild-${cid}" value="${cfg.guild_id||''}" placeholder="ID del servidor"></td>
       <td><input class="d-inp" id="dc-cat-${cid}" value="${cfg.category_id||''}" placeholder="ID de categoría"></td>
       <td><input class="d-inp" id="dc-role-${cid}" value="${cfg.admin_role_id||''}" placeholder="ID de rol admin"></td>
+      <td><input class="d-inp" id="dc-srole-${cid}" value="${cfg.student_role_id||''}" placeholder="ID de rol alumno"></td>
       <td><input class="d-inp" id="dc-invite-${cid}" value="${cfg.invite_link||''}" placeholder="https://discord.gg/…" style="min-width:160px"></td>
       <td><div class="day-checks">${dayChecks}</div></td>
       <td><input class="d-inp" id="dc-hour-${cid}" type="number" min="0" max="23" value="${cfg.schedule_utc_hour??12}" style="width:54px;text-align:center"> <span style="font-size:10px;color:var(--text3)">UTC</span></td>
@@ -1207,8 +1209,9 @@ function renderDiscordCfg(){
 async function saveDiscordCfg(cid){
   const guild_id     =(document.getElementById(`dc-guild-${cid}`)?.value||'').trim();
   const category_id  =(document.getElementById(`dc-cat-${cid}`)?.value||'').trim();
-  const admin_role_id=(document.getElementById(`dc-role-${cid}`)?.value||'').trim();
-  const invite_link  =(document.getElementById(`dc-invite-${cid}`)?.value||'').trim();
+  const admin_role_id  =(document.getElementById(`dc-role-${cid}`)?.value||'').trim();
+  const student_role_id=(document.getElementById(`dc-srole-${cid}`)?.value||'').trim();
+  const invite_link    =(document.getElementById(`dc-invite-${cid}`)?.value||'').trim();
   const enabled      =document.getElementById(`dc-enabled-${cid}`)?.checked||false;
   const schedule_utc_hour=parseInt(document.getElementById(`dc-hour-${cid}`)?.value||'12',10);
   const schedule_days=[0,1,2,3,4,5,6].filter(d=>document.getElementById(`dc-day-${cid}-${d}`)?.checked).join(',');
@@ -1218,10 +1221,10 @@ async function saveDiscordCfg(cid){
   const res=await fetch(`${API_URL}/discord/config`,{
     method:'PUT',
     headers:{...apiH(),'x-cliente-id':cid,'Content-Type':'application/json'},
-    body:JSON.stringify({guild_id,category_id,admin_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,schedule_utc_min:0}),
+    body:JSON.stringify({guild_id,category_id,admin_role_id,student_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,schedule_utc_min:0}),
   });
   if(!res.ok){toast('Error al guardar');return;}
-  _discordCfgs[cid]={..._discordCfgs[cid],guild_id,category_id,admin_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,cliente_id:cid};
+  _discordCfgs[cid]={..._discordCfgs[cid],guild_id,category_id,admin_role_id,student_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,cliente_id:cid};
   toast(`✓ ${clientLabel(cid)} — guardado`);
   renderDiscordCfg();
 }
