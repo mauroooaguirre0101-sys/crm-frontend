@@ -156,6 +156,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .d-toggle input[type=checkbox]{width:15px;height:15px;accent-color:#5865F2;cursor:pointer}
 .btn-discord-save{padding:5px 14px;border-radius:6px;font-size:11.5px;font-weight:700;border:1px solid #5865F2;color:#8891f5;background:rgba(88,101,242,.08);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
 .btn-discord-save:hover{background:rgba(88,101,242,.18)}
+.day-checks{display:flex;gap:4px;flex-wrap:nowrap}
+.day-check{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;font-weight:700;color:var(--text3);cursor:pointer}
+.day-check input{width:13px;height:13px;accent-color:#5865F2;cursor:pointer}
+.tpl-panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:20px}
+.tpl-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.tpl-body{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.tpl-event{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tpl-event-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.tpl-event-label{font-size:11px;font-weight:700;color:var(--text2)}
+.tpl-event-badge{font-size:9.5px;padding:2px 8px;border-radius:20px;background:rgba(88,101,242,.12);color:#8891f5;border:1px solid rgba(88,101,242,.25)}
+.tpl-textarea{width:100%;background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:8px 10px;color:var(--text);font-size:11.5px;font-family:'Inter',sans-serif;resize:vertical;min-height:70px;outline:none;line-height:1.5}
+.tpl-textarea:focus{border-color:#5865F2}
+.tpl-vars{font-size:10px;color:var(--text3);margin-top:5px}
+.tpl-vars code{background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:10px;color:#8891f5}
 .discord-status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
 .discord-status.ok{background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.28);color:#5cb87a}
 .discord-status.off{background:rgba(90,96,122,.08);border:1px solid var(--line-strong);color:var(--text3)}
@@ -302,6 +316,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
               <th>Category ID</th>
               <th>Admin Role ID</th>
               <th>Invite Link</th>
+              <th>Días recordatorio</th>
+              <th>Hora (UTC)</th>
               <th>Habilitado</th>
               <th style="text-align:right">Acción</th>
             </tr>
@@ -309,6 +325,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
           <tbody id="discord-cfg-body"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Templates de mensajes -->
+    <div class="tpl-panel">
+      <div class="tpl-header">
+        <div>
+          <div class="chart-title">📝 Templates de mensajes</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Personalizá los mensajes del bot para cada negocio. Usá <code style="background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:10px;color:#8891f5">{{nombre}}</code> y <code style="background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:10px;color:#8891f5">{{link}}</code> como variables.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <select id="tpl-client-sel" class="date-inp" onchange="loadTemplates(this.value)" style="padding:6px 10px;font-size:12px"></select>
+          <button class="btn-sm btn-gold2" onclick="saveAllTemplates()">Guardar templates</button>
+        </div>
+      </div>
+      <div class="tpl-body" id="tpl-body"><div class="empty" style="padding:20px">Seleccioná un negocio para editar sus mensajes.</div></div>
     </div>
 
     <div class="chart-panel">
@@ -1135,14 +1166,18 @@ async function reloadDiscordCfg(){
   renderDiscordCfg();
 }
 
+const DAY_LABELS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
 function renderDiscordCfg(){
   const el=document.getElementById('discord-cfg-body');if(!el)return;
-  if(!allClients.length){el.innerHTML='<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:16px">Sin negocios cargados.</td></tr>';return;}
+  if(!allClients.length){el.innerHTML='<tr><td colspan="10" style="color:var(--text3);text-align:center;padding:16px">Sin negocios cargados.</td></tr>';return;}
   el.innerHTML=allClients.map((cid,i)=>{
     const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
     const cfg=_discordCfgs[cid]||{};
     const enabled=!!cfg.enabled;
     const hasGuild=!!cfg.guild_id;
+    const activeDays=new Set((cfg.schedule_days||'1,5').split(',').map(Number));
+    const dayChecks=DAY_LABELS.map((d,idx)=>`<label class="day-check"><input type="checkbox" id="dc-day-${cid}-${idx}" ${activeDays.has(idx)?'checked':''}><span>${d}</span></label>`).join('');
     return `<tr>
       <td><span style="display:inline-flex;align-items:center;gap:8px">
         <span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block"></span>
@@ -1152,11 +1187,21 @@ function renderDiscordCfg(){
       <td><input class="d-inp" id="dc-guild-${cid}" value="${cfg.guild_id||''}" placeholder="ID del servidor"></td>
       <td><input class="d-inp" id="dc-cat-${cid}" value="${cfg.category_id||''}" placeholder="ID de categoría"></td>
       <td><input class="d-inp" id="dc-role-${cid}" value="${cfg.admin_role_id||''}" placeholder="ID de rol admin"></td>
-      <td><input class="d-inp" id="dc-invite-${cid}" value="${cfg.invite_link||''}" placeholder="https://discord.gg/…" style="min-width:170px"></td>
+      <td><input class="d-inp" id="dc-invite-${cid}" value="${cfg.invite_link||''}" placeholder="https://discord.gg/…" style="min-width:160px"></td>
+      <td><div class="day-checks">${dayChecks}</div></td>
+      <td><input class="d-inp" id="dc-hour-${cid}" type="number" min="0" max="23" value="${cfg.schedule_utc_hour??12}" style="width:54px;text-align:center"> <span style="font-size:10px;color:var(--text3)">UTC</span></td>
       <td><label class="d-toggle"><input type="checkbox" id="dc-enabled-${cid}" ${enabled?'checked':''}> Habilitado</label></td>
       <td style="text-align:right"><button class="btn-discord-save" onclick="saveDiscordCfg('${cid}')">Guardar</button></td>
     </tr>`;
   }).join('');
+
+  // Populate template client selector
+  const sel=document.getElementById('tpl-client-sel');
+  if(sel){
+    const prev=sel.value;
+    sel.innerHTML='<option value="">— Seleccioná negocio —</option>'+allClients.map(cid=>`<option value="${cid}">${clientLabel(cid)}</option>`).join('');
+    if(prev) sel.value=prev;
+  }
 }
 
 async function saveDiscordCfg(cid){
@@ -1165,18 +1210,69 @@ async function saveDiscordCfg(cid){
   const admin_role_id=(document.getElementById(`dc-role-${cid}`)?.value||'').trim();
   const invite_link  =(document.getElementById(`dc-invite-${cid}`)?.value||'').trim();
   const enabled      =document.getElementById(`dc-enabled-${cid}`)?.checked||false;
+  const schedule_utc_hour=parseInt(document.getElementById(`dc-hour-${cid}`)?.value||'12',10);
+  const schedule_days=[0,1,2,3,4,5,6].filter(d=>document.getElementById(`dc-day-${cid}-${d}`)?.checked).join(',');
 
   if(enabled&&!guild_id){toast('⚠️ Ingresá el Server ID antes de habilitar');return;}
 
   const res=await fetch(`${API_URL}/discord/config`,{
     method:'PUT',
     headers:{...apiH(),'x-cliente-id':cid,'Content-Type':'application/json'},
-    body:JSON.stringify({guild_id,category_id,admin_role_id,invite_link,enabled}),
+    body:JSON.stringify({guild_id,category_id,admin_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,schedule_utc_min:0}),
   });
   if(!res.ok){toast('Error al guardar');return;}
-  _discordCfgs[cid]={guild_id,category_id,admin_role_id,invite_link,enabled,cliente_id:cid};
-  toast(`✓ ${clientLabel(cid)} — Discord ${enabled?'habilitado':'deshabilitado'}`);
+  _discordCfgs[cid]={..._discordCfgs[cid],guild_id,category_id,admin_role_id,invite_link,enabled,schedule_days,schedule_utc_hour,cliente_id:cid};
+  toast(`✓ ${clientLabel(cid)} — guardado`);
   renderDiscordCfg();
+}
+
+// ── Templates ──
+let _tplData={}, _tplCurrentCid=null;
+
+async function loadTemplates(cid){
+  _tplCurrentCid=cid;
+  const el=document.getElementById('tpl-body');
+  if(!cid){el.innerHTML='<div class="empty" style="padding:20px">Seleccioná un negocio para editar sus mensajes.</div>';return;}
+  el.innerHTML='<div class="empty" style="padding:20px">Cargando…</div>';
+  const r=await fetch(`${API_URL}/discord/templates`,{headers:{...apiH(),'x-cliente-id':cid}});
+  if(!r.ok){el.innerHTML='<div class="empty" style="padding:20px;color:var(--red)">Error al cargar templates.</div>';return;}
+  _tplData[cid]=await r.json();
+  renderTemplates(cid);
+}
+
+function renderTemplates(cid){
+  const el=document.getElementById('tpl-body');if(!el)return;
+  const rows=_tplData[cid]||[];
+  if(!rows.length){el.innerHTML='<div class="empty" style="padding:20px">Sin templates.</div>';return;}
+  el.innerHTML=rows.map(t=>`
+    <div class="tpl-event">
+      <div class="tpl-event-hdr">
+        <span class="tpl-event-label">${t.label}</span>
+        ${t.is_custom?'<span class="tpl-event-badge">Personalizado</span>':'<span style="font-size:9.5px;color:var(--text3)">Default</span>'}
+      </div>
+      <textarea class="tpl-textarea" id="tpl-${cid}-${t.event}" rows="3">${t.template||''}</textarea>
+      <div class="tpl-vars">Variables disponibles: <code>{{nombre}}</code> — nombre del alumno &nbsp;|&nbsp; <code>{{link}}</code> — enlace al reporte</div>
+    </div>
+  `).join('');
+}
+
+async function saveAllTemplates(){
+  const cid=_tplCurrentCid;
+  if(!cid){toast('Seleccioná un negocio primero');return;}
+  const rows=_tplData[cid]||[];
+  const templates=rows.map(t=>({
+    event:    t.event,
+    template:(document.getElementById(`tpl-${cid}-${t.event}`)?.value||'').trim()||t.template,
+    enabled:  true,
+  }));
+  const res=await fetch(`${API_URL}/discord/templates`,{
+    method:'PUT',
+    headers:{...apiH(),'x-cliente-id':cid,'Content-Type':'application/json'},
+    body:JSON.stringify({templates}),
+  });
+  if(!res.ok){toast('Error al guardar templates');return;}
+  toast(`✓ Templates de ${clientLabel(cid)} guardados`);
+  await loadTemplates(cid);
 }
 
 init();
