@@ -4483,6 +4483,9 @@ function _renderCallsTable(rows){
     const linkCell=canLink&&r.link_llamada&&r.link_llamada.startsWith('http')
       ?`<a href="${r.link_llamada}" target="_blank" class="link-btn">Link meet</a>`
       :'<span style="color:var(--text3)">—</span>';
+    const grabacionCell=r.link_grabacion&&r.link_grabacion.startsWith('http')
+      ?`<a href="${r.link_grabacion}" target="_blank" class="link-btn">▶ Ver</a>`
+      :'<span style="color:var(--text3)">—</span>';
 
     let calendlyFormHtml='';
     try{
@@ -4513,13 +4516,14 @@ function _renderCallsTable(rows){
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${isPostCall?(r.seguimientos||0):'<span style="color:var(--text3)">—</span>'}</td>
       <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
+      <td onclick="event.stopPropagation()">${grabacionCell}</td>
       <td onclick="event.stopPropagation()">${reporteCalendlyCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="15" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
@@ -4616,6 +4620,7 @@ function abrirEditCall(id){
   if(r.responde){document.getElementById('ec-resp-si').checked=true;}
   else{document.getElementById('ec-resp-no').checked=true;}
   document.getElementById('ec-link').value=r.link_llamada||'';
+  document.getElementById('ec-grabacion').value=r.link_grabacion||'';
 
   let rJSON={};
   try{ if(r.reporte) rJSON=typeof r.reporte==='string'?JSON.parse(r.reporte):r.reporte; }catch{}
@@ -4658,6 +4663,8 @@ async function saveEditCall(){
   if(CALL_ESTADOS_MOTIVO.has(estado)&&!motivo){toast('✗ Motivo de no cierre obligatorio');return;}
   const link=(document.getElementById('ec-link')?.value||'').trim();
   if(link&&!link.startsWith('http')){toast('✗ El link debe empezar con http');return;}
+  const grabacion=(document.getElementById('ec-grabacion')?.value||'').trim();
+  if(grabacion&&!grabacion.startsWith('http')){toast('✗ El link de grabación debe empezar con http');return;}
 
   const avatar_ideal=document.getElementById('ec-avatar-si')?.checked?'Si':'No';
   const reporte=JSON.stringify({
@@ -4678,6 +4685,7 @@ async function saveEditCall(){
     seguimientos:parseInt(document.getElementById('ec-seguimientos')?.value||'0',10),
     responde:document.getElementById('ec-resp-si')?.checked===true,
     link_llamada:link,
+    link_grabacion:grabacion,
     reporte,
     fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
   };
