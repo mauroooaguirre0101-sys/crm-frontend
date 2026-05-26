@@ -144,6 +144,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .snap-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
 .snap-table td:first-child,.snap-table td:nth-child(2){text-align:left}
 
+/* ── Discord config ── */
+.discord-cfg-table{width:100%;border-collapse:collapse;font-size:12px}
+.discord-cfg-table th{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--line-strong);text-align:left}
+.discord-cfg-table td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.discord-cfg-table tr:last-child td{border-bottom:none}
+.discord-cfg-table tr:hover td{background:var(--surface-2)}
+.d-inp{background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:11.5px;font-family:'Inter',sans-serif;outline:none;width:100%;min-width:140px}
+.d-inp:focus{border-color:#5865F2}
+.d-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.d-toggle input[type=checkbox]{width:15px;height:15px;accent-color:#5865F2;cursor:pointer}
+.btn-discord-save{padding:5px 14px;border-radius:6px;font-size:11.5px;font-weight:700;border:1px solid #5865F2;color:#8891f5;background:rgba(88,101,242,.08);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-discord-save:hover{background:rgba(88,101,242,.18)}
+.discord-status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.discord-status.ok{background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.28);color:#5cb87a}
+.discord-status.off{background:rgba(90,96,122,.08);border:1px solid var(--line-strong);color:var(--text3)}
+
 /* ── Éxitos ── */
 .exito-rank{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:18px}
 .exito-rank-row{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line);gap:12px;transition:background .12s}
@@ -167,6 +183,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Dashboard</button>
   <button class="tab-btn" id="tab-finanzas" onclick="switchTab('finanzas')">💰 Finanzas Holding</button>
   <button class="tab-btn" id="tab-exito" onclick="switchTab('exito')">🏆 Casos de Éxito</button>
+  <button class="tab-btn" id="tab-discord" onclick="switchTab('discord')">🎮 Discord</button>
   <button class="tab-btn" id="tab-tareas" onclick="switchTab('tareas')">Tareas Holding</button>
 </div>
 
@@ -261,6 +278,49 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div class="metrics-row" id="exito-metrics" style="margin-bottom:20px"></div>
     <div class="chart-title" style="margin-bottom:12px">🏆 Ranking de negocios por casos de éxito</div>
     <div id="exito-ranking"></div>
+  </div>
+</div>
+
+<!-- ── Discord Config ── -->
+<div id="section-discord" style="display:none">
+  <div class="content">
+    <div class="chart-panel" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div class="chart-title">🎮 Configuración Discord por negocio</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Cada negocio tiene su propio servidor Discord. El bot crea canales privados en el servidor correcto automáticamente.</div>
+        </div>
+        <button class="btn-sm btn-gold2" onclick="reloadDiscordCfg()">↺ Actualizar</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="discord-cfg-table">
+          <thead>
+            <tr>
+              <th>Negocio</th>
+              <th>Estado</th>
+              <th>Discord Server ID</th>
+              <th>Category ID</th>
+              <th>Admin Role ID</th>
+              <th>Invite Link</th>
+              <th>Habilitado</th>
+              <th style="text-align:right">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="discord-cfg-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <div class="chart-title" style="margin-bottom:12px">📖 Cómo configurar un nuevo servidor</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.8">
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">1. Obtener Server ID</strong> — En Discord: activá "Modo desarrollador" (Ajustes → Avanzado), hacé click derecho en el servidor → Copiar ID.</div>
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">2. Obtener Category ID</strong> — Click derecho en la categoría donde van los canales privados → Copiar ID.</div>
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">3. Admin Role ID</strong> — Click derecho en el rol de admin en el servidor → Copiar ID. (Opcional, pero recomendado para que los admins vean todos los canales.)</div>
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">4. Invite Link</strong> — Creá un link de invitación permanente al servidor para compartirlo con nuevos alumnos.</div>
+        <div><strong style="color:var(--text)">5. Habilitado</strong> — Activá el toggle solo cuando el servidor esté listo. Si está deshabilitado, Discord no se activa para ese negocio.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -585,7 +645,7 @@ function toast(msg){
 let _activeTab = 'dashboard';
 function switchTab(tab){
   _activeTab = tab;
-  ['dashboard','finanzas','exito','tareas'].forEach(t=>{
+  ['dashboard','finanzas','exito','discord','tareas'].forEach(t=>{
     const s=document.getElementById('section-'+t);
     if(s) s.style.display=t===tab?'':'none';
   });
@@ -594,6 +654,7 @@ function switchTab(tab){
   if(tab==='tareas' && allClients.length) renderNegocioBar();
   if(tab==='finanzas') reloadFinanzas();
   if(tab==='exito') reloadExito();
+  if(tab==='discord') reloadDiscordCfg();
 }
 
 // ── Kanban ──
@@ -1055,6 +1116,67 @@ function renderExito(){
       ${r.cases.length?'<div class="exito-alumni-list">'+names+'</div>':''}
     </div>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════
+// 🎮  DISCORD CONFIG
+// ══════════════════════════════════════════
+let _discordCfgs = {};
+
+async function reloadDiscordCfg(){
+  if(!allClients.length) return;
+  _discordCfgs = {};
+  await Promise.all(allClients.map(async cid=>{
+    try{
+      const r=await fetch(`${API_URL}/discord/config`,{headers:{...apiH(),'x-cliente-id':cid}});
+      if(r.ok) _discordCfgs[cid]=await r.json();
+    }catch(e){}
+  }));
+  renderDiscordCfg();
+}
+
+function renderDiscordCfg(){
+  const el=document.getElementById('discord-cfg-body');if(!el)return;
+  if(!allClients.length){el.innerHTML='<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:16px">Sin negocios cargados.</td></tr>';return;}
+  el.innerHTML=allClients.map((cid,i)=>{
+    const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
+    const cfg=_discordCfgs[cid]||{};
+    const enabled=!!cfg.enabled;
+    const hasGuild=!!cfg.guild_id;
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block"></span>
+        <strong>${clientLabel(cid)}</strong>
+      </span></td>
+      <td><span class="discord-status ${enabled&&hasGuild?'ok':'off'}">${enabled&&hasGuild?'✓ Activo':'— Inactivo'}</span></td>
+      <td><input class="d-inp" id="dc-guild-${cid}" value="${cfg.guild_id||''}" placeholder="ID del servidor"></td>
+      <td><input class="d-inp" id="dc-cat-${cid}" value="${cfg.category_id||''}" placeholder="ID de categoría"></td>
+      <td><input class="d-inp" id="dc-role-${cid}" value="${cfg.admin_role_id||''}" placeholder="ID de rol admin"></td>
+      <td><input class="d-inp" id="dc-invite-${cid}" value="${cfg.invite_link||''}" placeholder="https://discord.gg/…" style="min-width:170px"></td>
+      <td><label class="d-toggle"><input type="checkbox" id="dc-enabled-${cid}" ${enabled?'checked':''}> Habilitado</label></td>
+      <td style="text-align:right"><button class="btn-discord-save" onclick="saveDiscordCfg('${cid}')">Guardar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveDiscordCfg(cid){
+  const guild_id     =(document.getElementById(`dc-guild-${cid}`)?.value||'').trim();
+  const category_id  =(document.getElementById(`dc-cat-${cid}`)?.value||'').trim();
+  const admin_role_id=(document.getElementById(`dc-role-${cid}`)?.value||'').trim();
+  const invite_link  =(document.getElementById(`dc-invite-${cid}`)?.value||'').trim();
+  const enabled      =document.getElementById(`dc-enabled-${cid}`)?.checked||false;
+
+  if(enabled&&!guild_id){toast('⚠️ Ingresá el Server ID antes de habilitar');return;}
+
+  const res=await fetch(`${API_URL}/discord/config`,{
+    method:'PUT',
+    headers:{...apiH(),'x-cliente-id':cid,'Content-Type':'application/json'},
+    body:JSON.stringify({guild_id,category_id,admin_role_id,invite_link,enabled}),
+  });
+  if(!res.ok){toast('Error al guardar');return;}
+  _discordCfgs[cid]={guild_id,category_id,admin_role_id,invite_link,enabled,cliente_id:cid};
+  toast(`✓ ${clientLabel(cid)} — Discord ${enabled?'habilitado':'deshabilitado'}`);
+  renderDiscordCfg();
 }
 
 init();
