@@ -3951,8 +3951,31 @@ async function logout(){
   if(eye) eye.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
-function toggleUserMenu(){
-  document.getElementById('user-menu').classList.toggle('open');
+async function toggleUserMenu(){
+  const menu = document.getElementById('user-menu');
+  menu.classList.toggle('open');
+  if(!menu.classList.contains('open')) return;
+  const email = localStorage.getItem('userEmail') || currentUser?.email || '';
+  document.getElementById('ump-name').textContent = document.getElementById('user-email-label').textContent || email || '—';
+  document.getElementById('ump-email-detail').textContent = email;
+  document.getElementById('ump-tasks').innerHTML = '<span style="font-size:11px;color:var(--text3)">Cargando...</span>';
+  try {
+    const res = await apiFetch(`${API_URL}/tasks`);
+    if(res.ok){
+      const tasks = await res.json();
+      const mine = tasks.filter(t=>{
+        try{ return JSON.parse(t.responsable||'[]').includes(email); }catch{ return t.responsable===email; }
+      });
+      const activas = mine.filter(t=>t.columna!=='terminado').length;
+      document.getElementById('ump-tasks').innerHTML =
+        `<span style="font-size:11px;color:var(--text3)">${mine.length} tarea${mine.length!==1?'s':''}</span>`+
+        (mine.length ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(224,181,74,.12);border:1px solid rgba(224,181,74,.3);color:var(--gold)">${activas} activa${activas!==1?'s':''}</span>` : '');
+    } else {
+      document.getElementById('ump-tasks').innerHTML = '';
+    }
+  } catch {
+    document.getElementById('ump-tasks').innerHTML = '';
+  }
 }
 document.addEventListener('click',e=>{
   const menu=document.getElementById('user-menu');
