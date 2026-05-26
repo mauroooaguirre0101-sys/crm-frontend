@@ -6692,6 +6692,7 @@ let _formsTab = 'onboarding';
 let _formsEditMode = false;
 let _formsQCache = {};
 let _formsRespCache = {};
+let _formsAlumnosCache = [];
 
 function switchFormsTab(tipo){
   _formsTab = tipo;
@@ -6721,8 +6722,10 @@ async function renderForms(){
     _formsQCache.onboarding = (tOnb.questions||[]).map(q=>({...q,opciones:q.opciones?[...q.opciones]:undefined}));
     _formsQCache.reporte_semanal = (tRep.questions||[]).map(q=>({...q,opciones:q.opciones?[...q.opciones]:undefined}));
 
-    let rAll = [];
+    let rAll = [], aAll = [];
     try { rAll = await apiFetch(`${API_URL}/form-responses`).then(r=>r.ok?r.json():[]); } catch{}
+    try { aAll = await apiFetch(`${API_URL}/alumnos`).then(r=>r.ok?r.json():[]); } catch{}
+    _formsAlumnosCache = aAll;
     _formsRespCache.onboarding = rAll.filter(r=>r.tipo==='onboarding');
     _formsRespCache.reporte_semanal = rAll.filter(r=>r.tipo==='reporte_semanal');
   } catch(e) {
@@ -6898,25 +6901,37 @@ function _renderFormsResponses(){
     <div style="display:flex;flex-direction:column;gap:10px">
       ${responses.map((r,i)=>{
         const resp = r.responses||{};
-        const name = r.alumno_nombre || r.alumno_instagram || '(sin nombre)';
+        const alumno = _formsAlumnosCache.find(a=>a.id===r.alumno_id);
+        const linkedName = alumno ? (alumno.nombre+' '+(alumno.apellido||'')).trim() : null;
+        const displayName = linkedName || r.alumno_nombre || r.alumno_instagram || '(sin nombre)';
         const date = r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}) : '';
-        const preview = Object.entries(resp).slice(0,2).map(([k,v])=>{
+        const linkedBadge = alumno
+          ? `<span style="font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.3);color:#5cb87a">✓ Alumno vinculado</span>`
+          : `<span style="font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(90,96,122,.1);border:1px solid rgba(90,96,122,.2);color:var(--text3)">Sin vincular</span>`;
+        const subInfo = alumno
+          ? `${alumno.negocio||''}${alumno.instagram?' · @'+alumno.instagram:''}`.replace(/^·\s*/,'').trim()
+          : r.alumno_instagram ? '@'+r.alumno_instagram : '';
+        const preview = Object.entries(resp).filter(([k])=>!k.startsWith('_')).slice(0,2).map(([k,v])=>{
           const label = qMap[k]||k;
           const val = Array.isArray(v)?v.join(', '):String(v||'');
           return `<span style="color:var(--text3)">${_formsEsc(label)}:</span> ${_formsEsc(val.slice(0,60))}${val.length>60?'…':''}`;
         }).join(' &nbsp;·&nbsp; ');
         return `
           <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 16px;cursor:pointer" onclick="_toggleFormResp('fresp-${i}')">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-              <div style="font-size:13px;font-weight:600">${_formsEsc(name)}</div>
-              <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="font-size:13px;font-weight:600">${_formsEsc(displayName)}</div>
+                ${linkedBadge}
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
                 <div style="font-size:11px;color:var(--text3)">${date}</div>
                 <button onclick="event.stopPropagation();_printFormResp(${i})" style="font-size:10.5px;padding:3px 10px;border-radius:6px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer">PDF</button>
               </div>
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">${preview}</div>
+            ${subInfo?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${_formsEsc(subInfo)}</div>`:''}
+            ${preview?`<div style="font-size:11px;color:var(--text3);margin-top:5px">${preview}</div>`:''}
             <div id="fresp-${i}" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-              ${Object.entries(resp).map(([k,v])=>{
+              ${Object.entries(resp).filter(([k])=>!k.startsWith('_')).map(([k,v])=>{
                 const label = qMap[k]||k;
                 const val = Array.isArray(v)?v.join(', '):String(v||'—');
                 return `<div style="margin-bottom:10px"><div style="font-size:10.5px;font-weight:700;color:var(--text3);margin-bottom:3px">${_formsEsc(label)}</div><div style="font-size:12.5px;color:var(--text)">${_formsEsc(val)}</div></div>`;
