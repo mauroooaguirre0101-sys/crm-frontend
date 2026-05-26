@@ -399,53 +399,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </div>
 
 <!-- ── Calendly section ── -->
-<div id="section-calendly" style="display:none;padding:24px;max-width:860px;margin:0 auto">
+<div id="section-calendly" style="display:none;padding:24px;max-width:880px;margin:0 auto">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div>
-      <div style="font-size:17px;font-weight:700;color:var(--text)">🗓 Integración Calendly</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada evento de Calendly mapeado a un negocio. Los leads se crean automáticamente al agendar.</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text)">🗓 Calendly — Conexiones por negocio</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada negocio conecta su propia cuenta Calendly. Los leads se crean automáticamente al agendar.</div>
     </div>
+    <button onclick="reloadCalendlyCfg()" style="font-size:11px;background:none;border:1px solid var(--line);color:var(--text3);cursor:pointer;padding:5px 12px;border-radius:8px">↻ Actualizar</button>
   </div>
 
-  <!-- Add mapping form -->
-  <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px">Agregar nuevo mapeo</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
-      <div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Negocio</div>
-        <select id="cal-new-cliente" class="d-inp" style="width:100%">
-          <option value="">— Seleccionar —</option>
-        </select>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Nombre del evento (opcional)</div>
-        <input id="cal-new-label" class="d-inp" placeholder="ej: Llamada Discovery" style="width:100%">
-      </div>
-      <div></div>
-    </div>
-    <div style="margin-top:10px">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Calendly Event Type URI <span style="color:var(--text4)">(ej: https://api.calendly.com/event_types/UUID)</span></div>
-      <div style="display:flex;gap:8px">
-        <input id="cal-new-uri" class="d-inp" placeholder="https://api.calendly.com/event_types/..." style="flex:1">
-        <button onclick="addCalendlyMapping()" style="padding:7px 18px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">Agregar</button>
-      </div>
-    </div>
-  </div>
+  <!-- Per-negocio connection cards -->
+  <div id="cal-connections-grid" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))"></div>
 
-  <!-- Mappings table -->
-  <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden">
-    <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:12px;font-weight:700;color:var(--text)">Mapeos configurados</span>
-      <button onclick="reloadCalendlyCfg()" style="font-size:11px;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid var(--line)">↻ Actualizar</button>
+  <!-- Info footer -->
+  <div style="margin-top:22px;background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.18);border-radius:10px;padding:14px 16px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8891f5;margin-bottom:8px">Cómo funciona</div>
+    <div style="font-size:11.5px;color:var(--text3);line-height:1.7">
+      1. Hacé click en <strong style="color:var(--text2)">Conectar Calendly</strong> para el negocio deseado.<br>
+      2. Autorizá la app en la ventana que se abre.<br>
+      3. El webhook se crea automáticamente — cada booking crea un lead en ese negocio.<br>
+      4. La URL del Callback que usa el sistema es <code style="font-size:10.5px;color:var(--text2)" id="cal-callback-url"></code>
     </div>
-    <div id="cal-mappings-body"></div>
-  </div>
-
-  <!-- Webhook URL info -->
-  <div style="margin-top:18px;background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.2);border-radius:10px;padding:14px 16px">
-    <div style="font-size:11px;font-weight:700;color:#8891f5;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">URL del Webhook</div>
-    <code id="cal-webhook-url" style="font-size:12px;color:var(--text2);word-break:break-all"></code>
-    <div style="font-size:11px;color:var(--text3);margin-top:6px">Configurá esta URL en Calendly → Integrations → Webhooks → Create webhook subscription</div>
   </div>
 </div>
 
@@ -1391,79 +1365,113 @@ async function saveAllTemplates(){
 }
 
 // ══════════════════════════════════════════
-// 🗓  CALENDLY CONFIG
+// 🗓  CALENDLY — OAuth per-negocio
 // ══════════════════════════════════════════
-let _calMappings = [];
+let _calConnections = {}; // negocio_id → connection data or null
+
+// Listen for OAuth popup postMessage
+window.addEventListener('message', e => {
+  if (!e.data || typeof e.data !== 'object') return;
+  if (e.data.type === 'calendly_connected') {
+    const label = clientLabel(e.data.cliente_id);
+    toast(`✓ Calendly conectado para ${label}`);
+    reloadCalendlyCfg();
+  } else if (e.data.type === 'calendly_error') {
+    toast('Error al conectar Calendly: ' + e.data.error);
+  }
+});
 
 async function reloadCalendlyCfg(){
-  // Set webhook URL display
-  document.getElementById('cal-webhook-url').textContent = `${API_URL}/webhooks/calendly`;
+  const cbUrl = document.getElementById('cal-callback-url');
+  if (cbUrl) cbUrl.textContent = `${API_URL}/calendly/callback`;
 
-  // Populate negocio select
-  const sel = document.getElementById('cal-new-cliente');
-  sel.innerHTML = '<option value="">— Seleccionar —</option>' +
-    allClients.map(cid => `<option value="${cid}">${esc(clientLabel(cid))}</option>`).join('');
+  if (!allClients.length) return;
 
-  // Load mappings
-  try {
-    const r = await fetch(`${API_URL}/calendly/mappings`, { headers: apiH() });
-    if (r.ok) { _calMappings = await r.json(); renderCalendlyMappings(); }
-    else toast('Error al cargar mapeos Calendly');
-  } catch { toast('Error de red'); }
+  // Fetch connection status for each negocio in parallel
+  const results = await Promise.all(allClients.map(async cid => {
+    try {
+      const r = await fetch(`${API_URL}/calendly/connection-status`, {
+        headers: { ...apiH(), 'x-cliente-id': cid }
+      });
+      return { cid, data: r.ok ? await r.json() : null };
+    } catch { return { cid, data: null }; }
+  }));
+
+  _calConnections = {};
+  for (const { cid, data } of results) _calConnections[cid] = data;
+  renderCalendlyConnections();
 }
 
-function renderCalendlyMappings(){
-  const body = document.getElementById('cal-mappings-body');
-  if (!_calMappings.length) {
-    body.innerHTML = '<div style="padding:24px;text-align:center;font-size:12px;color:var(--text3)">Sin mapeos configurados aún.</div>';
-    return;
-  }
-  body.innerHTML = _calMappings.map(m => `
-    <div style="display:grid;grid-template-columns:1fr 1.8fr auto;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)">
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--text)">${esc(clientLabel(m.cliente_id))}</div>
-        ${m.label ? `<div style="font-size:10px;color:var(--text3)">${esc(m.label)}</div>` : ''}
-      </div>
-      <div style="font-size:10.5px;color:var(--text3);word-break:break-all;font-family:monospace">${esc(m.calendly_event_uri)}</div>
-      <button onclick="deleteCalendlyMapping('${m.id}')"
-        style="padding:4px 10px;background:rgba(212,96,96,.1);border:1px solid rgba(212,96,96,.25);color:var(--red);border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap">
-        Eliminar
-      </button>
-    </div>`).join('');
-}
+function renderCalendlyConnections(){
+  const grid = document.getElementById('cal-connections-grid');
+  if (!grid) return;
 
-async function addCalendlyMapping(){
-  const cliente_id = document.getElementById('cal-new-cliente').value.trim();
-  const uri        = document.getElementById('cal-new-uri').value.trim();
-  const label      = document.getElementById('cal-new-label').value.trim();
-  if (!cliente_id) { toast('Seleccioná un negocio'); return; }
-  if (!uri.startsWith('https://api.calendly.com/event_types/')) {
-    toast('La URI debe comenzar con https://api.calendly.com/event_types/'); return;
-  }
-  try {
-    const r = await fetch(`${API_URL}/calendly/mappings`, {
-      method: 'POST', headers: apiH(),
-      body: JSON.stringify({ cliente_id, calendly_event_uri: uri, label: label || null })
-    });
-    if (r.ok) {
-      document.getElementById('cal-new-uri').value = '';
-      document.getElementById('cal-new-label').value = '';
-      document.getElementById('cal-new-cliente').value = '';
-      toast('Mapeo agregado ✓');
-      await reloadCalendlyCfg();
+  grid.innerHTML = allClients.map((cid, i) => {
+    const col  = CLIENT_COLORS[i % CLIENT_COLORS.length];
+    const conn = _calConnections[cid];
+    const label = clientLabel(cid);
+
+    if (conn) {
+      const connectedAt = conn.connected_at
+        ? new Date(conn.connected_at).toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+      return `
+        <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.25);color:#5cb87a">● Conectado</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:2px">👤 ${esc(conn.calendly_user_name || '—')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">✉ ${esc(conn.calendly_user_email || '—')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:14px">📅 Conectado el ${connectedAt}</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="connectCalendly('${cid}')"
+              style="flex:1;padding:7px;background:var(--surface-3);border:1px solid var(--line);color:var(--text2);border-radius:8px;font-size:11px;cursor:pointer">
+              ↻ Reconectar
+            </button>
+            <button onclick="disconnectCalendly('${cid}')"
+              style="padding:7px 14px;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.2);color:var(--red);border-radius:8px;font-size:11px;cursor:pointer">
+              Desconectar
+            </button>
+          </div>
+        </div>`;
     } else {
-      const e = await r.json();
-      toast('Error: ' + (e.error || r.status));
+      return `
+        <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(155,160,180,.1);border:1px solid rgba(155,160,180,.2);color:var(--text3)">Sin conectar</span>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Conectá la cuenta Calendly de este negocio para recibir leads automáticamente.</div>
+          <button onclick="connectCalendly('${cid}')"
+            style="width:100%;padding:9px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+            Conectar Calendly
+          </button>
+        </div>`;
     }
-  } catch { toast('Error de red'); }
+  }).join('');
 }
 
-async function deleteCalendlyMapping(id){
-  if (!confirm('¿Eliminar este mapeo?')) return;
+function connectCalendly(clienteId){
+  const url    = `${API_URL}/calendly/connect?cliente_id=${encodeURIComponent(clienteId)}`;
+  const popup  = window.open(url, 'calendly_oauth', 'width=620,height=720,left=200,top=100');
+  if (!popup) { toast('Permitir popups para conectar Calendly'); return; }
+  // Fallback poll in case postMessage doesn't fire (popup blocker partial allow)
+  const iv = setInterval(() => {
+    if (popup.closed) { clearInterval(iv); setTimeout(() => reloadCalendlyCfg(), 600); }
+  }, 600);
+}
+
+async function disconnectCalendly(clienteId){
+  if (!confirm(`¿Desconectar Calendly de ${clientLabel(clienteId)}? Se eliminará el webhook.`)) return;
   try {
-    const r = await fetch(`${API_URL}/calendly/mappings/${id}`, { method: 'DELETE', headers: apiH() });
-    if (r.ok) { toast('Mapeo eliminado'); await reloadCalendlyCfg(); }
-    else toast('Error al eliminar');
+    const r = await fetch(`${API_URL}/calendly/disconnect`, {
+      method: 'DELETE', headers: { ...apiH(), 'x-cliente-id': clienteId }
+    });
+    if (r.ok) { toast('Calendly desconectado'); await reloadCalendlyCfg(); }
+    else { const e = await r.json(); toast('Error: ' + (e.error || r.status)); }
   } catch { toast('Error de red'); }
 }
 
