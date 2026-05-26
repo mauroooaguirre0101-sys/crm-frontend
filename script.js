@@ -4487,6 +4487,7 @@ function _renderCallsTable(rows){
       ?`<a href="${r.link_grabacion}" target="_blank" class="link-btn">▶ Ver</a>`
       :'<span style="color:var(--text3)">—</span>';
 
+    // Priority: calendly_form_responses (JSONB) → info_previa fallback for old Calendly calls → —
     let calendlyFormHtml='';
     try{
       const cf=typeof r.calendly_form_responses==='string'?JSON.parse(r.calendly_form_responses):r.calendly_form_responses;
@@ -4495,11 +4496,12 @@ function _renderCallsTable(rows){
         if(entries.length) calendlyFormHtml=entries.map(([q,a])=>`${q}: ${a}`).join('\n');
       }
     }catch{}
+    if(!calendlyFormHtml&&r.origen==='Calendly'&&r.info_previa&&r.info_previa.trim()){
+      calendlyFormHtml=r.info_previa.trim();
+    }
     const reporteCalendlyCell=calendlyFormHtml
       ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verInfoPreviaModal(${JSON.stringify(calendlyFormHtml)},${JSON.stringify(r.nombre+' — Formulario')});event.stopPropagation()">Ver</button>`
-      : tieneReporte
-        ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteCall('${r.id}');event.stopPropagation()">Ver${avatarIdeal?' ⭐':''}</button>`
-        :'<span style="color:var(--text3)">—</span>';
+      :'<span style="color:var(--text3)">—</span>';
 
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
