@@ -4481,18 +4481,25 @@ function _renderCallsTable(rows){
       ?`<span class="trunc" style="max-width:110px;display:inline-block;color:#d46060" title="${r.motivo_no_cierre}">${r.motivo_no_cierre}</span>`
       :'<span style="color:var(--text3)">—</span>';
     const linkCell=canLink&&r.link_llamada&&r.link_llamada.startsWith('http')
-      ?`<a href="${r.link_llamada}" target="_blank" class="link-btn">▶ Ver</a>`
+      ?`<a href="${r.link_llamada}" target="_blank" class="link-btn">Link meet</a>`
       :'<span style="color:var(--text3)">—</span>';
 
-    const reporteCell=tieneReporte
-      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteCall('${r.id}');event.stopPropagation()">Ver${avatarIdeal?' ⭐':''}</button>`
-      :'<span style="color:var(--text3)">—</span>';
+    let calendlyFormHtml='';
+    try{
+      const cf=typeof r.calendly_form_responses==='string'?JSON.parse(r.calendly_form_responses):r.calendly_form_responses;
+      if(cf&&typeof cf==='object'){
+        const entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
+        if(entries.length) calendlyFormHtml=entries.map(([q,a])=>`${q}: ${a}`).join('\n');
+      }
+    }catch{}
+    const reporteCalendlyCell=calendlyFormHtml
+      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verInfoPreviaModal(${JSON.stringify(calendlyFormHtml)},${JSON.stringify(r.nombre+' — Formulario')});event.stopPropagation()">Ver</button>`
+      : tieneReporte
+        ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteCall('${r.id}');event.stopPropagation()">Ver${avatarIdeal?' ⭐':''}</button>`
+        :'<span style="color:var(--text3)">—</span>';
 
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
-    const reporteGhlCell=r.reporte_ghl
-      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteGHL('${r.id}');event.stopPropagation()">Ver</button>`
-      :'<span style="color:var(--text3)">—</span>';
 
     return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
       <td style="color:var(--text3);font-size:10px;text-align:center">${idx+1}</td>
@@ -4506,14 +4513,13 @@ function _renderCallsTable(rows){
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${isPostCall?(r.seguimientos||0):'<span style="color:var(--text3)">—</span>'}</td>
       <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
-      <td onclick="event.stopPropagation()">${reporteCell}</td>
-      <td onclick="event.stopPropagation()">${reporteGhlCell}</td>
+      <td onclick="event.stopPropagation()">${reporteCalendlyCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="15" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
