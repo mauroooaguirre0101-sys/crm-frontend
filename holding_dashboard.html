@@ -371,6 +371,32 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<!-- User profile modal -->
+<div id="user-profile-modal" class="tmodal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="tmodal" style="max-width:400px;width:100%" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div id="up-name" style="font-size:17px;font-weight:700;color:var(--text)">—</div>
+        <div id="up-email" style="font-size:11px;color:var(--text3);margin-top:2px">—</div>
+      </div>
+      <button onclick="document.getElementById('user-profile-modal').style.display='none'"
+        style="width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);cursor:pointer;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <div style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center">
+        <div id="up-activas" style="font-size:26px;font-weight:800;color:var(--gold)">0</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-top:2px">Activas</div>
+      </div>
+      <div style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center">
+        <div id="up-total" style="font-size:26px;font-weight:800;color:var(--text2)">0</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-top:2px">Total</div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Por negocio</div>
+    <div id="up-negocios"></div>
+  </div>
+</div>
+
 <!-- Task modal -->
 <div id="task-modal-overlay" class="tmodal-overlay" style="display:none" onclick="if(event.target===this)closeTaskModal()">
   <div class="tmodal" onclick="event.stopPropagation()">
@@ -683,7 +709,7 @@ function switchTab(tab){
   });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  if(tab==='tareas' && allClients.length) renderNegocioBar();
+  if(tab==='tareas' && allClients.length){ renderNegocioBar(); _loadTasksSummary(); }
   if(tab==='finanzas') reloadFinanzas();
   if(tab==='exito') reloadExito();
   if(tab==='discord') reloadDiscordCfg();
@@ -700,7 +726,7 @@ const AREAS=['Marketing','Ventas','Productos','Sistemas','Otro'];
 const AREA_COLORS={Marketing:'#9b74d4',Ventas:'#6090d4',Productos:'#5bbbd4',Sistemas:'#e0a848',Otro:'#5a607a'};
 const PRIO_COLORS={Alta:'#d46060',Media:'#e0a848',Baja:'#6090d4'};
 
-let tareasData=[], tareasNegocio=null, _editTaskId=null, _dragSrcId=null, _holdingUsers=[];
+let tareasData=[], tareasNegocio=null, _editTaskId=null, _dragSrcId=null, _holdingUsers=[], _tasksSummary=[];
 
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 
@@ -766,7 +792,7 @@ function taskCard(t){
   return `<div class="task-card" draggable="true" data-id="${t.id}"
     ondragstart="dragStart('${t.id}',event)" onclick="openTaskModal('${t.id}')">
     <div class="task-title">${esc(t.titulo)}</div>
-    ${(()=>{const rs=_parseResponsables(t.responsable);return rs.length?`<div class="task-resp">👤 ${rs.map(e=>esc(_emailLabel(e))).join(' · ')}</div>`:'';})()}
+    ${(()=>{const rs=_parseResponsables(t.responsable);return rs.length?`<div class="task-resp">👤 ${rs.map(e=>`<span onclick="event.stopPropagation();openUserProfile('${e}')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">${esc(_emailLabel(e))}</span>`).join(' · ')}</div>`:'';})()}
     <div class="task-footer">
       <span class="task-badge" style="background:${prioColor}22;color:${prioColor}">${t.prioridad||'Media'}</span>
       ${fechaStr?`<span class="task-fecha" style="color:${overdue?'#d46060':'#5a607a'}">${overdue?'⚠ ':'📅 '}${fechaStr}</span>`:''}
@@ -896,6 +922,39 @@ async function deleteTask(){
     tareasData=tareasData.filter(t=>String(t.id)!==String(_editTaskId));
     closeTaskModal();renderKanban();toast('Tarea eliminada');
   }catch(e){toast('Error al eliminar');}
+}
+
+// ── Resumen de tareas por usuario ──
+async function _loadTasksSummary(){
+  try{
+    const r=await fetch(`${API_URL}/holding/tasks-summary`,{headers:apiH()});
+    if(r.ok) _tasksSummary=await r.json();
+  }catch{}
+}
+
+function openUserProfile(email){
+  const data=_tasksSummary.find(u=>u.email===email)||{email,total:0,activas:0,por_negocio:{}};
+  const name=_emailLabel(email);
+  const pn=data.por_negocio||{};
+  const negocios=Object.entries(pn).sort((a,b)=>b[1].activas-a[1].activas);
+
+  const rows=negocios.length
+    ? negocios.map(([cid,cnt])=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)">
+          <span style="font-size:12px;color:var(--text2)">${esc(_negocioName(cid))}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--text3)">${cnt.total} total</span>
+            <span style="font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:20px;background:rgba(224,181,74,.12);border:1px solid rgba(224,181,74,.3);color:var(--gold)">${cnt.activas} activas</span>
+          </div>
+        </div>`).join('')
+    : '<div style="font-size:12px;color:var(--text3);padding:12px 0">Sin tareas asignadas.</div>';
+
+  document.getElementById('up-name').textContent=name;
+  document.getElementById('up-email').textContent=email;
+  document.getElementById('up-total').textContent=data.total||0;
+  document.getElementById('up-activas').textContent=data.activas||0;
+  document.getElementById('up-negocios').innerHTML=rows;
+  document.getElementById('user-profile-modal').style.display='flex';
 }
 
 // ══════════════════════════════════════════
