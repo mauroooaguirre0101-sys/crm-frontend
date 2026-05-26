@@ -3967,9 +3967,15 @@ async function toggleUserMenu(){
         try{ return JSON.parse(t.responsable||'[]').includes(email); }catch{ return t.responsable===email; }
       });
       const activas = mine.filter(t=>t.columna!=='terminado').length;
+      const negocioName = _displayName(getCid()).split(' · ')[0];
       document.getElementById('ump-tasks').innerHTML =
-        `<span style="font-size:11px;color:var(--text3)">${mine.length} tarea${mine.length!==1?'s':''}</span>`+
-        (mine.length ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(224,181,74,.12);border:1px solid rgba(224,181,74,.3);color:var(--gold)">${activas} activa${activas!==1?'s':''}</span>` : '');
+        `<div style="width:100%">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px">${negocioName}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:11px;color:var(--text3)">${mine.length} tarea${mine.length!==1?'s':''}</span>
+            ${mine.length ? `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(224,181,74,.12);border:1px solid rgba(224,181,74,.3);color:var(--gold)">${activas} activa${activas!==1?'s':''}</span>` : ''}
+          </div>
+        </div>`;
     } else {
       document.getElementById('ump-tasks').innerHTML = '';
     }
