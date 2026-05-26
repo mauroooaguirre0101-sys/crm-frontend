@@ -199,6 +199,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <button class="tab-btn" id="tab-exito" onclick="switchTab('exito')">🏆 Casos de Éxito</button>
   <button class="tab-btn" id="tab-discord" onclick="switchTab('discord')">🎮 Discord</button>
   <button class="tab-btn" id="tab-tareas" onclick="switchTab('tareas')">Tareas Holding</button>
+  <button class="tab-btn" id="tab-calendly" onclick="switchTab('calendly')">🗓 Calendly</button>
 </div>
 
 <div id="section-dashboard">
@@ -394,6 +395,57 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     </div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Por negocio</div>
     <div id="up-negocios"></div>
+  </div>
+</div>
+
+<!-- ── Calendly section ── -->
+<div id="section-calendly" style="display:none;padding:24px;max-width:860px;margin:0 auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <div style="font-size:17px;font-weight:700;color:var(--text)">🗓 Integración Calendly</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada evento de Calendly mapeado a un negocio. Los leads se crean automáticamente al agendar.</div>
+    </div>
+  </div>
+
+  <!-- Add mapping form -->
+  <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px">Agregar nuevo mapeo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Negocio</div>
+        <select id="cal-new-cliente" class="d-inp" style="width:100%">
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Nombre del evento (opcional)</div>
+        <input id="cal-new-label" class="d-inp" placeholder="ej: Llamada Discovery" style="width:100%">
+      </div>
+      <div></div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Calendly Event Type URI <span style="color:var(--text4)">(ej: https://api.calendly.com/event_types/UUID)</span></div>
+      <div style="display:flex;gap:8px">
+        <input id="cal-new-uri" class="d-inp" placeholder="https://api.calendly.com/event_types/..." style="flex:1">
+        <button onclick="addCalendlyMapping()" style="padding:7px 18px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mappings table -->
+  <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">Mapeos configurados</span>
+      <button onclick="reloadCalendlyCfg()" style="font-size:11px;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid var(--line)">↻ Actualizar</button>
+    </div>
+    <div id="cal-mappings-body"></div>
+  </div>
+
+  <!-- Webhook URL info -->
+  <div style="margin-top:18px;background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.2);border-radius:10px;padding:14px 16px">
+    <div style="font-size:11px;font-weight:700;color:#8891f5;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">URL del Webhook</div>
+    <code id="cal-webhook-url" style="font-size:12px;color:var(--text2);word-break:break-all"></code>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px">Configurá esta URL en Calendly → Integrations → Webhooks → Create webhook subscription</div>
   </div>
 </div>
 
@@ -703,7 +755,7 @@ function toast(msg){
 let _activeTab = 'dashboard';
 function switchTab(tab){
   _activeTab = tab;
-  ['dashboard','finanzas','exito','discord','tareas'].forEach(t=>{
+  ['dashboard','finanzas','exito','discord','tareas','calendly'].forEach(t=>{
     const s=document.getElementById('section-'+t);
     if(s) s.style.display=t===tab?'':'none';
   });
@@ -713,6 +765,7 @@ function switchTab(tab){
   if(tab==='finanzas') reloadFinanzas();
   if(tab==='exito') reloadExito();
   if(tab==='discord') reloadDiscordCfg();
+  if(tab==='calendly') reloadCalendlyCfg();
 }
 
 // ── Kanban ──
@@ -1335,6 +1388,83 @@ async function saveAllTemplates(){
   if(!res.ok){toast('Error al guardar templates');return;}
   toast(`✓ Templates de ${clientLabel(cid)} guardados`);
   await loadTemplates(cid);
+}
+
+// ══════════════════════════════════════════
+// 🗓  CALENDLY CONFIG
+// ══════════════════════════════════════════
+let _calMappings = [];
+
+async function reloadCalendlyCfg(){
+  // Set webhook URL display
+  document.getElementById('cal-webhook-url').textContent = `${API_URL}/webhooks/calendly`;
+
+  // Populate negocio select
+  const sel = document.getElementById('cal-new-cliente');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+    allClients.map(cid => `<option value="${cid}">${esc(clientLabel(cid))}</option>`).join('');
+
+  // Load mappings
+  try {
+    const r = await fetch(`${API_URL}/calendly/mappings`, { headers: apiH() });
+    if (r.ok) { _calMappings = await r.json(); renderCalendlyMappings(); }
+    else toast('Error al cargar mapeos Calendly');
+  } catch { toast('Error de red'); }
+}
+
+function renderCalendlyMappings(){
+  const body = document.getElementById('cal-mappings-body');
+  if (!_calMappings.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;font-size:12px;color:var(--text3)">Sin mapeos configurados aún.</div>';
+    return;
+  }
+  body.innerHTML = _calMappings.map(m => `
+    <div style="display:grid;grid-template-columns:1fr 1.8fr auto;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">${esc(clientLabel(m.cliente_id))}</div>
+        ${m.label ? `<div style="font-size:10px;color:var(--text3)">${esc(m.label)}</div>` : ''}
+      </div>
+      <div style="font-size:10.5px;color:var(--text3);word-break:break-all;font-family:monospace">${esc(m.calendly_event_uri)}</div>
+      <button onclick="deleteCalendlyMapping('${m.id}')"
+        style="padding:4px 10px;background:rgba(212,96,96,.1);border:1px solid rgba(212,96,96,.25);color:var(--red);border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap">
+        Eliminar
+      </button>
+    </div>`).join('');
+}
+
+async function addCalendlyMapping(){
+  const cliente_id = document.getElementById('cal-new-cliente').value.trim();
+  const uri        = document.getElementById('cal-new-uri').value.trim();
+  const label      = document.getElementById('cal-new-label').value.trim();
+  if (!cliente_id) { toast('Seleccioná un negocio'); return; }
+  if (!uri.startsWith('https://api.calendly.com/event_types/')) {
+    toast('La URI debe comenzar con https://api.calendly.com/event_types/'); return;
+  }
+  try {
+    const r = await fetch(`${API_URL}/calendly/mappings`, {
+      method: 'POST', headers: apiH(),
+      body: JSON.stringify({ cliente_id, calendly_event_uri: uri, label: label || null })
+    });
+    if (r.ok) {
+      document.getElementById('cal-new-uri').value = '';
+      document.getElementById('cal-new-label').value = '';
+      document.getElementById('cal-new-cliente').value = '';
+      toast('Mapeo agregado ✓');
+      await reloadCalendlyCfg();
+    } else {
+      const e = await r.json();
+      toast('Error: ' + (e.error || r.status));
+    }
+  } catch { toast('Error de red'); }
+}
+
+async function deleteCalendlyMapping(id){
+  if (!confirm('¿Eliminar este mapeo?')) return;
+  try {
+    const r = await fetch(`${API_URL}/calendly/mappings/${id}`, { method: 'DELETE', headers: apiH() });
+    if (r.ok) { toast('Mapeo eliminado'); await reloadCalendlyCfg(); }
+    else toast('Error al eliminar');
+  } catch { toast('Error de red'); }
 }
 
 init();
