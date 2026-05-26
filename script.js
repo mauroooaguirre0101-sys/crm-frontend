@@ -6690,6 +6690,7 @@ document.addEventListener('click', e=>{
 // ========== FORMULARIOS ==========
 let _formsTab = 'onboarding';
 let _formsEditMode = false;
+let _formsAddingQ = false;
 let _formsQCache = {};
 let _formsRespCache = {};
 let _formsAlumnosCache = [];
@@ -6697,6 +6698,7 @@ let _formsAlumnosCache = [];
 function switchFormsTab(tipo){
   _formsTab = tipo;
   _formsEditMode = false;
+  _formsAddingQ = false;
   document.querySelectorAll('[id^="forms-tab-"]').forEach(b=>{
     b.classList.toggle('active', b.id === 'forms-tab-'+tipo);
   });
@@ -6811,9 +6813,44 @@ function _renderFormsEditor(){
         style="font-size:12px;padding:7px 16px;border-radius:8px;background:rgba(224,181,74,.1);border:1px solid var(--gold);color:var(--gold);cursor:pointer;font-weight:600">✏️ Editar preguntas</button>`
     : '';
 
+  const addQPanel = isEdit ? `
+    <div style="margin-top:10px">
+      ${_formsAddingQ ? `
+        <div style="background:var(--surface-2);border:1px solid var(--gold);border-radius:11px;padding:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:12px">Nueva pregunta</div>
+          <div style="margin-bottom:10px">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:5px">Título</div>
+            <input id="nq-titulo" type="text" placeholder="ej. ¿Cuál es tu objetivo principal?"
+              style="width:100%;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:7px;padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none"
+              onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'" autofocus>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de respuesta</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px" id="nq-tipos">
+              ${[['text','Texto corto'],['textarea','Texto largo'],['radio','Opción múltiple'],['checkbox','Casillas'],['scale','Escala']].map(([v,l])=>`
+                <label style="cursor:pointer">
+                  <input type="radio" name="nq-tipo" value="${v}" ${v==='text'?'checked':''} style="display:none" onchange="_formsOnTipoChange('${v}')">
+                  <span class="nq-tipo-btn" data-v="${v}" style="display:inline-block;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text2);cursor:pointer;transition:all .15s;${v==='text'?'border-color:var(--gold);background:rgba(224,181,74,.1);color:var(--gold)':''}">${l}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+          <div id="nq-extra"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+            <button onclick="_formsCancelAddQ()"
+              style="font-size:12px;padding:6px 14px;border-radius:7px;background:transparent;border:1px solid var(--line-strong);color:var(--text3);cursor:pointer">Cancelar</button>
+            <button onclick="_formsConfirmAddQ()"
+              style="font-size:12px;padding:6px 16px;border-radius:7px;background:linear-gradient(135deg,var(--gold),#c89732);color:#000;font-weight:700;border:none;cursor:pointer">Agregar →</button>
+          </div>
+        </div>` : `
+        <button onclick="_formsStartAddQ()"
+          style="width:100%;padding:9px;border-radius:9px;border:1.5px dashed rgba(224,181,74,.4);background:rgba(224,181,74,.04);color:var(--gold);font-size:12.5px;font-weight:600;cursor:pointer">
+          + Nueva pregunta
+        </button>`}
+    </div>` : '';
+
   const saveRow = isEdit ? `
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
-      <button onclick="_formsEditMode=false;renderForms()"
+      <button onclick="_formsEditMode=false;_formsAddingQ=false;renderForms()"
         style="font-size:12px;padding:7px 16px;border-radius:8px;background:transparent;border:1px solid var(--line-strong);color:var(--text3);cursor:pointer">Cancelar</button>
       <button id="forms-save-btn" onclick="saveFormTemplate()"
         style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,var(--gold),#c89732);color:#000;font-weight:700;border:none;cursor:pointer">Guardar cambios</button>
@@ -6832,6 +6869,7 @@ function _renderFormsEditor(){
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">${qRows||'<div style="color:var(--text3);font-size:13px">Sin preguntas.</div>'}</div>
+    ${addQPanel}
     ${saveRow}`;
 }
 
@@ -6851,8 +6889,86 @@ function _formsRemoveOpcion(qIdx, oIdx){
 
 function _formsRemoveQuestion(qIdx){
   const qs = _formsQCache[_formsTab];
-  if(!qs || qs.length <= 1) return;
+  if(!qs) return;
   qs.splice(qIdx, 1);
+  _renderFormsEditor();
+}
+
+function _formsStartAddQ(){
+  _formsAddingQ = true;
+  _renderFormsEditor();
+  setTimeout(()=>document.getElementById('nq-titulo')?.focus(), 50);
+}
+
+function _formsCancelAddQ(){
+  _formsAddingQ = false;
+  _renderFormsEditor();
+}
+
+function _formsOnTipoChange(tipo){
+  document.querySelectorAll('.nq-tipo-btn').forEach(b=>{
+    const active = b.dataset.v === tipo;
+    b.style.borderColor = active ? 'var(--gold)' : 'var(--line-strong)';
+    b.style.background   = active ? 'rgba(224,181,74,.1)' : 'var(--surface-3)';
+    b.style.color        = active ? 'var(--gold)' : 'var(--text2)';
+  });
+  const extra = document.getElementById('nq-extra');
+  if(!extra) return;
+  if(tipo==='radio'||tipo==='checkbox'){
+    extra.innerHTML=`<div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:5px">Opciones <span style="font-weight:400">(una por línea)</span></div>
+      <textarea id="nq-opciones" rows="3" placeholder="Opción 1&#10;Opción 2&#10;Opción 3"
+        style="width:100%;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:7px;padding:8px 11px;color:var(--text);font-size:12px;font-family:inherit;outline:none;resize:vertical"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'"></textarea>
+    </div>`;
+  } else if(tipo==='textarea'){
+    extra.innerHTML=`<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text3)">Máx. caracteres</div>
+      <input id="nq-maxlength" type="number" value="500" min="50" max="2000"
+        style="width:80px;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;font-family:inherit;outline:none;text-align:center"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">
+    </div>`;
+  } else if(tipo==='scale'){
+    extra.innerHTML=`<div style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--text3)">Mín</div>
+        <input id="nq-min" type="number" value="1" min="0" max="5"
+          style="width:54px;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;font-family:inherit;outline:none;text-align:center"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--text3)">Máx</div>
+        <input id="nq-max" type="number" value="10" min="3" max="10"
+          style="width:54px;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;font-family:inherit;outline:none;text-align:center"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">
+      </div>
+    </div>`;
+  } else {
+    extra.innerHTML='';
+  }
+}
+
+function _formsConfirmAddQ(){
+  const titulo = (document.getElementById('nq-titulo')?.value||'').trim();
+  if(!titulo){ document.getElementById('nq-titulo')?.focus(); return; }
+  const tipo = document.querySelector('input[name="nq-tipo"]:checked')?.value || 'text';
+
+  const newQ = { id: 'q'+Date.now(), tipo, titulo };
+
+  if(tipo==='radio'||tipo==='checkbox'){
+    const raw = (document.getElementById('nq-opciones')?.value||'');
+    const opts = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    newQ.opciones = opts.length ? opts : ['Opción 1','Opción 2'];
+  } else if(tipo==='textarea'){
+    newQ.maxlength = parseInt(document.getElementById('nq-maxlength')?.value||'500') || 500;
+  } else if(tipo==='scale'){
+    newQ.min = parseInt(document.getElementById('nq-min')?.value||'1') || 1;
+    newQ.max = parseInt(document.getElementById('nq-max')?.value||'10') || 10;
+  }
+
+  if(!_formsQCache[_formsTab]) _formsQCache[_formsTab] = [];
+  _formsQCache[_formsTab].push(newQ);
+  _formsAddingQ = false;
   _renderFormsEditor();
 }
 
