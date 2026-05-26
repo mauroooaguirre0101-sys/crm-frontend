@@ -92,23 +92,32 @@ function playCashSound(){
     if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
     const ctx=_audioCtx;
     const play=()=>{
-      [[1047,0,0.12,0.22],[1318,0.07,0.12,0.22],[1568,0.13,0.14,0.25],[2093,0.20,0.0,0.40]].forEach(([freq,delay,attack,dur])=>{
+      const now=ctx.currentTime;
+      // "cha" — mechanical clank: filtered noise burst
+      const nBuf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.055),ctx.sampleRate);
+      const nd=nBuf.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=(Math.random()*2-1);
+      const nSrc=ctx.createBufferSource();nSrc.buffer=nBuf;
+      const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2800;bp.Q.value=1.2;
+      const nGain=ctx.createGain();
+      nSrc.connect(bp);bp.connect(nGain);nGain.connect(ctx.destination);
+      nGain.setValueAtTime(0.55,now);nGain.exponentialRampToValueAtTime(0.001,now+0.055);
+      nSrc.start(now);
+      // "ching" — bell ring with harmonics (cash register tone)
+      [
+        [2093,0.04,0.004,0.55,0.38],
+        [4186,0.04,0.003,0.40,0.22],
+        [6279,0.04,0.002,0.28,0.10],
+        [1396,0.04,0.004,0.45,0.12],
+      ].forEach(([freq,delay,atk,dur,vol])=>{
         const osc=ctx.createOscillator();const g=ctx.createGain();
         osc.connect(g);g.connect(ctx.destination);
         osc.type='sine';osc.frequency.value=freq;
-        const t=ctx.currentTime+delay;
+        const t=now+delay;
         g.gain.setValueAtTime(0.001,t);
-        g.gain.linearRampToValueAtTime(0.28,t+attack+0.005);
+        g.gain.linearRampToValueAtTime(vol,t+atk);
         g.gain.exponentialRampToValueAtTime(0.001,t+dur);
         osc.start(t);osc.stop(t+dur+0.05);
       });
-      const buf=ctx.createBuffer(1,ctx.sampleRate*0.06,ctx.sampleRate);
-      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.12;
-      const src=ctx.createBufferSource();src.buffer=buf;
-      const ng=ctx.createGain();src.connect(ng);ng.connect(ctx.destination);
-      ng.gain.setValueAtTime(1,ctx.currentTime);
-      ng.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.06);
-      src.start(ctx.currentTime);
     };
     ctx.state==='suspended'?ctx.resume().then(play):play();
   }catch(e){}
