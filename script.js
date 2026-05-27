@@ -4457,7 +4457,26 @@ async function fetchCalls(){
 }
 function renderCallsPage(){_applyCallsFilter();fetchCalls();}
 
+function _parsePreguntas(raw){
+  if(!raw) return [];
+  try{
+    const obj=typeof raw==='string'?JSON.parse(raw):raw;
+    if(obj&&typeof obj==='object'&&!Array.isArray(obj))
+      return Object.entries(obj).filter(([,v])=>v&&v.toString().trim());
+  }catch{}
+  // plain-text fallback
+  if(typeof raw==='string'&&raw.trim()) return [['Respuestas',raw.trim()]];
+  return [];
+}
+
 function _getCalendlyFormText(r){
+  // GHL / preguntas_calificacion path (also logs for debugging)
+  if(r.preguntas_calificacion){
+    console.log('preguntas_calificacion raw',r.id,r.preguntas_calificacion);
+    const entries=_parsePreguntas(r.preguntas_calificacion);
+    if(entries.length) return entries.map(([q,a])=>`${q}: ${a}`).join('\n');
+  }
+  // Calendly form responses
   try{
     const cf=typeof r.calendly_form_responses==='string'?JSON.parse(r.calendly_form_responses):r.calendly_form_responses;
     if(cf&&typeof cf==='object'){
@@ -4473,13 +4492,24 @@ function verCalendlyForm(callId){
   const call=callsCache.find(c=>c.id===callId);
   if(!call) return;
 
-  let entries=[];
-  try{
-    const cf=typeof call.calendly_form_responses==='string'?JSON.parse(call.calendly_form_responses):call.calendly_form_responses;
-    if(cf&&typeof cf==='object') entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
-  }catch{}
+  console.log('preguntas_calificacion',call.preguntas_calificacion);
 
-  // Fallback: parse info_previa "Pregunta: Respuesta" lines for old Calendly calls
+  let entries=[];
+
+  // 1. GHL preguntas_calificacion
+  if(call.preguntas_calificacion){
+    entries=_parsePreguntas(call.preguntas_calificacion);
+  }
+
+  // 2. Calendly form responses
+  if(!entries.length){
+    try{
+      const cf=typeof call.calendly_form_responses==='string'?JSON.parse(call.calendly_form_responses):call.calendly_form_responses;
+      if(cf&&typeof cf==='object') entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
+    }catch{}
+  }
+
+  // 3. info_previa "Pregunta: Respuesta" lines (old Calendly calls)
   if(!entries.length&&call.origen==='Calendly'&&call.info_previa&&call.info_previa.trim()){
     entries=call.info_previa.trim().split('\n').filter(l=>l.trim()).map(l=>{
       const i=l.indexOf(':');
@@ -4891,9 +4921,7 @@ async function guardarInfoPrevia(){
 }
 
 function verReporteGHL(callId){
-  const call=callsCache.find(c=>c.id===callId);
-  if(!call?.reporte_ghl) return;
-  verInfoPreviaModal(typeof call.reporte_ghl==='string'?call.reporte_ghl:JSON.stringify(call.reporte_ghl,null,2), call.nombre+' (GHL)');
+  verCalendlyForm(callId);
 }
 
 const REPORTE_LABELS={
@@ -9208,4 +9236,5 @@ async function markCrmIdeaUsed(id) {
     toast('✓ Idea marcada como usada');
   } catch (e) { toast('✗ ' + e.message); }
 }
+
 
