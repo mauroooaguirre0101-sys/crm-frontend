@@ -4457,6 +4457,32 @@ async function fetchCalls(){
 }
 function renderCallsPage(){_applyCallsFilter();fetchCalls();}
 
+// Canonical question order for GHL qualification form.
+// Matching is done by normalized key (lowercase, no punctuation/spaces) so minor
+// variations in the actual key string still land in the right position.
+const _GHL_QUESTION_ORDER = [
+  'nombre completo',
+  'correo electrónico',
+  'número de whatsapp',
+  'cuál es tu instagram',
+  'a que te dedicas',
+  'escala del 1 al 10',
+  'motivo real y profundo',
+  'dispones capital',
+  'estás buscando cambiar',
+  'entiendes que nos estamos reservando',
+];
+
+function _ghlQuestionRank(q){
+  const n = q.toLowerCase().replace(/[¿?*\s]+/g,' ').trim();
+  const idx = _GHL_QUESTION_ORDER.findIndex(k => n.includes(k));
+  return idx === -1 ? 999 : idx;
+}
+
+function _sortGHLEntries(entries){
+  return [...entries].sort((a,b) => _ghlQuestionRank(a[0]) - _ghlQuestionRank(b[0]));
+}
+
 function _parsePreguntas(raw){
   if(!raw) return [];
   try{
@@ -4498,7 +4524,7 @@ function verCalendlyForm(callId){
 
   // 1. GHL preguntas_calificacion
   if(call.preguntas_calificacion){
-    entries=_parsePreguntas(call.preguntas_calificacion);
+    entries=_sortGHLEntries(_parsePreguntas(call.preguntas_calificacion));
   }
 
   // 2. Calendly form responses
