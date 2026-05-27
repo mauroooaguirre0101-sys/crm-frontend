@@ -4307,11 +4307,12 @@ async function initApp(user){
 })();
 
 // ========== LLAMADAS ==========
-const CALL_ESTADOS = ['Cierre Cuotas','Seguimiento Post Call','Re agenda','No Cierre','No asistió','Cancelada'];
+const CALL_ESTADOS = ['Cierre Cuotas','Seña','Seguimiento Post Call','Re agenda','No Cierre','No asistió','Cancelada'];
 
 const CALL_ESTADO_COLOR = {
   'Cierre':                {bg:'rgba(61,138,90,0.12)', border:'rgba(61,138,90,0.25)',  text:'#5cb87a'},
   'Cierre Cuotas':         {bg:'rgba(61,138,90,0.12)', border:'rgba(61,138,90,0.25)',  text:'#5cb87a'},
+  'Seña':                  {bg:'rgba(212,168,50,0.15)', border:'rgba(212,168,50,0.35)', text:'#d4a832'},
   'Seguimiento Post Call': {bg:'rgba(61,106,170,0.12)',border:'rgba(61,106,170,0.25)', text:'#6090d4'},
   'Re agenda':             {bg:'rgba(196,136,42,0.12)',border:'rgba(196,136,42,0.25)', text:'#e0a848'},
   'No Cierre':             {bg:'rgba(184,72,72,0.12)', border:'rgba(184,72,72,0.25)',  text:'#d46060'},
@@ -4323,6 +4324,7 @@ const CALL_ESTADOS_MOTIVO = new Set(['No Cierre']);
 const CALL_TO_LEAD_ESTADO = {
   'Cierre':                'Cerrado',
   'Cierre Cuotas':         'Cerrado',
+  'Seña':                  'Seña',
   'Seguimiento Post Call': 'Seguimiento Post Call',
   'Re agenda':             'Re agendado',
   'No Cierre':             'Perdido Post Call',
@@ -4403,11 +4405,15 @@ async function _applyCallsFilter(){
     const cierres =filtradas.filter(x=>['Cierre','Cierre Cuotas'].includes(x.estado||'')).length;
     const cierresP=callsCache.filter(x=>_gfPrevInRange(x.created_at)&&['Cierre','Cierre Cuotas'].includes(x.estado||'')).length;
     const noCerradas=Math.max(0,(c.shows||0)-cierres);
-    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px';
+    const senasCalls=filtradas.filter(x=>x.estado==='Seña');
+    const senasTotal=senasCalls.reduce((s,x)=>s+(parseFloat(x.monto_sena)||0),0);
+    const senaLabel=senasCalls.length+(senasTotal>0?` · ${fmtMoney(senasTotal)}`:'');
+    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px';
     metricsEl.innerHTML=
       metCardSm('Total llamadas',c.calls||0,'',_delta(c.calls||0,p.calls||0))+
       metCardSm('Shows (asistió)',c.shows||0,'',_delta(c.shows||0,p.shows||0))+
       metCardSm('Cierres',cierres,'green',_delta(cierres,cierresP))+
+      metCardSm('Señas',senaLabel,'','')+
       metCardSm('No cerradas',noCerradas,noCerradas>0?'red':'')+
       `<div class="metric-card" style="padding:8px 12px;cursor:pointer" onclick="abrirAgendados()" title="Ver lista">
         <div class="metric-label" style="font-size:10px;margin-bottom:2px">Re agendas</div>
@@ -4422,11 +4428,15 @@ async function _applyCallsFilter(){
     const cierres =filtradas.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const cierresP=prev.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const noCerradas=Math.max(0,hechas-cierres);
-    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px';
+    const senasCalls=filtradas.filter(c=>c.estado==='Seña');
+    const senasTotal=senasCalls.reduce((s,c)=>s+(parseFloat(c.monto_sena)||0),0);
+    const senaLabel=senasCalls.length+(senasTotal>0?` · ${fmtMoney(senasTotal)}`:'');
+    metricsEl.style.cssText='display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px';
     metricsEl.innerHTML=
       metCardSm('Total llamadas',total,'',_delta(total,prev.length))+
       metCardSm('Llamadas hechas',hechas,'',_delta(hechas,hechasP))+
       metCardSm('Cierres',cierres,'green',_delta(cierres,cierresP))+
+      metCardSm('Señas',senaLabel,'','')+
       metCardSm('No cerradas',noCerradas,noCerradas>0?'red':'')+
       `<div class="metric-card" style="padding:8px 12px;cursor:pointer" onclick="abrirAgendados()" title="Ver lista">
         <div class="metric-label" style="font-size:10px;margin-bottom:2px">Re agendas</div>
@@ -4789,14 +4799,17 @@ function onEditCallEstadoChange(){
   const estado=document.getElementById('ec-estado')?.value||'';
   const isPostCall = estado === 'Seguimiento Post Call';
   const isPendiente = estado === 'Pendiente';
+  const isSeña      = estado === 'Seña';
   const motivoWrap=document.getElementById('ec-motivo-wrap');
   const segWrap=document.getElementById('ec-seg-wrap');
   const respWrap=document.getElementById('ec-resp-wrap');
   const fechaWrap=document.getElementById('ec-fecha-wrap');
+  const senaWrap=document.getElementById('ec-monto-sena-wrap');
   if(motivoWrap) motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
   if(segWrap)   segWrap.style.display=isPostCall?'block':'none';
   if(respWrap)  respWrap.style.display=isPostCall?'block':'none';
   if(fechaWrap) fechaWrap.style.display=isPendiente?'block':'none';
+  if(senaWrap)  senaWrap.style.display=isSeña?'block':'none';
 }
 
 // ========== CLOSER: saveEditCall ==========
@@ -4806,6 +4819,9 @@ async function saveEditCall(){
   const estado=document.getElementById('ec-estado').value;
   const motivo=(document.getElementById('ec-motivo')?.value||'').trim();
   if(CALL_ESTADOS_MOTIVO.has(estado)&&!motivo){toast('✗ Motivo de no cierre obligatorio');return;}
+  const montoSenaRaw=(document.getElementById('ec-monto-sena')?.value||'').trim();
+  if(estado==='Seña'&&!montoSenaRaw){toast('✗ El monto de la seña es obligatorio');return;}
+  const monto_sena=montoSenaRaw?parseFloat(montoSenaRaw):null;
   const link=(document.getElementById('ec-link')?.value||'').trim();
   if(link&&!link.startsWith('http')){toast('✗ El link debe empezar con http');return;}
   const grabacion=(document.getElementById('ec-grabacion')?.value||'').trim();
@@ -4833,6 +4849,7 @@ async function saveEditCall(){
     link_grabacion:grabacion,
     reporte,
     fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
+    ...(monto_sena!==null && {monto_sena}),
   };
 
   console.log('DATA ENVIADA (edit-call):',payload);
@@ -4853,13 +4870,16 @@ async function saveEditCall(){
     if(call){
       Object.assign(call,payload);
       const leadEstado=CALL_TO_LEAD_ESTADO[estado];
-      if(leadEstado&&LEAD_ESTADOS.includes(leadEstado)&&call.instagram){
+      if(leadEstado&&LEAD_ESTADOS.includes(leadEstado)){
         const ig=(call.instagram||'').toLowerCase();
-        const lead=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
+        const nombre=(call.nombre||'').toLowerCase();
+        // primary: match by instagram; secondary: match by nombre
+        const lead=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig&&ig)
+          ||leadsCache.find(l=>(l.nombre||'').toLowerCase()===nombre&&nombre);
         if(lead){
           lead.estado=leadEstado;
           await apiFetch(`${API_URL}/leads/${lead.id}`,{method:'PATCH',body:JSON.stringify({estado:leadEstado})});
-          console.log(`[sync] @${ig} → lead.estado = "${leadEstado}"`);
+          console.log(`[sync] matched lead id=${lead.id} → estado="${leadEstado}"`);
           if(document.getElementById('page-leads')?.classList.contains('active')) _applyLeadsFilter();
         }
       }
