@@ -3503,7 +3503,7 @@ function _renderCallsMetrics2(shows,closes,calls){
   if(!el)return;
   const m=getCallsMetrics(shows,closes,calls);
   const prevCalls=callsCache.filter(c=>_gfPrevInRange(c.created_at));
-  const pShows=prevCalls.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda').length;
+  const pShows=prevCalls.filter(c=>c.estado!=='No asistió'&&c.estado!=='Cancelada'&&c.estado!=='Re agenda').length;
   const pCloses=prevCalls.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
   const mp=getCallsMetrics(pShows,pCloses,prevCalls.length,true);
   el.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px';
@@ -4292,7 +4292,7 @@ async function initApp(user){
 })();
 
 // ========== LLAMADAS ==========
-const CALL_ESTADOS = ['Cierre Cuotas','Seguimiento Post Call','Re agenda','No Cierre','No asistió'];
+const CALL_ESTADOS = ['Cierre Cuotas','Seguimiento Post Call','Re agenda','No Cierre','No asistió','Cancelada'];
 
 const CALL_ESTADO_COLOR = {
   'Cierre':                {bg:'rgba(61,138,90,0.12)', border:'rgba(61,138,90,0.25)',  text:'#5cb87a'},
@@ -4301,6 +4301,7 @@ const CALL_ESTADO_COLOR = {
   'Re agenda':             {bg:'rgba(196,136,42,0.12)',border:'rgba(196,136,42,0.25)', text:'#e0a848'},
   'No Cierre':             {bg:'rgba(184,72,72,0.12)', border:'rgba(184,72,72,0.25)',  text:'#d46060'},
   'No asistió':            {bg:'rgba(120,40,40,0.15)', border:'rgba(150,50,50,0.3)',   text:'#b04040'},
+  'Cancelada':             {bg:'rgba(100,30,30,0.18)', border:'rgba(140,40,40,0.35)',  text:'#c04040'},
 };
 const CALL_ESTADOS_MOTIVO = new Set(['No Cierre']);
 
@@ -4311,6 +4312,7 @@ const CALL_TO_LEAD_ESTADO = {
   'Re agenda':             'Re agendado',
   'No Cierre':             'Perdido Post Call',
   'No asistió':            'No Show',
+  'Cancelada':             'No Show',
 };
 
 let callsFilter = 'mes';
@@ -4400,8 +4402,8 @@ async function _applyCallsFilter(){
   } else {
     // Fallback local si la API no responde
     const prev   =callsCache.filter(c=>_gfPrevInRange(c.created_at));
-    const hechas =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
-    const hechasP=prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
+    const hechas =filtradas.filter(c=>c.estado!=='No asistió'&&c.estado!=='Cancelada'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
+    const hechasP=prev.filter(c=>c.estado!=='No asistió'&&c.estado!=='Cancelada'&&c.estado!=='Re agenda'&&c.estado!=='Pendiente').length;
     const cierres =filtradas.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const cierresP=prev.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')).length;
     const noCerradas=Math.max(0,hechas-cierres);
@@ -4547,7 +4549,7 @@ function _renderCallsTable(rows){
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
 
-    const rowBg=estado==='No asistió'?'background:rgba(200,60,60,0.1);':'';
+    const rowBg=(estado==='No asistió'||estado==='Cancelada')?'background:rgba(200,60,60,0.1);':'';
     return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer;${rowBg}" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
       <td style="color:var(--text3);font-size:10px;text-align:center">${idx+1}</td>
       <td style="color:var(--text);font-weight:600">${r.nombre||'—'}${callNum}</td>
