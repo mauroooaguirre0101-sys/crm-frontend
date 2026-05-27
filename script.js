@@ -4455,8 +4455,38 @@ function _getCalendlyFormText(r){
 function verCalendlyForm(callId){
   const call=callsCache.find(c=>c.id===callId);
   if(!call) return;
-  const text=_getCalendlyFormText(call);
-  if(text) verInfoPreviaModal(text, (call.nombre||'')+'  — Formulario Calendly');
+
+  let entries=[];
+  try{
+    const cf=typeof call.calendly_form_responses==='string'?JSON.parse(call.calendly_form_responses):call.calendly_form_responses;
+    if(cf&&typeof cf==='object') entries=Object.entries(cf).filter(([,v])=>v&&v.toString().trim());
+  }catch{}
+
+  // Fallback: parse info_previa "Pregunta: Respuesta" lines for old Calendly calls
+  if(!entries.length&&call.origen==='Calendly'&&call.info_previa&&call.info_previa.trim()){
+    entries=call.info_previa.trim().split('\n').filter(l=>l.trim()).map(l=>{
+      const i=l.indexOf(':');
+      return i>0?[l.slice(0,i).trim(),l.slice(i+1).trim()]:[l,''];
+    });
+  }
+
+  if(!entries.length) return;
+
+  document.getElementById('modal-cf-nombre').textContent=call.nombre||'';
+  document.getElementById('modal-cf-body').innerHTML=entries.map(([q,a])=>{
+    const sq=q.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const sa=(a||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<details ontoggle="this.querySelector('.cf-chev').style.transform=this.open?'rotate(180deg)':'rotate(0deg)'"
+      style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;margin-bottom:8px;overflow:hidden">
+      <summary style="padding:12px 14px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.03)">
+        <span style="font-size:12px;font-weight:600;color:var(--text);line-height:1.4">${sq}</span>
+        <span class="cf-chev" style="color:var(--gold);font-size:10px;flex-shrink:0;margin-top:2px;transition:transform .2s">▼</span>
+      </summary>
+      <div style="padding:12px 14px;font-size:13px;color:var(--text2);background:rgba(255,255,255,0.015);border-top:1px solid rgba(255,255,255,0.06);white-space:pre-wrap;line-height:1.6">${sa||'—'}</div>
+    </details>`;
+  }).join('');
+
+  document.getElementById('modal-calendly-form').classList.add('open');
 }
 
 function _renderCallsTable(rows){
