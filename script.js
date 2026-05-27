@@ -2404,6 +2404,20 @@ function _renderLeadsTable(){
     const faseR = _getFaseForEstado(x.estado);
     const faseLabelR = faseR ? faseR.label : (x.estado||'—');
     const faseColorR = faseR ? faseR.color : '#d46060';
+    // Info previa button for Agendado leads — find matching call by instagram, fallback to nombre
+    let infoCallBtn='<span style="color:var(--text3)">—</span>';
+    if(esAgendado){
+      const ig=(x.instagram||'').toLowerCase();
+      const callMatch=callsCache.find(c=>(c.instagram||'').toLowerCase()===ig&&c.estado==='Pendiente')
+        ||callsCache.find(c=>(c.instagram||'').toLowerCase()===ig)
+        ||(x.nombre?callsCache.find(c=>(c.nombre||'').toLowerCase()===(x.nombre||'').toLowerCase()&&c.estado==='Pendiente'):null);
+      if(callMatch){
+        const hasInfo=!!(callMatch.info_previa&&callMatch.info_previa.trim());
+        const n=(callMatch.nombre||'').replace(/'/g,"\\'");
+        infoCallBtn=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px;white-space:nowrap" onclick="abrirInfoPreviaEdit('${callMatch.id}','${n}');event.stopPropagation()">${hasInfo?'Editar Info Previa':'Agregar Info Previa'}</button>`;
+      }
+    }
+
     return `
     <tr style="${rowStyle}">
       <td style="text-align:center;width:30px;padding:4px 2px;color:var(--text3);font-size:10px">${_origIdx+1}</td>
@@ -2416,6 +2430,7 @@ function _renderLeadsTable(){
       <td style="cursor:pointer" title="Clic para editar" onclick="_editLeadSelect(event,'${x.id}','tipo')">${tipoBadge(x.tipo)}</td>
       <td style="cursor:text" title="Clic para editar etiquetas" onclick="_editLeadEtiqueta(event,'${x.id}')">${(()=>{const ets=_getEtiquetas(x);return ets.length?ets.map(e=>`<span class="badge bgy" style="display:inline-block;margin:1px 2px">${e}</span>`).join(''):'<span style="color:var(--text3)">—</span>';})()}</td>
       <td>${estadoSelect(x)}</td>
+      <td onclick="event.stopPropagation()">${infoCallBtn}</td>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text" title="Clic para editar" onclick="_editLeadText(event,'${x.id}','ultima_accion',false)">${x.ultima_accion||'<span style="color:var(--text3)">—</span>'}</td>
       <td style="cursor:text" title="Clic para editar notas" onclick="_editLeadText(event,'${x.id}','notas',true)"><span class="trunc" title="${x.notas||''}">${x.notas||'<span style="color:var(--text3)">—</span>'}</span></td>
       <td>${x.source==='manychat'?'<span class="api-badge">MC</span>':'<span style="color:var(--text3);font-size:11px">manual</span>'}</td>
@@ -2437,7 +2452,7 @@ function _renderLeadsTable(){
         <button class="btn-icon" onclick="delLead('${x.id}')" style="color:var(--red);font-size:16px;line-height:1;padding:2px 6px" title="Eliminar lead">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="14" style="color:var(--text3);text-align:center;padding:24px">Sin leads para este filtro</td></tr>';
+  }).join('')||'<tr><td colspan="15" style="color:var(--text3);text-align:center;padding:24px">Sin leads para este filtro</td></tr>';
 }
 
 function _renderFunnel(leads){
