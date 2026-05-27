@@ -4465,7 +4465,15 @@ async function fetchCalls(){
     _applyCallsFilter();
   }
 }
-function renderCallsPage(){_applyCallsFilter();fetchCalls();}
+function renderCallsPage(){
+  const isC2 = getCid() === 'cliente_2';
+  const thCloser = document.getElementById('calls-th-closer');
+  if(thCloser) thCloser.style.display = isC2 ? '' : 'none';
+  const ghlFields = document.getElementById('pc-ghl-fields');
+  if(ghlFields) ghlFields.style.display = isC2 ? 'block' : 'none';
+  _applyCallsFilter();
+  fetchCalls();
+}
 
 // Canonical question order for GHL qualification form.
 // Matching is done by normalized key (lowercase, no punctuation/spaces) so minor
@@ -4629,6 +4637,7 @@ function _renderCallsTable(rows){
 
     console.log('closer',r.closer,'calendar_id',r.calendar_id,'preguntas_calificacion',r.preguntas_calificacion);
 
+    const isC2 = getCid() === 'cliente_2';
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
 
@@ -4642,7 +4651,7 @@ function _renderCallsTable(rows){
       <td><a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">@${r.instagram||'—'}</a></td>
       <td style="font-size:12px;color:var(--text2)">${r.whatsapp||'—'}</td>
       <td>${origenBadge(origenVal)}</td>
-      <td style="font-size:12px;color:var(--text2)">${closerText}</td>
+      ${isC2?`<td style="font-size:12px;color:var(--text2)">${closerText}</td>`:''}
       <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
@@ -4706,6 +4715,10 @@ function _resetPcModal(){
   const footer=document.getElementById('pc-footer-normal');
   if(notice) notice.style.display='none';
   if(footer) footer.style.display='';
+  ['pc-closer','pc-calendar-name','pc-email'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
 }
 
 async function savePreCall(){
@@ -4725,8 +4738,15 @@ async function savePreCall(){
 
   const pendingLead=_pendingReporteLeadId?leadsCache.find(l=>l.id===_pendingReporteLeadId):leadsCache.find(l=>(l.instagram||'').toLowerCase()===instagram.toLowerCase());
   const rawFechaPC=(document.getElementById('pc-fecha-llamada')?.value||'').trim();
-  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||'',
-    fecha_llamada:rawFechaPC?new Date(rawFechaPC).toISOString():null};
+  const _pc_isC2 = getCid() === 'cliente_2';
+  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||(_pc_isC2?'GHL':''),
+    fecha_llamada:rawFechaPC?new Date(rawFechaPC).toISOString():null,
+    ...(_pc_isC2 && {
+      closer:       (document.getElementById('pc-closer')?.value||'').trim()||undefined,
+      calendar_name:(document.getElementById('pc-calendar-name')?.value||'').trim()||undefined,
+      email:        (document.getElementById('pc-email')?.value||'').trim()||undefined,
+    }),
+  };
   console.log('DATA ENVIADA (pre-call):',data);
 
   const btn=document.getElementById('pc-save-btn');
@@ -4783,6 +4803,12 @@ function abrirEditCall(id){
   document.getElementById('ec-link').value=r.link_llamada||'';
   document.getElementById('ec-grabacion').value=r.link_grabacion||'';
 
+  const _isC2 = getCid() === 'cliente_2';
+  const closerWrap = document.getElementById('ec-closer-wrap');
+  if(closerWrap) closerWrap.style.display = _isC2 ? 'block' : 'none';
+  const ecCloser = document.getElementById('ec-closer');
+  if(ecCloser) ecCloser.value = r.closer || '';
+
   let rJSON={};
   try{ if(r.reporte) rJSON=typeof r.reporte==='string'?JSON.parse(r.reporte):r.reporte; }catch{}
   document.getElementById('ec-atraccion').value=rJSON.atraccion||'';
@@ -4828,6 +4854,8 @@ async function saveEditCall(){
   const montoSenaRaw=(document.getElementById('ec-monto-sena')?.value||'').trim();
   if(estado==='Seña'&&!montoSenaRaw){toast('✗ El monto de la seña es obligatorio');return;}
   const monto_sena=montoSenaRaw?parseFloat(montoSenaRaw):null;
+  const _ec_isC2 = getCid() === 'cliente_2';
+  const closer=_ec_isC2?(document.getElementById('ec-closer')?.value||'').trim():undefined;
   const link=(document.getElementById('ec-link')?.value||'').trim();
   if(link&&!link.startsWith('http')){toast('✗ El link debe empezar con http');return;}
   const grabacion=(document.getElementById('ec-grabacion')?.value||'').trim();
@@ -4856,6 +4884,7 @@ async function saveEditCall(){
     reporte,
     fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
     ...(monto_sena!==null && {monto_sena}),
+    ...(closer!==undefined && {closer}),
   };
 
   console.log('DATA ENVIADA (edit-call):',payload);
@@ -5063,7 +5092,13 @@ function guardarReporteAgenda(){
   toast('Usá el formulario de Pre-Call para guardar el reporte.');
 }
 
-function openAddCallModal(){_resetPcModal();openModal('modal-call');}
+function openAddCallModal(){
+  const isC2 = getCid() === 'cliente_2';
+  const ghlFields = document.getElementById('pc-ghl-fields');
+  if(ghlFields) ghlFields.style.display = isC2 ? 'block' : 'none';
+  _resetPcModal();
+  openModal('modal-call');
+}
 async function _addCall(){}
 
 // ========== HELPER ==========
