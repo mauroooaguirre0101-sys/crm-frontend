@@ -4627,8 +4627,13 @@ function _renderCallsTable(rows){
       ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verCalendlyForm('${r.id}');event.stopPropagation()">Ver</button>`
       :'<span style="color:var(--text3)">—</span>';
 
+    console.log('closer',r.closer,'calendar_id',r.calendar_id,'preguntas_calificacion',r.preguntas_calificacion);
+
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
+
+    // Closer: show first name only to keep the cell compact
+    const closerText=r.closer?(r.closer.split(' ')[0]):'<span style="color:var(--text3)">—</span>';
 
     const rowBg=(estado==='No asistió'||estado==='Cancelada')?'background:rgba(200,60,60,0.1);':'';
     return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer;${rowBg}" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
@@ -4637,6 +4642,7 @@ function _renderCallsTable(rows){
       <td><a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">@${r.instagram||'—'}</a></td>
       <td style="font-size:12px;color:var(--text2)">${r.whatsapp||'—'}</td>
       <td>${origenBadge(origenVal)}</td>
+      <td style="font-size:12px;color:var(--text2)">${closerText}</td>
       <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
@@ -4650,7 +4656,7 @@ function _renderCallsTable(rows){
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="15" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="16" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
