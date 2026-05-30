@@ -7569,7 +7569,18 @@ function _mdToHtml(text) {
 // ── PDF Export ───────────────────────────────────────────────────────────────
 
 function exportAnalysisPDF() {
-  const sc = _aiScorecard;
+  let sc = _aiScorecard;
+  // Try to re-parse scorecard from message content if not in memory (e.g. old analyses)
+  if (!sc || !sc.phases) {
+    const rawContent = (_aiMessages[1]?.content || '');
+    const match = rawContent.match(/__SCORECARD__\s*([\s\S]*?)(?:\s*__\/SCORECARD__|$)/);
+    if (match) {
+      try {
+        const raw = match[1].replace(/^```(?:json)?\s*/,'').replace(/\s*```\s*$/,'').trim();
+        sc = JSON.parse(raw);
+      } catch {}
+    }
+  }
   // If no scorecard, export just the narrative analysis as a printable page
   if (!sc || !sc.phases) {
     const narrative = (_aiMessages[1]?.content||'').replace(/\n*__SCORECARD__[\s\S]*/,'').trim();
@@ -7876,49 +7887,50 @@ function _renderScorecardSection(sc){
       </div>
     </div>`:'' ;
 
+  const kpiStyle = 'background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center';
+  const kpiLabel = 'font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px';
+  const kpiVal   = 'font-size:30px;font-weight:700;line-height:1';
+  const kpiSub   = 'font-size:10px;color:var(--text3);margin-top:3px';
+
   return `
     <div id="ai-scorecard-section" style="margin-bottom:20px">
-      <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">📊 Scorecard de llamada</div>
 
-      <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Score global</div>
-          <div style="font-size:28px;font-weight:700;color:${_scColor(avg)}">${avg.toFixed(1)}</div>
-          <div style="font-size:10px;color:var(--text3)">/ 10</div>
+      <!-- Header score row -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Reporte · Análisis IA</div>
+          <div style="font-size:22px;font-weight:700;color:var(--text)">${sc.summary?`<div style="font-size:13px;font-weight:400;color:var(--text2);max-width:520px;line-height:1.6;margin-top:6px">${sc.summary}</div>`:''}</div>
         </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Fases fuertes</div>
-          <div style="font-size:28px;font-weight:700;color:#5cb87a">${high}</div>
-          <div style="font-size:10px;color:var(--text3)">score ≥ 7</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">A mejorar</div>
-          <div style="font-size:28px;font-weight:700;color:#d46060">${low}</div>
-          <div style="font-size:10px;color:var(--text3)">score &lt; 6</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Fase crítica</div>
-          <div style="font-size:13px;font-weight:700;padding-top:6px">${weakPhase?weakPhase.icon+' '+weakPhase.name:'—'}</div>
-          <div style="font-size:10px;color:var(--text3)">mayor oportunidad</div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Calificación</div>
+          <div style="font-size:52px;font-weight:800;line-height:1;color:${_scColor(avg)}">${avg.toFixed(1)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">/ 10</div>
         </div>
       </div>
 
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="${kpiStyle}"><div style="${kpiLabel}">Calificación</div><div style="${kpiVal};color:${_scColor(avg)}">${avg.toFixed(1)}</div><div style="${kpiSub}">promedio</div></div>
+        <div style="${kpiStyle}"><div style="${kpiLabel}">Fases fuertes</div><div style="${kpiVal};color:#5cb87a">${high}</div><div style="${kpiSub}">score ≥ 7</div></div>
+        <div style="${kpiStyle}"><div style="${kpiLabel}">A mejorar</div><div style="${kpiVal};color:#d46060">${low}</div><div style="${kpiSub}">score &lt; 6</div></div>
+        <div style="${kpiStyle}"><div style="${kpiLabel}">Fase crítica</div><div style="font-size:13px;font-weight:700;padding-top:6px;color:var(--text)">${weakPhase?weakPhase.name:'—'}</div><div style="${kpiSub}">mayor oportunidad</div></div>
+      </div>
+
       <!-- Radar chart -->
-      <div style="display:flex;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:16px">
+      <div style="display:flex;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px">
         <canvas id="ai-scorecard-radar" width="420" height="420"></canvas>
       </div>
 
       <!-- Phase table -->
-      <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px">
+      <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
-            <tr style="background:rgba(255,255,255,0.03);border-bottom:1px solid var(--line)">
-              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:32px">#</th>
-              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">Fase</th>
-              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:70px">Score</th>
-              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">✓ Fortalezas</th>
-              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">△ Mejoras</th>
+            <tr style="background:rgba(255,255,255,0.04);border-bottom:1px solid var(--line)">
+              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:32px">#</th>
+              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">Fase</th>
+              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:70px">Score</th>
+              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">✓ Fortalezas</th>
+              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">△ Oportunidades</th>
             </tr>
           </thead>
           <tbody>${phaseRows}</tbody>
@@ -7927,10 +7939,9 @@ function _renderScorecardSection(sc){
 
       ${impactHtml}
 
-      <!-- Action plan -->
       ${actionsHtml?`
-        <div style="border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px">
-          <div style="font-size:12px;font-weight:700;margin-bottom:12px">✏️ Plan de mejora — próxima llamada</div>
+        <div style="border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">✏️ Plan de mejora — próxima llamada</div>
           ${actionsHtml}
         </div>`:''}
 
