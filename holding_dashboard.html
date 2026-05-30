@@ -199,7 +199,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <button class="tab-btn" id="tab-exito" onclick="switchTab('exito')">🏆 Casos de Éxito</button>
   <button class="tab-btn" id="tab-discord" onclick="switchTab('discord')">🎮 Discord</button>
   <button class="tab-btn" id="tab-tareas" onclick="switchTab('tareas')">Tareas Holding</button>
-  <button class="tab-btn" id="tab-calendly" onclick="switchTab('calendly')">🗓 Calendly</button>
+  <button class="tab-btn" id="tab-integraciones" onclick="switchTab('integraciones')">🔌 Integraciones</button>
 </div>
 
 <div id="section-dashboard">
@@ -239,6 +239,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <div class="cbar" id="cbar">
   <span class="fbar-lbl">Clientes</span>
   <div id="client-toggles"></div>
+</div>
+
+<!-- MTD Chart -->
+<div class="content" style="padding-bottom:0">
+  <div style="background:#0d1f0f;border:1px solid rgba(74,222,128,0.15);border-radius:14px;padding:24px 28px;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:rgba(74,222,128,0.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">DASHBOARD FINANCIERO</div>
+        <div id="mtd-month-title" style="font-size:20px;font-weight:700;color:#fff;margin-bottom:2px">Cash Collected clientes · —</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">MTD</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">TOTAL ACUMULADO</div>
+        <div id="mtd-total" style="font-size:36px;font-weight:800;color:#4ade80;line-height:1">—</div>
+        <div id="mtd-delta" style="font-size:13px;font-weight:700;margin-top:4px">—</div>
+        <div id="mtd-prev-label" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px">—</div>
+      </div>
+    </div>
+    <div id="mtd-chart-wrap" style="height:260px"><canvas id="mtd-canvas"></canvas></div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px">
+      <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.1em">EVOLUCIÓN MTD</div>
+      <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.1em">USD</div>
+    </div>
+  </div>
 </div>
 
 <!-- Main content -->
@@ -283,6 +307,51 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <button class="btn-sm btn-gold2" onclick="saveCurrentSnapshot()">Guardar snapshot del mes actual</button>
       </div>
       <div id="snapshots-container"><div class="empty" style="padding:20px">Sin snapshots guardados.</div></div>
+    </div>
+
+    <!-- Gastos Holding -->
+    <div class="chart-panel" style="margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div class="chart-title" style="margin-bottom:0">💸 Gastos de la Holding</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--text3)">Mes:</span>
+          <input type="month" id="gastos-mes-sel" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text);font-family:inherit"
+            onchange="loadGastos(this.value)">
+        </div>
+      </div>
+
+      <!-- Add form -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <input type="text" id="gasto-concepto" placeholder="Concepto (ej: Servidor, Publicidad, Herramientas…)"
+          style="flex:2;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit">
+        <input type="number" id="gasto-monto" placeholder="Monto USD" min="0" step="0.01"
+          style="width:130px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit">
+        <button onclick="addGasto()"
+          style="padding:7px 16px;background:var(--gold);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">+ Agregar</button>
+      </div>
+
+      <!-- Table -->
+      <div style="border:1px solid rgba(255,255,255,0.06);border-radius:8px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:rgba(255,255,255,0.03)">
+              <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Concepto</th>
+              <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Monto</th>
+              <th style="padding:8px 12px;width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="gastos-tbody">
+            <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Cargando…</td></tr>
+          </tbody>
+          <tfoot>
+            <tr style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
+              <td style="padding:10px 12px;font-size:12px;font-weight:700">Total del mes</td>
+              <td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:800;color:#d46060" id="gastos-total">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -398,14 +467,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
-<!-- ── Calendly section ── -->
-<div id="section-calendly" style="display:none;padding:24px;max-width:880px;margin:0 auto">
+<!-- ── Integraciones section ── -->
+<div id="section-integraciones" style="display:none;padding:24px;max-width:880px;margin:0 auto">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div>
-      <div style="font-size:17px;font-weight:700;color:var(--text)">🗓 Calendly — Conexiones por negocio</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada negocio conecta su propia cuenta Calendly. Los leads se crean automáticamente al agendar.</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text)">🔌 Integraciones — Agendamiento por negocio</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada negocio conecta su proveedor de agenda. Los leads se crean automáticamente al agendar.</div>
     </div>
-    <button onclick="reloadCalendlyCfg()" style="font-size:11px;background:none;border:1px solid var(--line);color:var(--text3);cursor:pointer;padding:5px 12px;border-radius:8px">↻ Actualizar</button>
+    <button onclick="reloadIntegraciones()" style="font-size:11px;background:none;border:1px solid var(--line);color:var(--text3);cursor:pointer;padding:5px 12px;border-radius:8px">↻ Actualizar</button>
   </div>
 
   <!-- Per-negocio connection cards -->
@@ -415,10 +484,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <div style="margin-top:22px;background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.18);border-radius:10px;padding:14px 16px">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8891f5;margin-bottom:8px">Cómo funciona</div>
     <div style="font-size:11.5px;color:var(--text3);line-height:1.7">
-      1. Hacé click en <strong style="color:var(--text2)">Conectar Calendly</strong> para el negocio deseado.<br>
-      2. Autorizá la app en la ventana que se abre.<br>
-      3. El webhook se crea automáticamente — cada booking crea un lead en ese negocio.<br>
-      4. La URL del Callback que usa el sistema es <code style="font-size:10.5px;color:var(--text2)" id="cal-callback-url"></code>
+      1. Cada negocio usa un proveedor de agenda: <strong style="color:var(--text2)">Calendly</strong> o <strong style="color:var(--text2)">GoHighLevel</strong>.<br>
+      2. Hacé click en <strong style="color:var(--text2)">Conectar</strong> en la tarjeta del negocio y autorizá la app.<br>
+      3. El webhook se crea automáticamente — cada cita agendada crea una llamada en ese negocio.<br>
+      4. Callbacks: Calendly → <code style="font-size:10.5px;color:var(--text2)" id="cal-callback-url"></code> &nbsp;|&nbsp; GHL → <code style="font-size:10.5px;color:var(--text2)" id="ghl-callback-url"></code>
     </div>
   </div>
 </div>
@@ -491,9 +560,12 @@ const MONTH_NAMES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','
 
 let allClients=[], activeClients=new Set(), period={type:'week',from:null,to:null};
 let metricsData=[], chartBar=null, chartLine=null;
+let _mtdChart=null, _mtdData=null;
+let _gastosData=[], _gastosMes='';
 
 /* ── Init ── */
 async function init(){
+  _gastosMes=_gastosMesDefault();
   const res=await fetch(API_URL+'/holding/clientes',{headers:apiH()});
   if(!res.ok){document.getElementById('main-content').innerHTML='<div class="empty">Sin acceso o error al cargar clientes.</div>';return;}
   allClients=await res.json();
@@ -597,7 +669,6 @@ async function reloadMetrics(){
 /* ── Render ── */
 function fmt(n){
   if(n>=1000000)return'$'+(n/1000000).toFixed(1)+'M';
-  if(n>=1000)return'$'+(n/1000).toFixed(1)+'k';
   return'$'+Math.round(n).toLocaleString('es-AR');
 }
 
@@ -655,6 +726,7 @@ function render(){
   document.getElementById('main-content').innerHTML=html;
   renderChartBar();
   renderChartLine();
+  loadMTDChart();
 }
 
 function mcard(label,val,sub,color){
@@ -725,21 +797,205 @@ function toast(msg){
   setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},2500);
 }
 
+// ── MTD Chart ──────────────────────────────────────────────────────────────
+async function loadMTDChart(){
+  const ids=[...activeClients].join(',');
+  const now=new Date();
+  const year=now.getFullYear(), month=String(now.getMonth()+1).padStart(2,'0');
+  try{
+    const r=await fetch(`${API_URL}/holding/mtd-chart?cliente_ids=${encodeURIComponent(ids)}&year=${year}&month=${month}`,{headers:apiH()});
+    if(!r.ok)return;
+    _mtdData=await r.json();
+    renderMTDChart();
+  }catch{}
+}
+
+function fmtMTD(n){
+  if(n>=1000000)return'$'+(n/1000000).toFixed(2).replace(/\.?0+$/,'')+'M';
+  return'$'+Math.round(n).toLocaleString('es-AR');
+}
+
+function renderMTDChart(){
+  const el=document.getElementById('mtd-chart-wrap');
+  if(!el||!_mtdData)return;
+  const cur=_mtdData.current, prev=_mtdData.previous;
+  if(!cur||!cur.cumulative.length)return;
+
+  const today=new Date().getDate();
+  // Total = cumulative exactly at today (matches what the line shows, never inflated)
+  const curTotal=cur.cumulative[today-1]||0;
+  const prevTotal=prev?.cumulative?.[prev.cumulative.length-1]||0;
+  const prevSameDayTotal=prev?.cumulative?.[today-1]||0;
+  const delta=prevSameDayTotal>0?((curTotal-prevSameDayTotal)/prevSameDayTotal*100):0;
+  const deltaSign=delta>=0?'+':'';
+  const deltaColor=delta>=0?'#5cb87a':'#d46060';
+  const deltaArrow=delta>=0?'↑':'↓';
+
+  const curLabels=Array.from({length:cur.days},(_, i)=>String(i+1).padStart(2,'0'));
+  // Labels for X axis — show every 4th day
+  const xLabels=curLabels.map((l,i)=>i%4===0?l:'');
+
+  document.getElementById('mtd-total').textContent=fmtMTD(curTotal);
+  document.getElementById('mtd-delta').innerHTML=`${deltaArrow} ${deltaSign}${delta.toFixed(1)}% vs Mes Anterior`;
+  document.getElementById('mtd-delta').style.color=deltaColor;
+  document.getElementById('mtd-prev-label').textContent=`Mes anterior mismo día · ${fmtMTD(prevSameDayTotal)}`;
+  document.getElementById('mtd-month-title').textContent=`Cash Collected clientes · ${cur.monthName} ${cur.year}`;
+
+  if(_mtdChart){_mtdChart.destroy();_mtdChart=null;}
+  const canvas=document.getElementById('mtd-canvas');
+  if(!canvas)return;
+
+  // Current month line stops at today (null = no point drawn beyond today)
+  const curCumClipped=cur.cumulative.map((v,i)=>i<today?v:null);
+  // Prev month aligned to same axis length, no clipping (full month)
+  const prevCumulative=(prev?.cumulative||[]).slice(0, cur.days);
+
+  _mtdChart=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:curLabels,
+      datasets:[
+        {
+          label:'Mes Actual',
+          data:curCumClipped,
+          borderColor:'#4ade80',
+          backgroundColor:'rgba(74,222,128,0.12)',
+          borderWidth:2.5,
+          pointRadius:0,
+          pointHoverRadius:4,
+          tension:0.4,
+          fill:true,
+        },
+        {
+          label:'Mes Anterior',
+          data:prevCumulative,
+          borderColor:'rgba(180,180,180,0.55)',
+          backgroundColor:'transparent',
+          borderWidth:1.5,
+          borderDash:[5,4],
+          pointRadius:0,
+          pointHoverRadius:3,
+          tension:0.4,
+          fill:false,
+        },
+      ],
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:true,position:'top',align:'start',labels:{color:'rgba(255,255,255,0.55)',font:{size:11},boxWidth:28,padding:16,
+          generateLabels(chart){
+            return chart.data.datasets.map((ds,i)=>({
+              text:ds.label,fontColor:ds.borderColor,
+              strokeStyle:ds.borderColor,
+              lineDash:i===1?[5,4]:[],
+              lineWidth:i===0?2.5:1.5,
+              hidden:false,datasetIndex:i,
+              fillStyle:'transparent',
+            }));
+          }
+        }},
+        tooltip:{
+          backgroundColor:'rgba(0,0,0,0.85)',
+          titleColor:'rgba(255,255,255,0.7)',titleFont:{size:11},
+          bodyColor:'#fff',bodyFont:{size:12},
+          padding:10,
+          callbacks:{label:c=>`${c.dataset.label}: ${fmtMTD(c.parsed.y)}`},
+        },
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(255,255,255,0.04)'},
+          ticks:{color:'rgba(255,255,255,0.35)',font:{size:11},
+            callback(val,i){return xLabels[i]||'';}
+          },
+          border:{color:'rgba(255,255,255,0.06)'},
+        },
+        y:{
+          grid:{color:'rgba(255,255,255,0.04)'},
+          ticks:{color:'rgba(255,255,255,0.35)',font:{size:10},callback:v=>fmtMTD(v)},
+          border:{color:'rgba(255,255,255,0.06)'},
+          min:0,
+        },
+      },
+    },
+  });
+}
+
+// ── Holding Gastos ──────────────────────────────────────────────────────────
+function _gastosMesDefault(){
+  const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+}
+
+async function loadGastos(mes){
+  _gastosMes=mes||_gastosMesDefault();
+  document.getElementById('gastos-mes-sel').value=_gastosMes;
+  try{
+    const r=await fetch(`${API_URL}/holding/gastos?mes=${encodeURIComponent(_gastosMes)}`,{headers:apiH()});
+    if(!r.ok)return;
+    _gastosData=await r.json();
+    renderGastos();
+  }catch{}
+}
+
+function renderGastos(){
+  const total=_gastosData.reduce((s,g)=>s+(parseFloat(g.monto)||0),0);
+  document.getElementById('gastos-total').textContent=fmtMTD(total);
+  const tbody=document.getElementById('gastos-tbody');
+  if(!tbody)return;
+  if(!_gastosData.length){
+    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Sin gastos registrados para este mes.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML=_gastosData.map(g=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+      <td style="padding:10px 12px;font-size:13px">${g.concepto}</td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:700;color:#d46060;text-align:right">${fmtMTD(parseFloat(g.monto)||0)}</td>
+      <td style="padding:10px 12px;text-align:right">
+        <button onclick="deleteGasto('${g.id}')" style="font-size:11px;padding:3px 9px;background:rgba(212,96,96,0.1);border:1px solid rgba(212,96,96,0.25);color:#d46060;border-radius:6px;cursor:pointer">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function addGasto(){
+  const concepto=document.getElementById('gasto-concepto').value.trim();
+  const monto=parseFloat(document.getElementById('gasto-monto').value);
+  if(!concepto||!monto){toast('Completá concepto y monto');return;}
+  try{
+    const r=await fetch(`${API_URL}/holding/gastos`,{method:'POST',headers:{...apiH(),'Content-Type':'application/json'},body:JSON.stringify({concepto,monto,mes:_gastosMes})});
+    if(!r.ok){toast('Error al guardar');return;}
+    document.getElementById('gasto-concepto').value='';
+    document.getElementById('gasto-monto').value='';
+    await loadGastos(_gastosMes);
+    toast('Gasto agregado ✓');
+  }catch{toast('Error al guardar');}
+}
+
+async function deleteGasto(id){
+  if(!confirm('¿Eliminar este gasto?'))return;
+  try{
+    await fetch(`${API_URL}/holding/gastos/${id}`,{method:'DELETE',headers:apiH()});
+    await loadGastos(_gastosMes);
+  }catch{toast('Error al eliminar');}
+}
+
 // ── Tab system ──
 let _activeTab = 'dashboard';
 function switchTab(tab){
   _activeTab = tab;
-  ['dashboard','finanzas','exito','discord','tareas','calendly'].forEach(t=>{
+  ['dashboard','finanzas','exito','discord','tareas','integraciones'].forEach(t=>{
     const s=document.getElementById('section-'+t);
     if(s) s.style.display=t===tab?'':'none';
   });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='tareas' && allClients.length){ renderNegocioBar(); _loadTasksSummary(); }
-  if(tab==='finanzas') reloadFinanzas();
+  if(tab==='finanzas'){ reloadFinanzas(); loadGastos(); }
+  if(tab==='dashboard') loadMTDChart();
   if(tab==='exito') reloadExito();
   if(tab==='discord') reloadDiscordCfg();
-  if(tab==='calendly') reloadCalendlyCfg();
+  if(tab==='integraciones') reloadIntegraciones();
 }
 
 // ── Kanban ──
@@ -1365,102 +1621,202 @@ async function saveAllTemplates(){
 }
 
 // ══════════════════════════════════════════
-// 🗓  CALENDLY — OAuth per-negocio
+// 🔌  INTEGRACIONES — Calendly + GHL per-negocio
 // ══════════════════════════════════════════
-let _calConnections = {}; // negocio_id → connection data or null
+let _integProviders = {}; // negocio_id → { provider, connected, info }
 
-// Listen for OAuth popup postMessage
+// Listen for OAuth popup postMessage (Calendly + GHL)
 window.addEventListener('message', e => {
   if (!e.data || typeof e.data !== 'object') return;
   if (e.data.type === 'calendly_connected') {
-    const label = clientLabel(e.data.cliente_id);
-    toast(`✓ Calendly conectado para ${label}`);
-    reloadCalendlyCfg();
+    toast(`✓ Calendly conectado para ${clientLabel(e.data.cliente_id)}`);
+    reloadIntegraciones();
   } else if (e.data.type === 'calendly_error') {
     toast('Error al conectar Calendly: ' + e.data.error);
+  } else if (e.data.type === 'ghl_connected') {
+    toast(`✓ GoHighLevel conectado para ${clientLabel(e.data.cliente_id)}`);
+    reloadIntegraciones();
+  } else if (e.data.type === 'ghl_error') {
+    toast('Error al conectar GoHighLevel: ' + e.data.error);
   }
 });
 
-async function reloadCalendlyCfg(){
-  const cbUrl = document.getElementById('cal-callback-url');
-  if (cbUrl) cbUrl.textContent = `${API_URL}/calendly/callback`;
+async function reloadIntegraciones(){
+  const cbUrl  = document.getElementById('cal-callback-url');
+  const ghlUrl = document.getElementById('ghl-callback-url');
+  if (cbUrl)  cbUrl.textContent  = `${API_URL}/calendly/callback`;
+  if (ghlUrl) ghlUrl.textContent = `${API_URL}/oauth/callback`;
 
   if (!allClients.length) return;
 
-  // Fetch connection status for each negocio in parallel
+  // Fetch provider + connection status for each negocio in parallel
   const results = await Promise.all(allClients.map(async cid => {
     try {
-      const r = await fetch(`${API_URL}/calendly/connection-status`, {
+      const r = await fetch(`${API_URL}/integration/provider`, {
         headers: { ...apiH(), 'x-cliente-id': cid }
       });
       return { cid, data: r.ok ? await r.json() : null };
     } catch { return { cid, data: null }; }
   }));
 
-  _calConnections = {};
-  for (const { cid, data } of results) _calConnections[cid] = data;
-  renderCalendlyConnections();
+  _integProviders = {};
+  for (const { cid, data } of results) _integProviders[cid] = data;
+  renderIntegrations();
 }
 
-function renderCalendlyConnections(){
+function renderIntegrations(){
   const grid = document.getElementById('cal-connections-grid');
   if (!grid) return;
 
   grid.innerHTML = allClients.map((cid, i) => {
-    const col  = CLIENT_COLORS[i % CLIENT_COLORS.length];
-    const conn = _calConnections[cid];
-    const label = clientLabel(cid);
+    const col     = CLIENT_COLORS[i % CLIENT_COLORS.length];
+    const label   = clientLabel(cid);
+    const state   = _integProviders[cid] || { provider: 'calendly', connected: false, info: null };
+    const { provider, connected, info } = state;
+    const isGHL   = provider === 'ghl';
 
-    if (conn) {
-      const connectedAt = conn.connected_at
-        ? new Date(conn.connected_at).toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' })
+    const providerBadge = isGHL
+      ? `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,140,50,.1);border:1px solid rgba(255,140,50,.25);color:#e88c2a;margin-right:6px">GHL</span>`
+      : `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(88,101,242,.1);border:1px solid rgba(88,101,242,.25);color:#8891f5;margin-right:6px">Calendly</span>`;
+
+    const statusBadge = connected
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.25);color:#5cb87a">● Conectado</span>`
+      : `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(155,160,180,.1);border:1px solid rgba(155,160,180,.2);color:var(--text3)">Sin conectar</span>`;
+
+    if (connected && info) {
+      const connectedAt = info.connected_at
+        ? new Date(info.connected_at).toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' })
         : '—';
+
+      let infoRows = '';
+      if (isGHL) {
+        const meta       = typeof info.metadata === 'string' ? _tryParseHolding(info.metadata) : (info.metadata || {});
+        const locationId = info.provider_location_id || '—';
+        const webhookOk  = !!info.webhook_id;
+        const whUrl      = info.webhook_url || '';
+        const calendars  = Array.isArray(info.detected_calendars) ? info.detected_calendars : [];
+        const closers    = Array.isArray(info.detected_closers)   ? info.detected_closers   : [];
+
+        const _pill = (txt, color) =>
+          `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${color}18;border:1px solid ${color}35;color:${color};white-space:nowrap">${esc(txt)}</span>`;
+
+        const locationRow = `
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="font-size:10px;color:var(--text3);min-width:80px">Location ID</span>
+            <code style="font-size:11px;color:var(--gold);font-family:monospace">${esc(locationId)}</code>
+          </div>`;
+
+        const lastWebhookAt = meta?.last_webhook_at;
+        const webhookAgeH   = lastWebhookAt
+          ? (Date.now() - new Date(lastWebhookAt).getTime()) / 36e5 : null;
+        const webhookHealthBadge = webhookAgeH === null
+          ? `<span style="font-size:10px;color:var(--text3)">⚪ Sin actividad</span>`
+          : webhookAgeH < 2
+            ? `<span style="font-size:10px;font-weight:700;color:#5cb87a">🟢 Activo</span>
+               <span style="font-size:9px;color:var(--text3);margin-left:4px">hace ${Math.round(webhookAgeH*60)}m</span>`
+            : `<span style="font-size:10px;font-weight:700;color:#e0a840">🟡 Sin actividad reciente</span>
+               <span style="font-size:9px;color:var(--text3);margin-left:4px">hace ${Math.round(webhookAgeH)}h</span>`;
+
+        const webhookRow = `
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <span style="font-size:10px;color:var(--text3);min-width:80px">Webhook</span>
+            ${webhookHealthBadge}
+          </div>`;
+
+        const calendarsRow = calendars.length ? `
+          <div style="margin-bottom:8px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Calendarios detectados</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${calendars.map(c=>_pill(c,'#6090d4')).join('')}</div>
+          </div>` : '';
+
+        const closersRow = closers.length ? `
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Closers / Setters detectados</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${closers.map(c=>_pill(c,'#5cb87a')).join('')}</div>
+          </div>` : '';
+
+        const pendingWebhookBlock = (!webhookOk && whUrl) ? `
+          <div style="margin-bottom:8px;padding:8px 10px;background:rgba(255,180,50,.07);border:1px solid rgba(255,180,50,.2);border-radius:8px">
+            <div style="font-size:10px;font-weight:700;color:#e0a840;margin-bottom:4px">Copiá esta URL en GHL</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <code style="font-size:9px;color:var(--text2);word-break:break-all;flex:1">${esc(whUrl)}</code>
+              <button onclick="navigator.clipboard.writeText('${whUrl.replace(/'/g,"\\'")}').then(()=>toast('✓ URL copiada'))"
+                style="flex-shrink:0;padding:3px 8px;font-size:10px;background:var(--surface-3);border:1px solid var(--line);color:var(--text2);border-radius:6px;cursor:pointer">Copiar</button>
+            </div>
+            <div style="font-size:9px;color:var(--text3);margin-top:4px">GHL → Sub-cuenta → Settings → Integrations → Webhooks → Events: AppointmentCreate, AppointmentUpdate, AppointmentDelete</div>
+          </div>` : '';
+
+        infoRows = locationRow + webhookRow + pendingWebhookBlock + calendarsRow + closersRow;
+      } else {
+        infoRows = `
+          <div style="font-size:12px;color:var(--text2);margin-bottom:2px">👤 ${esc(info.calendly_user_name || '—')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">✉ ${esc(info.calendly_user_email || '—')}</div>`;
+      }
+
+      const reconnectFn  = isGHL ? `connectGHL('${cid}')` : `connectCalendly('${cid}')`;
+      const disconnectFn = isGHL ? `disconnectGHL('${cid}')` : `disconnectCalendly('${cid}')`;
+
+      const syncRow = isGHL ? `
+          <div style="margin-bottom:10px">
+            <button id="sync-btn-${cid}" onclick="syncGHL('${cid}')"
+              style="width:100%;padding:8px;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.25);color:#6db87a;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+              ⟳ Sincronizar appointments desde GHL
+            </button>
+            <div id="sync-result-${cid}" style="font-size:10px;color:var(--text3);margin-top:4px;min-height:14px"></div>
+          </div>` : '';
+
       return `
         <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
             <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
-            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.25);color:#5cb87a">● Conectado</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:4px">${providerBadge}${statusBadge}</div>
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:2px">👤 ${esc(conn.calendly_user_name || '—')}</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">✉ ${esc(conn.calendly_user_email || '—')}</div>
+          ${infoRows}
           <div style="font-size:11px;color:var(--text3);margin-bottom:14px">📅 Conectado el ${connectedAt}</div>
+          ${syncRow}
           <div style="display:flex;gap:8px">
-            <button onclick="connectCalendly('${cid}')"
+            <button onclick="${reconnectFn}"
               style="flex:1;padding:7px;background:var(--surface-3);border:1px solid var(--line);color:var(--text2);border-radius:8px;font-size:11px;cursor:pointer">
               ↻ Reconectar
             </button>
-            <button onclick="disconnectCalendly('${cid}')"
+            <button onclick="${disconnectFn}"
               style="padding:7px 14px;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.2);color:var(--red);border-radius:8px;font-size:11px;cursor:pointer">
               Desconectar
             </button>
           </div>
         </div>`;
     } else {
+      const providerName = isGHL ? 'GoHighLevel' : 'Calendly';
+      const connectFn    = isGHL ? `connectGHL('${cid}')` : `connectCalendly('${cid}')`;
       return `
         <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
             <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
-            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(155,160,180,.1);border:1px solid rgba(155,160,180,.2);color:var(--text3)">Sin conectar</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:4px">${providerBadge}${statusBadge}</div>
           </div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Conectá la cuenta Calendly de este negocio para recibir leads automáticamente.</div>
-          <button onclick="connectCalendly('${cid}')"
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Conectá ${providerName} para recibir leads automáticamente.</div>
+          <button onclick="${connectFn}"
             style="width:100%;padding:9px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
-            Conectar Calendly
+            Conectar ${providerName}
           </button>
         </div>`;
     }
   }).join('');
 }
 
+function _tryParseHolding(str) {
+  try { return JSON.parse(str); } catch { return {}; }
+}
+
+// ── Calendly connect/disconnect ──
 function connectCalendly(clienteId){
-  const url    = `${API_URL}/calendly/connect?cliente_id=${encodeURIComponent(clienteId)}`;
-  const popup  = window.open(url, 'calendly_oauth', 'width=620,height=720,left=200,top=100');
-  if (!popup) { toast('Permitir popups para conectar Calendly'); return; }
-  // Fallback poll in case postMessage doesn't fire (popup blocker partial allow)
+  const url   = `${API_URL}/calendly/connect?cliente_id=${encodeURIComponent(clienteId)}`;
+  const popup = window.open(url, 'integration_oauth', 'width=620,height=720,left=200,top=100');
+  if (!popup) { toast('Permitir popups para conectar'); return; }
   const iv = setInterval(() => {
-    if (popup.closed) { clearInterval(iv); setTimeout(() => reloadCalendlyCfg(), 600); }
+    if (popup.closed) { clearInterval(iv); setTimeout(() => reloadIntegraciones(), 600); }
   }, 600);
 }
 
@@ -1470,9 +1826,58 @@ async function disconnectCalendly(clienteId){
     const r = await fetch(`${API_URL}/calendly/disconnect`, {
       method: 'DELETE', headers: { ...apiH(), 'x-cliente-id': clienteId }
     });
-    if (r.ok) { toast('Calendly desconectado'); await reloadCalendlyCfg(); }
+    if (r.ok) { toast('Calendly desconectado'); await reloadIntegraciones(); }
     else { const e = await r.json(); toast('Error: ' + (e.error || r.status)); }
   } catch { toast('Error de red'); }
+}
+
+// ── GHL connect/disconnect ──
+function connectGHL(clienteId){
+  const url   = `${API_URL}/ghl/connect?cliente_id=${encodeURIComponent(clienteId)}`;
+  const popup = window.open(url, 'integration_oauth', 'width=620,height=720,left=200,top=100');
+  if (!popup) { toast('Permitir popups para conectar'); return; }
+  const iv = setInterval(() => {
+    if (popup.closed) { clearInterval(iv); setTimeout(() => reloadIntegraciones(), 600); }
+  }, 600);
+}
+
+async function disconnectGHL(clienteId){
+  if (!confirm(`¿Desconectar GoHighLevel de ${clientLabel(clienteId)}? Se eliminará el webhook.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/ghl/disconnect`, {
+      method: 'DELETE', headers: { ...apiH(), 'x-cliente-id': clienteId }
+    });
+    if (r.ok) { toast('GoHighLevel desconectado'); await reloadIntegraciones(); }
+    else { const e = await r.json(); toast('Error: ' + (e.error || r.status)); }
+  } catch { toast('Error de red'); }
+}
+
+async function syncGHL(clienteId) {
+  const btn = document.getElementById(`sync-btn-${clienteId}`);
+  const resultEl = document.getElementById(`sync-result-${clienteId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Sincronizando...'; }
+  if (resultEl) resultEl.textContent = '';
+  try {
+    const r = await fetch(`${API_URL}/ghl/sync?cliente_id=${encodeURIComponent(clienteId)}`, {
+      method: 'POST',
+      headers: { ...apiH(), 'Content-Type': 'application/json' },
+    });
+    const data = await r.json();
+    if (r.ok) {
+      const msg = `✓ ${data.synced} sincronizados, ${data.skipped} existentes, ${data.errors?.length || 0} errores (total: ${data.total})`;
+      toast(msg);
+      if (resultEl) resultEl.textContent = msg;
+    } else {
+      const msg = 'Error: ' + (data.error || r.status);
+      toast(msg);
+      if (resultEl) resultEl.textContent = msg;
+    }
+  } catch {
+    toast('Error de red al sincronizar');
+    if (resultEl) resultEl.textContent = 'Error de red';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⟳ Sincronizar appointments desde GHL'; }
+  }
 }
 
 init();
