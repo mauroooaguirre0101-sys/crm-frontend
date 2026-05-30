@@ -8061,6 +8061,12 @@ function _renderAINewView() {
       <!-- REPORT AREA -->
       <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
         <div id="ai-messages-container"></div>
+        <div id="ai-export-wrap" style="${!hasAnalysis||!_aiScorecard?'display:none':''}margin-top:12px;text-align:right">
+          <button onclick="exportAnalysisPDF()" style="padding:8px 18px;font-size:12px;font-weight:700;border-radius:var(--rs);
+            border:1px solid rgba(212,168,50,0.4);background:rgba(212,168,50,0.1);color:var(--gold);cursor:pointer;font-family:inherit">
+            📄 Exportar PDF
+          </button>
+        </div>
 
         <!-- Follow-up chat -->
         <div style="margin-top:16px">
@@ -8167,7 +8173,8 @@ function _renderAIMessages() {
       ? `<div style="font-size:11.5px;color:var(--text3);font-style:italic">Transcript analizado · ${(p.user.content||'').length} caracteres</div>`
       : `<div style="background:rgba(224,181,74,0.08);border:1px solid rgba(224,181,74,0.15);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2)">${(p.user.content||'').replace(/</g,'&lt;')}</div>`;
 
-    const assistantHtml = _mdToHtml(p.assistant?.content || '');
+    const cleanContent = (p.assistant?.content || '').replace(/__SCORECARD__[\s\S]*?__\/SCORECARD__/g,'').trim();
+    const assistantHtml = _mdToHtml(cleanContent);
     const scorecardHtml = (isFirst && _aiScorecard) ? _renderScorecardSection(_aiScorecard) : '';
 
     return `
