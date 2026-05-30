@@ -7570,7 +7570,27 @@ function _mdToHtml(text) {
 
 function exportAnalysisPDF() {
   const sc = _aiScorecard;
-  if (!sc || !sc.phases) { toast('No hay scorecard disponible para exportar'); return; }
+  // If no scorecard, export just the narrative analysis as a printable page
+  if (!sc || !sc.phases) {
+    const narrative = (_aiMessages[1]?.content||'').replace(/\n*__SCORECARD__[\s\S]*/,'').trim();
+    if(!narrative){ toast('No hay análisis para exportar'); return; }
+    const w = window.open('','_blank');
+    if(!w){ toast('Permitir popups para exportar PDF'); return; }
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+      <title>Análisis de Llamada</title>
+      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#1a1a18;color:#f0ede6;padding:32px 40px;font-size:13px;line-height:1.6}
+      h1{font-size:22px;font-weight:800;margin-bottom:20px}
+      h2,h3,h4{margin:14px 0 6px;color:#d4a832}strong{color:#fff}
+      p{margin-bottom:8px;color:#c0bdb6}ul,ol{padding-left:18px;margin-bottom:10px}li{margin-bottom:4px;color:#c0bdb6}
+      hr{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:16px 0}
+      .print-btn{background:#d4a832;color:#111;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:24px;display:block}
+      @media print{.print-btn{display:none!important}body{padding:20px}@page{size:A4;margin:12mm}}</style></head>
+      <body><button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+      ${narrative.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^- (.+)$/gm,'<li>$1</li>').replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}
+      </body></html>`);
+    w.document.close();
+    return;
+  }
 
   // Get radar canvas as base64 before opening window
   const canvas = document.getElementById('ai-scorecard-radar');
@@ -8194,11 +8214,9 @@ function _renderAIMessages() {
   // Scroll to bottom
   container.scrollTop = container.scrollHeight;
 
-  // Export button — show if scorecard exists
+  // Export button — always visible when there's an analysis
   const exportWrap = document.getElementById('ai-export-wrap');
-  if (exportWrap) {
-    exportWrap.style.display = _aiScorecard ? '' : 'none';
-  }
+  if (exportWrap) exportWrap.style.display = '';
 
   // Show chat area
   const chatArea = document.getElementById('ai-chat-area');
