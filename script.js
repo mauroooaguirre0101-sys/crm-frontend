@@ -7603,7 +7603,8 @@ function exportAnalysisPDF() {
     return;
   }
 
-  // Get radar canvas as base64 before opening window
+  // Draw bar chart on canvas and capture as image for PDF
+  _drawScorecardRadar(sc);
   const canvas = document.getElementById('ai-scorecard-radar');
   const radarDataUrl = canvas ? canvas.toDataURL('image/png') : null;
 
@@ -7690,8 +7691,8 @@ function exportAnalysisPDF() {
   .kpi-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
   .kpi-val{font-size:26px;font-weight:700}
   .kpi-sub{font-size:11px;color:#888780;margin-top:2px}
-  .radar-wrap{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:18px;margin-bottom:14px;display:flex;justify-content:center}
-  .radar-wrap img{max-width:400px;height:auto}
+  .radar-wrap{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:18px;margin-bottom:14px}
+  .radar-wrap img{width:100%;height:auto}
   .ptable-c{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;overflow:hidden;margin-bottom:14px}
   .ptable{width:100%;border-collapse:collapse;font-size:13px}
   .ptable th{text-align:left;font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:0.5px solid rgba(0,0,0,0.11);background:#f5f4f0}
@@ -7753,8 +7754,6 @@ function exportAnalysisPDF() {
     </div>
   </div>
 </div>
-
-<div class="exec"><p>${esc(sc.summary || '')}</p></div>
 
 <div class="kpis">
   <div class="kpi">
@@ -7897,10 +7896,7 @@ function _renderScorecardSection(sc){
 
       <!-- Header score row -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px">
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Reporte · Análisis IA</div>
-          <div style="font-size:22px;font-weight:700;color:var(--text)">${sc.summary?`<div style="font-size:13px;font-weight:400;color:var(--text2);max-width:520px;line-height:1.6;margin-top:6px">${sc.summary}</div>`:''}</div>
-        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Reporte · Análisis IA</div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Calificación</div>
           <div style="font-size:52px;font-weight:800;line-height:1;color:${_scColor(avg)}">${avg.toFixed(1)}</div>
@@ -7916,9 +7912,9 @@ function _renderScorecardSection(sc){
         <div style="${kpiStyle}"><div style="${kpiLabel}">Fase crítica</div><div style="font-size:13px;font-weight:700;padding-top:6px;color:var(--text)">${weakPhase?weakPhase.name:'—'}</div><div style="${kpiSub}">mayor oportunidad</div></div>
       </div>
 
-      <!-- Radar chart -->
-      <div style="display:flex;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px">
-        <canvas id="ai-scorecard-radar" width="420" height="420"></canvas>
+      <!-- Bar chart -->
+      <div style="margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px 20px">
+        <canvas id="ai-scorecard-radar" width="600" height="220"></canvas>
       </div>
 
       <!-- Phase table -->
@@ -7953,55 +7949,55 @@ function _drawScorecardRadar(sc){
   const canvas = document.getElementById('ai-scorecard-radar');
   if(!canvas||!sc||!sc.phases) return;
   const ctx=canvas.getContext('2d');
-  const W=canvas.width, H=canvas.height, cx=W/2, cy=H/2, R=W*0.34, n=_AI_CALL_PHASES.length;
+  const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  const pt=(a,r)=>[cx+r*Math.cos(a-Math.PI/2), cy+r*Math.sin(a-Math.PI/2)];
-  const gridC='rgba(255,255,255,0.07)', tc='#a8a69f';
-
-  [2,4,6,8,10].forEach(ring=>{
-    const r=R*ring/10;
-    ctx.beginPath();
-    for(let i=0;i<n;i++){const[x,y]=pt(2*Math.PI*i/n,r);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
-    ctx.closePath(); ctx.strokeStyle=gridC; ctx.lineWidth=.8; ctx.stroke();
-    if(ring===4||ring===8){
-      ctx.fillStyle=tc; ctx.font='10px sans-serif'; ctx.textAlign='center';
-      ctx.fillText(ring,cx+4,cy-r+11);
-    }
-  });
-  for(let i=0;i<n;i++){
-    const[x,y]=pt(2*Math.PI*i/n,R);
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y);
-    ctx.strokeStyle=gridC; ctx.lineWidth=.8; ctx.stroke();
-  }
 
   const pById={};
   sc.phases.forEach(p=>{ pById[p.id]=p; });
 
-  ctx.beginPath();
-  _AI_CALL_PHASES.forEach((ph,i)=>{
-    const s=Number(pById[ph.id]?.score)||0;
-    const[x,y]=pt(2*Math.PI*i/n,R*s/10);
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  });
-  ctx.closePath();
-  ctx.fillStyle='rgba(91,143,212,.18)'; ctx.fill();
-  ctx.strokeStyle='#5b8fd4'; ctx.lineWidth=2; ctx.stroke();
+  const padL=36, padR=12, padT=24, padB=52;
+  const chartW=W-padL-padR, chartH=H-padT-padB;
+  const n=_AI_CALL_PHASES.length;
+  const barW=Math.floor(chartW/n*0.6);
+  const gap=(chartW-barW*n)/(n+1);
 
-  _AI_CALL_PHASES.forEach((ph,i)=>{
-    const s=Number(pById[ph.id]?.score)||0;
-    const[x,y]=pt(2*Math.PI*i/n,R*s/10);
-    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
-    ctx.fillStyle=_scColor(s); ctx.fill();
-    ctx.strokeStyle='#1c1c1a'; ctx.lineWidth=1.5; ctx.stroke();
+  // Grid lines y labels eje Y
+  const gridC='rgba(255,255,255,0.07)', tc='#6b6965';
+  [0,2,4,6,8,10].forEach(v=>{
+    const y=padT+chartH*(1-v/10);
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+chartW,y);
+    ctx.strokeStyle=gridC; ctx.lineWidth=0.7; ctx.stroke();
+    ctx.fillStyle=tc; ctx.font='9px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(v, padL-5, y+3);
   });
 
-  const LR=R+44;
+  // Barras
   _AI_CALL_PHASES.forEach((ph,i)=>{
-    const angle=2*Math.PI*i/n;
-    const[x,y]=pt(angle,LR);
-    ctx.fillStyle=tc; ctx.font='500 10px -apple-system,sans-serif';
-    ctx.textAlign=Math.abs(x-cx)<12?'center':x<cx?'right':'left';
-    ctx.fillText(ph.icon+' '+ph.name, x, y+4);
+    const s=Number(pById[ph.id]?.score)||0;
+    const x=padL+gap+(barW+gap)*i;
+    const barH=chartH*(s/10);
+    const y=padT+chartH-barH;
+    const col=_scColor(s);
+
+    // Barra con gradiente
+    const grad=ctx.createLinearGradient(0,y,0,y+barH);
+    grad.addColorStop(0,col);
+    grad.addColorStop(1,col+'55');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.roundRect(x,y,barW,barH,3);
+    ctx.fill();
+
+    // Score encima de la barra
+    ctx.fillStyle=col; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(s, x+barW/2, y-5);
+
+    // Nombre de la fase debajo
+    const shortNames=['Hits','Rapport','Desarr.','Descub.','Pre P.','Pitch','Soluc.','Present.','Cierre','Objecc.'];
+    ctx.fillStyle='#a8a69f'; ctx.font='9px sans-serif';
+    ctx.fillText(shortNames[i]||ph.name, x+barW/2, padT+chartH+14);
+    ctx.fillStyle='#6b6965'; ctx.font='9px sans-serif';
+    ctx.fillText(ph.icon||'', x+barW/2, padT+chartH+26);
   });
 }
 
