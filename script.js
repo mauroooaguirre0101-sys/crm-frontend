@@ -7805,8 +7805,6 @@ ${actionsHtml ? `
   ${actionsHtml}
 </div>` : ''}
 
-${narrativeHtml ? `
-<div class="narrative">${narrativeHtml}</div>` : ''}
 
 <div class="footer">
   <span>Reporte · Análisis IA</span>
@@ -8223,7 +8221,7 @@ function _renderAIMessages() {
             <div style="font-size:10.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✦ Análisis IA</div>
             <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);padding:18px 20px">
               ${scorecardHtml}
-              ${assistantHtml}
+              ${isFirst ? '' : assistantHtml}
             </div>
           </div>` : ''}
       </div>`;
