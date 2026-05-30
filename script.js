@@ -7648,71 +7648,74 @@ function exportAnalysisPDF() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
+  const sellerName = _analyzerMeta?.seller || 'Vendedor';
+  const productName = _analyzerMeta?.product || '—';
+  const durName = _analyzerMeta?.dur || '—';
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reporte de Llamada — ${esc(sc.summary?.slice(0,40) || 'Análisis')}</title>
+<title>Reporte · ${esc(sellerName)}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',system-ui,sans-serif;background:#1a1a18;color:#f0ede6;font-size:13px;line-height:1.6;padding:32px 40px}
-  @media print{body{padding:20px 28px} @page{size:A4;margin:12mm 14mm}}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08)}
-  .header-left .label{font-size:9px;font-weight:700;color:#d4a832;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
-  .header-left .title{font-size:28px;font-weight:800;color:#f0ede6;line-height:1.1;margin-bottom:4px}
-  .header-left .meta{font-size:11px;color:#a8a69f}
-  .header-right{text-align:right}
-  .header-right .score-label{font-size:9px;color:#a8a69f;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-  .big-score{font-size:52px;font-weight:800;line-height:1}
-  .big-sub{font-size:11px;color:#a8a69f;margin-top:2px}
-  .exec{background:#252523;border-left:3px solid #5b8fd4;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:24px}
-  .exec p{font-size:14px;line-height:1.75;color:#d8d4cc}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
-  .kpi{background:#252523;border-radius:8px;padding:12px;text-align:center}
-  .kpi-label{font-size:9px;color:#6b6965;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-  .kpi-val{font-size:26px;font-weight:800}
-  .kpi-sub{font-size:10px;color:#6b6965;margin-top:2px}
-  .radar-wrap{display:flex;justify-content:center;margin-bottom:24px;background:#252523;border-radius:10px;padding:16px}
-  .radar-wrap img{max-width:380px;height:auto}
-  .section-title{font-size:10px;font-weight:700;color:#a8a69f;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-  .ptable{width:100%;border-collapse:collapse;margin-bottom:24px}
-  .ptable thead tr{background:#252523}
-  .ptable th{font-size:9px;font-weight:700;color:#6b6965;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06)}
-  .ptable td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top}
-  .ph-num{color:#6b6965;font-size:11px;font-weight:700;text-align:center;width:28px}
-  .ph-name{font-weight:700;font-size:12px;width:110px}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;font-size:14px;line-height:1.6;padding:32px 40px;max-width:860px;margin:0 auto}
+  @media print{body{padding:20px 28px;background:#fff} @page{size:A4;margin:12mm 14mm}}
+  .no-print{text-align:center;margin-bottom:24px}
+  .print-btn{background:#1a1a18;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  @media print{.no-print{display:none!important}}
+  .r-hdr{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:22px;margin-bottom:14px}
+  .r-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .r-label{font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .r-name{font-size:24px;font-weight:700;color:#1a1a18;margin-bottom:6px}
+  .r-meta{font-size:13px;color:#5f5e5a;display:flex;gap:16px;flex-wrap:wrap}
+  .score-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.06em;text-align:right}
+  .big-score{font-size:54px;font-weight:700;line-height:1}
+  .big-sub{font-size:11px;color:#888780;text-align:right;margin-top:2px}
+  .exec{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-left:3px solid #3266ad;border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:14px}
+  .exec p{font-size:14px;line-height:1.75;color:#1a1a18}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .kpi{background:#f5f4f0;border-radius:8px;padding:12px;text-align:center}
+  .kpi-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+  .kpi-val{font-size:26px;font-weight:700}
+  .kpi-sub{font-size:11px;color:#888780;margin-top:2px}
+  .radar-wrap{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:18px;margin-bottom:14px;display:flex;justify-content:center}
+  .radar-wrap img{max-width:400px;height:auto}
+  .ptable-c{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .ptable{width:100%;border-collapse:collapse;font-size:13px}
+  .ptable th{text-align:left;font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:0.5px solid rgba(0,0,0,0.11);background:#f5f4f0}
+  .ptable td{padding:11px 14px;border-bottom:0.5px solid rgba(0,0,0,0.08);vertical-align:top}
+  .ptable tr:last-child td{border-bottom:none}
+  .ph-num{color:#888780;font-size:12px;font-weight:600;text-align:center;width:30px}
+  .ph-name{font-weight:600;font-size:13px}
   .ph-score{width:80px}
-  .score-pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
-  .score-bar{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:5px}
+  .score-pill{font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;white-space:nowrap}
+  .score-bar{height:4px;background:#e8e6df;border-radius:2px;margin-top:6px}
   .score-fill{height:100%;border-radius:2px}
   .ph-good ul,.ph-improve ul{list-style:none;padding:0}
-  .ph-good li,.ph-improve li{font-size:11px;color:#a8a69f;line-height:1.55;padding:1px 0}
-  .ph-good li::before{content:'✓ ';color:#5cb87a}
-  .ph-improve li::before{content:'△ ';color:#d4913a}
-  .dim{color:#4a4a48!important}
-  .impact{background:rgba(212,145,58,.08);border:1px solid rgba(212,145,58,.2);border-radius:10px;padding:14px 18px;margin-bottom:24px;display:flex;gap:12px}
-  .impact-icon{font-size:18px;flex-shrink:0;margin-top:2px}
-  .impact-title{font-size:13px;font-weight:700;color:#d4913a;margin-bottom:4px}
-  .impact-desc{font-size:12px;line-height:1.65;color:#c8c0b4}
-  .actions-wrap{background:#252523;border-radius:10px;padding:16px;margin-bottom:24px}
-  .action{display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.02);border-radius:6px;margin-bottom:8px}
+  .ph-good li,.ph-improve li{font-size:12px;color:#5f5e5a;line-height:1.6;padding:1px 0}
+  .ph-good li::before{content:'· ';color:#888780}
+  .ph-improve li::before{content:'· ';color:#888780}
+  .dim{color:#888780!important}
+  .impact{background:#faeeda;border:0.5px solid rgba(133,79,11,0.25);border-radius:12px;padding:18px;display:flex;gap:14px;margin-bottom:14px}
+  .impact-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+  .impact-title{font-size:14px;font-weight:600;color:#854f0b;display:block;margin-bottom:4px}
+  .impact-desc{font-size:13px;line-height:1.65;color:#1a1a18}
+  .actions-c{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:20px;margin-bottom:14px}
+  .act-title{font-size:13px;font-weight:700;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+  .action{display:flex;gap:12px;padding:13px;background:#f5f4f0;border-radius:8px;margin-bottom:10px}
   .action:last-child{margin-bottom:0}
-  .action-num{width:24px;height:24px;border-radius:50%;background:#d4a832;color:#1a1a18;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .action-title{font-size:12px;font-weight:700;margin-bottom:2px}
-  .action-desc{font-size:11px;color:#a8a69f;line-height:1.6}
-  .narrative{background:#252523;border-radius:10px;padding:18px 20px;margin-top:24px}
-  .narrative h3{font-size:11px;font-weight:700;color:#d4a832;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px}
+  .action-num{width:26px;height:26px;border-radius:50%;background:#1a1a18;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .action-title{font-size:13px;font-weight:600;display:block;margin-bottom:3px}
+  .action-desc{font-size:12px;color:#5f5e5a;line-height:1.65}
+  .narrative{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:20px;margin-bottom:14px}
+  .narrative h3{font-size:11px;font-weight:700;color:#5f5e5a;text-transform:uppercase;letter-spacing:.07em;margin:16px 0 6px;padding-top:14px;border-top:0.5px solid rgba(0,0,0,0.08)}
   .narrative h3:first-child{margin-top:0;border-top:none;padding-top:0}
-  .narrative h4{font-size:12px;font-weight:700;color:#c0bdb6;margin:10px 0 4px}
-  .narrative p{font-size:12px;color:#c0bdb6;margin-bottom:8px;line-height:1.7}
-  .narrative ul{padding-left:16px;margin-bottom:8px}
-  .narrative li{font-size:12px;color:#c0bdb6;margin-bottom:3px;line-height:1.6}
-  .narrative strong{color:#f0ede6}
-  .footer{margin-top:28px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:10px;color:#4a4a48}
-  .no-print{display:block;text-align:center;margin-bottom:20px}
-  @media print{.no-print{display:none!important}}
-  button.print-btn{background:#d4a832;color:#1a1a18;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  .narrative p{font-size:13px;color:#1a1a18;margin-bottom:8px;line-height:1.7}
+  .narrative ul{padding-left:18px;margin-bottom:8px}
+  .narrative li{font-size:13px;color:#1a1a18;margin-bottom:3px;line-height:1.6}
+  .narrative strong{font-weight:700}
+  .footer{margin-top:24px;padding-top:12px;border-top:0.5px solid rgba(0,0,0,0.11);display:flex;justify-content:space-between;font-size:10px;color:#888780}
 </style>
 </head>
 <body>
@@ -7721,16 +7724,22 @@ function exportAnalysisPDF() {
   <button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
 </div>
 
-<div class="header">
-  <div class="header-left">
-    <div class="label">Reporte · Análisis IA</div>
-    <div class="title">Análisis de Llamada</div>
-    <div class="meta">${dateStr}</div>
-  </div>
-  <div class="header-right">
-    <div class="score-label">Calificación</div>
-    <div class="big-score" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
-    <div class="big-sub">/ 10</div>
+<div class="r-hdr">
+  <div class="r-top">
+    <div>
+      <div class="r-label">Reporte · Análisis IA</div>
+      <div class="r-name">${esc(sellerName)}</div>
+      <div class="r-meta">
+        <span>📅 ${dateStr}</span>
+        ${productName !== '—' ? `<span>🎯 ${esc(productName)}</span>` : ''}
+        ${durName !== '—' ? `<span>⏱ ${esc(durName)}</span>` : ''}
+      </div>
+    </div>
+    <div>
+      <div class="score-label">Calificación</div>
+      <div class="big-score" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
+      <div class="big-sub">/ 10</div>
+    </div>
   </div>
 </div>
 
@@ -7744,51 +7753,53 @@ function exportAnalysisPDF() {
   </div>
   <div class="kpi">
     <div class="kpi-label">Fases fuertes</div>
-    <div class="kpi-val" style="color:#5cb87a">${high}</div>
+    <div class="kpi-val" style="color:#3b6d11">${high}</div>
     <div class="kpi-sub">score ≥ 7</div>
   </div>
   <div class="kpi">
     <div class="kpi-label">A mejorar</div>
-    <div class="kpi-val" style="color:#d46060">${low}</div>
+    <div class="kpi-val" style="color:#a32d2d">${low}</div>
     <div class="kpi-sub">score &lt; 6</div>
   </div>
   <div class="kpi">
     <div class="kpi-label">Fase crítica</div>
-    <div class="kpi-val" style="font-size:14px;padding-top:6px">${weakPhase ? weakPhase.icon + ' ' + weakPhase.name : '—'}</div>
+    <div class="kpi-val" style="font-size:14px;padding-top:5px;font-weight:700">${weakPhase ? weakPhase.name : '—'}</div>
     <div class="kpi-sub">mayor oportunidad</div>
   </div>
 </div>
 
 ${radarDataUrl ? `<div class="radar-wrap"><img src="${radarDataUrl}" alt="Radar de fases"></div>` : ''}
 
-<div class="section-title">Fases de la llamada</div>
+<div class="ptable-c">
 <table class="ptable">
   <thead><tr>
-    <th>#</th><th>Fase</th><th>Score</th>
+    <th style="width:30px">#</th><th>Fase</th><th style="width:68px">Score</th>
     <th>✓ Fortalezas</th><th>△ Oportunidades</th>
   </tr></thead>
   <tbody>${phaseRows}</tbody>
 </table>
+</div>
 
 ${sc.impactTitle ? `
 <div class="impact">
   <div class="impact-icon">▲</div>
   <div>
-    <div class="impact-title">${esc(sc.impactTitle)}</div>
+    <div><strong class="impact-title">${esc(sc.impactTitle)}</strong></div>
     <div class="impact-desc">${esc(sc.impactDesc || '')}</div>
   </div>
 </div>` : ''}
 
 ${actionsHtml ? `
-<div class="section-title">Plan de mejora — próxima llamada</div>
-<div class="actions-wrap">${actionsHtml}</div>` : ''}
+<div class="actions-c">
+  <div class="act-title">✏️ Plan de mejora — próxima llamada</div>
+  ${actionsHtml}
+</div>` : ''}
 
 ${narrativeHtml ? `
-<div class="section-title" style="margin-top:8px">Análisis detallado</div>
 <div class="narrative">${narrativeHtml}</div>` : ''}
 
 <div class="footer">
-  <span>Generado por CRM · Análisis IA</span>
+  <span>Reporte · Análisis IA</span>
   <span>${dateStr}</span>
 </div>
 
