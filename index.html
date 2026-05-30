@@ -176,6 +176,62 @@
 .area-badge.Ventas{background:rgba(92,184,122,.10);color:#5cb87a;border:1px solid rgba(92,184,122,.2)}
 .area-badge.Producto{background:rgba(224,181,74,.10);color:#e0b54a;border:1px solid rgba(224,181,74,.2)}
 .ideas-check{width:17px;height:17px;cursor:pointer;accent-color:#5cb87a}
+
+/* ── Call Analyzer Report ───────────────────────────────────────────── */
+.ca-wrap{max-width:860px;margin:0 auto;padding:8px 0 40px}
+.ca-steps{display:flex;gap:0;margin-bottom:20px}
+.ca-step{flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface);border:.5px solid var(--line);font-size:11px;color:var(--text3);position:relative}
+.ca-step:first-child{border-radius:8px 0 0 8px}.ca-step:last-child{border-radius:0 8px 8px 0}
+.ca-step+.ca-step{border-left:none}
+.ca-step.active{color:#5b8fd4;border-color:#5b8fd4;background:rgba(91,143,212,.08);z-index:1}
+.ca-step.done{color:#5cb87a;border-color:var(--line);background:var(--surface)}
+.ca-step-num{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.06);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text3)}
+.ca-step.active .ca-step-num{background:#5b8fd4;color:#fff}
+.ca-step.done .ca-step-num{background:rgba(92,184,122,.15);color:#5cb87a}
+.ca-r-hdr{background:var(--surface);border:.5px solid var(--line);border-radius:10px;padding:20px;margin-bottom:12px}
+.ca-r-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.ca-r-name{font-size:20px;font-weight:700;margin-bottom:5px}
+.ca-r-meta{font-size:12px;color:var(--text2);display:flex;gap:14px;flex-wrap:wrap}
+.ca-big-score{font-size:52px;font-weight:800;line-height:1}
+.ca-big-sub{font-size:10px;color:var(--text3);text-align:right;margin-top:2px}
+.ca-exec{background:var(--surface);border:.5px solid var(--line);border-left:3px solid #5b8fd4;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:12px}
+.ca-exec p{font-size:13.5px;line-height:1.75;color:var(--text2)}
+.ca-m4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.ca-mc{background:rgba(255,255,255,.03);border-radius:8px;padding:11px;text-align:center;border:.5px solid var(--line)}
+.ca-mc-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.ca-mc-val{font-size:24px;font-weight:700}
+.ca-mc-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.ca-radar-c{background:var(--surface);border:.5px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px;display:flex;justify-content:center}
+.ca-ptable-c{background:var(--surface);border:.5px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.ca-ptable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ca-ptable th{text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:9px 12px;border-bottom:.5px solid var(--line);background:rgba(255,255,255,.02)}
+.ca-ptable td{padding:10px 12px;border-bottom:.5px solid var(--line);vertical-align:top}
+.ca-ptable tr:last-child td{border-bottom:none}
+.ca-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.ca-ph{background:rgba(92,184,122,.15);color:#5cb87a}
+.ca-pm{background:rgba(212,145,58,.15);color:#d4913a}
+.ca-pl{background:rgba(212,96,96,.15);color:#d46060}
+.ca-pbar-w{height:4px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:5px}
+.ca-pbar{height:100%;border-radius:2px}
+.ca-bh{background:#5cb87a}.ca-bm{background:#d4913a}.ca-bl{background:#d46060}
+.ca-blist{list-style:none;padding:0}
+.ca-blist li{font-size:11.5px;color:var(--text2);padding:1px 0;line-height:1.6}
+.ca-blist li::before{content:'· ';color:var(--text3)}
+.ca-impact{background:rgba(212,145,58,.07);border:.5px solid rgba(212,145,58,.25);border-radius:10px;padding:16px;display:flex;gap:12px;margin-bottom:12px}
+.ca-impact strong{font-size:13px;font-weight:600;color:#d4913a;display:block;margin-bottom:3px}
+.ca-impact p{font-size:12px;line-height:1.65;color:var(--text2)}
+.ca-actions-c{background:var(--surface);border:.5px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
+.ca-act{display:flex;gap:11px;padding:12px;background:rgba(255,255,255,.02);border-radius:7px;margin-bottom:8px}
+.ca-act:last-child{margin-bottom:0}
+.ca-act-n{width:25px;height:25px;border-radius:50%;background:var(--text);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ca-act-body strong{font-size:12.5px;font-weight:600;display:block;margin-bottom:2px}
+.ca-act-body p{font-size:11.5px;color:var(--text2);line-height:1.65}
+@media print{
+  body>*:not(#ca-print-area){display:none!important}
+  #ca-print-area{display:block!important;position:fixed;top:0;left:0;width:100%}
+  .ca-no-print{display:none!important}
+  body{background:#1a1a18}
+}
 </style>
 </head>
 <body>
@@ -763,14 +819,6 @@
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none">🔍</span>
     </div>
     <button class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-lead')">+ Nuevo lead</button>
-    <!-- Seguidores nuevos -->
-    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.03);
-                border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);
-                padding:5px 12px;white-space:nowrap">
-      <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Seguidores</span>
-      <span id="leads-seguidores-badge"
-            style="font-family:'Inter',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.02em;color:var(--gold-light);line-height:1">0</span>
-    </div>
   </div>
 
   <!-- Métricas por etiqueta -->
@@ -1031,7 +1079,8 @@
       oninput="onCallsBusquedaInput()"
       style="padding:7px 12px;font-size:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
              border-radius:var(--rs);color:var(--text);min-width:220px;flex:1;max-width:320px">
-    <button id="btn-new-call" class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-call')">+ Nueva llamada</button>
+    <button class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:7px 14px" onclick="window.open('analizador_llamadas.html','_blank','width=900,height=800,scrollbars=yes')">🤖 Analizador IA</button>
+    <button id="btn-new-call" class="btn btn-gold" style="margin-left:8px" onclick="openModal('modal-call')">+ Nueva llamada</button>
   </div>
 
   <div class="card">
@@ -1050,10 +1099,11 @@
         <th>Info previa</th>
         <th>Estado</th>
         <th>Motivo</th>
-        <th>Seguimientos</th>
+        <th>Días SPC</th>
         <th>Responde</th>
         <th id="calls-th-link">Link</th>
         <th>Grabación</th>
+        <th>Reporte</th>
         <th>Preguntas Calificación</th>
         <th style="color:var(--text3);font-size:11px">Registro</th>
         <th></th>
@@ -1541,6 +1591,10 @@
   <div class="form-group" id="ec-closer-wrap" style="display:none">
     <label class="form-label">Closer</label>
     <input type="text" id="ec-closer" placeholder="Jonathan Perez">
+  </div>
+  <div class="form-group" id="ec-spc-notas-wrap" style="display:none">
+    <label class="form-label">📋 Notas de seguimiento <span style="font-size:10px;color:var(--text3);font-weight:400">— en qué momento se encuentra este lead</span></label>
+    <textarea id="ec-notas-spc" placeholder="Ej: Le envié la propuesta el lunes, dijo que lo revisa con su pareja esta semana. Tiene intención pero pide tiempo…" style="min-height:100px"></textarea>
   </div>
   <div class="form-grid form-grid-2">
     <div class="form-group" id="ec-resp-wrap" style="display:none"><label class="form-label">Responde</label>
@@ -2143,12 +2197,13 @@
         <option>Cuotas</option>
         <option>PIF</option>
         <option>Seña</option>
+        <option id="cierre-opt-mensualidad" style="display:none">Mensualidad</option>
       </select></div>
-    <div class="form-group"><label class="form-label">Monto cobrado hoy (USD)</label>
+    <div class="form-group"><label class="form-label" id="cierre-cash-label">Monto cobrado hoy (USD)</label>
       <input type="number" id="cierre-cash" placeholder="0" min="0" step="any"></div>
   </div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group"><label class="form-label">Programa <span style="color:var(--red)">*</span></label>
+  <div class="form-grid form-grid-2" id="cierre-programa-row">
+    <div class="form-group"><label class="form-label">Programa <span id="cierre-programa-req" style="color:var(--red)">*</span></label>
       <select id="cierre-programa" onchange="_cierreUpdatePrograma(this.value)">
         <option value="">— Seleccionar —</option>
         <option value="3">3 meses</option>
@@ -2157,6 +2212,10 @@
         <option value="12">12 meses</option>
       </select></div>
     <div></div>
+  </div>
+  <div id="cierre-mensualidad-section" style="display:none;background:rgba(92,184,122,0.05);border:1px solid rgba(92,184,122,0.2);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:600;color:#5cb87a;margin-bottom:4px">💳 Pago mensual recurrente</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6">El monto ingresado es el cobro mensual. Próximo vencimiento: <strong id="cierre-proxpago-display" style="color:var(--text)">—</strong></div>
   </div>
   <div id="cierre-cuota-section" style="display:none;background:rgba(212,168,50,0.04);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:12px;margin-bottom:12px">
     <div class="form-group" style="margin-bottom:8px"><label class="form-label">Número de cuotas</label>

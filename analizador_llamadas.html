@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de Llamadas de Ventas</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #e8e6df;
+  --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+  --border: rgba(0,0,0,0.11); --border2: rgba(0,0,0,0.20);
+  --blue: #3266ad; --blue-bg: #e6f1fb;
+  --green: #3b6d11; --green-bg: #eaf3de;
+  --amber: #854f0b; --amber-bg: #faeeda;
+  --red: #a32d2d; --red-bg: #fcebeb;
+  --r: 8px; --rl: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #f0ede6; --text2: #a8a69f; --text3: #6b6965;
+    --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.18);
+    --blue: #5b8fd4; --blue-bg: #0c2040;
+    --green: #7ab84a; --green-bg: #1a2e0a;
+    --amber: #d4913a; --amber-bg: #2a1a05;
+    --red: #d46060; --red-bg: #2a0d0d;
+  }
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+.hdr { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 20px; position: sticky; top: 0; z-index: 50; }
+.hdr-in { max-width: 820px; margin: 0 auto; height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-box { width: 30px; height: 30px; background: var(--text); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.logo-box svg { width: 16px; height: 16px; fill: var(--bg); }
+.logo h1 { font-size: 14px; font-weight: 600; }
+.logo p { font-size: 11px; color: var(--text3); }
+.hdr-right { display: flex; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r); border: 0.5px solid var(--border2); background: transparent; color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background .12s; white-space: nowrap; text-decoration: none; }
+.btn:hover { background: var(--bg3); }
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn-primary:hover { opacity: .87; background: var(--text); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-lg { padding: 12px 24px; font-size: 15px; font-weight: 600; }
+.btn-full { width: 100%; justify-content: center; }
+.page { display: none; }
+.page.active { display: block; }
+.wrap { max-width: 820px; margin: 0 auto; padding: 28px 20px 80px; }
+.steps { display: flex; gap: 0; margin-bottom: 24px; }
+.step { flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg); border: 0.5px solid var(--border); font-size: 12px; color: var(--text3); position: relative; }
+.step:first-child { border-radius: var(--rl) 0 0 var(--rl); }
+.step:last-child { border-radius: 0 var(--rl) var(--rl) 0; }
+.step + .step { border-left: none; }
+.step.active { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); z-index: 1; }
+.step.done { color: var(--green); border-color: var(--border); background: var(--bg); }
+.step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--bg3); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text3); }
+.step.active .step-num { background: var(--blue); color: white; }
+.step.done .step-num { background: var(--green-bg); color: var(--green); }
+.step-label { font-weight: 500; }
+.card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+.flabel { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 5px; }
+input[type=text], input[type=date], select, textarea { width: 100%; background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--r); padding: 9px 12px; font-size: 13px; color: var(--text); font-family: inherit; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); }
+textarea { resize: vertical; line-height: 1.6; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fg { margin-bottom: 14px; }
+.hint { font-size: 11px; color: var(--text3); margin-top: 5px; line-height: 1.5; }
+.prompt-box-wrap { position: relative; }
+.prompt-box { width: 100%; background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--r); padding: 14px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--text2); line-height: 1.6; min-height: 200px; max-height: 360px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+.copy-btn { position: absolute; top: 8px; right: 8px; }
+.ai-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ai-link { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: var(--r); border: 0.5px solid var(--border2); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); text-decoration: none; transition: background .12s; }
+.ai-link:hover { background: var(--bg3); color: var(--text); }
+.ai-link .ai-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.paste-instruction { background: var(--blue-bg); border: 0.5px solid var(--blue); border-radius: var(--rl); padding: 16px 20px; margin-bottom: 16px; display: flex; gap: 14px; align-items: flex-start; }
+.pi-icon { font-size: 20px; flex-shrink: 0; }
+.pi-text strong { font-size: 13px; font-weight: 600; color: var(--blue); display: block; margin-bottom: 4px; }
+.pi-text p { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.json-input { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; min-height: 160px; }
+.err-box { background: var(--red-bg); border: 0.5px solid var(--red); border-radius: var(--r); padding: 12px 16px; margin-top: 10px; display: none; }
+.err-box p { font-size: 12px; color: var(--red); }
+.r-hdr { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 22px; margin-bottom: 14px; }
+.r-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.r-name { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.r-meta { font-size: 13px; color: var(--text2); display: flex; gap: 16px; flex-wrap: wrap; }
+.big-score { font-size: 54px; font-weight: 700; line-height: 1; }
+.big-sub { font-size: 11px; color: var(--text3); text-align: right; margin-top: 2px; }
+.exec { background: var(--bg); border: 0.5px solid var(--border); border-left: 3px solid var(--blue); border-radius: 0 var(--rl) var(--rl) 0; padding: 16px 20px; margin-bottom: 14px; }
+.exec h3 { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.exec p { font-size: 14px; line-height: 1.75; }
+.m4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+.mc { background: var(--bg2); border-radius: var(--r); padding: 12px; text-align: center; }
+.mc-lbl { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.mc-val { font-size: 26px; font-weight: 700; }
+.mc-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.radar-c { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 18px; margin-bottom: 14px; display: flex; justify-content: center; }
+.ptable-c { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); overflow: hidden; margin-bottom: 14px; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ptable th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; padding: 10px 14px; border-bottom: 0.5px solid var(--border); background: var(--bg2); }
+.ptable td { padding: 11px 14px; border-bottom: 0.5px solid var(--border); vertical-align: top; }
+.ptable tr:last-child td { border-bottom: none; }
+.ptable tr:hover td { background: var(--bg2); }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.ph { background: var(--green-bg); color: var(--green); }
+.pm { background: var(--amber-bg); color: var(--amber); }
+.pl { background: var(--red-bg); color: var(--red); }
+.pbar-w { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 6px; }
+.pbar { height: 100%; border-radius: 2px; }
+.bh { background: var(--green); } .bm { background: var(--amber); } .bl { background: var(--red); }
+.blist { list-style: none; padding: 0; }
+.blist li { font-size: 12px; color: var(--text2); padding: 1px 0; line-height: 1.6; }
+.blist li::before { content: '· '; color: var(--text3); }
+.impact { background: var(--amber-bg); border: 0.5px solid var(--amber); border-radius: var(--rl); padding: 18px; display: flex; gap: 14px; margin-bottom: 14px; }
+.impact-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.impact strong { font-size: 14px; font-weight: 600; color: var(--amber); display: block; margin-bottom: 4px; }
+.impact p { font-size: 13px; line-height: 1.65; }
+.actions-c { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 20px; margin-bottom: 14px; }
+.act { display: flex; gap: 12px; padding: 13px; background: var(--bg2); border-radius: var(--r); margin-bottom: 10px; }
+.act:last-child { margin-bottom: 0; }
+.act-n { width: 26px; height: 26px; border-radius: 50%; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.act-body strong { font-size: 13px; font-weight: 600; display: block; margin-bottom: 3px; }
+.act-body p { font-size: 12px; color: var(--text2); line-height: 1.65; }
+.r-footer { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.copy-ok { display: none; font-size: 11px; color: var(--green); margin-top: 6px; }
+@media (max-width: 600px) {
+  .g2 { grid-template-columns: 1fr; }
+  .m4 { grid-template-columns: 1fr 1fr; }
+  .r-top { flex-direction: column; }
+  .col-d { display: none; }
+  .steps { gap: 4px; }
+  .step { padding: 8px 10px; }
+  .step-label { display: none; }
+}
+@media print {
+  .hdr, .no-print { display: none !important; }
+  body { background: white; }
+  .wrap { padding: 0; max-width: 100%; }
+  #pg-input, #pg-step2, #pg-step3 { display: none !important; }
+  #pg-report { display: block !important; }
+}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="logo">
+      <div class="logo-box">
+        <svg viewBox="0 0 16 16"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6" y="5" width="3" height="10" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>
+      </div>
+      <div><h1>Analizador de Llamadas de Ventas</h1><p>Con IA — sin configuración</p></div>
+    </div>
+    <div class="hdr-right no-print">
+      <button class="btn btn-sm" id="btn-print" onclick="window.print()" style="display:none">⊡ PDF</button>
+      <button class="btn btn-sm btn-primary" id="btn-new" onclick="restart()" style="display:none">+ Nueva</button>
+    </div>
+  </div>
+</header>
+
+<!-- PASO 1: Datos de la llamada -->
+<div id="pg-input" class="page active">
+  <div class="wrap">
+    <div class="steps">
+      <div class="step active"><div class="step-num">1</div><span class="step-label">Datos de la llamada</span></div>
+      <div class="step"><div class="step-num">2</div><span class="step-label">Copiar a la IA</span></div>
+      <div class="step"><div class="step-num">3</div><span class="step-label">Pegar respuesta</span></div>
+      <div class="step"><div class="step-num">4</div><span class="step-label">Ver reporte</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Información de la llamada</div>
+      <div class="g2">
+        <div class="fg"><label class="flabel">Vendedor</label><input type="text" id="f-seller" placeholder="Nombre del vendedor"></div>
+        <div class="fg"><label class="flabel">Fecha</label><input type="date" id="f-date"></div>
+        <div class="fg"><label class="flabel">Producto o servicio</label><input type="text" id="f-product" placeholder="Ej: CRM, seguro, consultoría..."></div>
+        <div class="fg"><label class="flabel">Duración</label>
+          <select id="f-dur">
+            <option value="">—</option>
+            <option>Menos de 15 min</option>
+            <option>15–30 min</option>
+            <option>30–45 min</option>
+            <option>45–60 min</option>
+            <option>Más de 60 min</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="flabel">Transcripción o descripción de la llamada</label>
+        <textarea id="f-transcript" rows="10" placeholder="Pega aquí la transcripción completa, o describe lo que pasó en la llamada con el mayor detalle posible..."></textarea>
+        <p class="hint">Cuanto más detalle proveas, más preciso y útil será el análisis.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" onclick="goStep2()">Continuar →</button>
+      <button class="btn" onclick="loadDemo()">Cargar ejemplo</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASO 2: Copiar prompt -->
+<div id="pg-step2" class="page">
+  <div class="wrap">
+    <div class="steps">
+      <div class="step done"><div class="step-num">✓</div><span class="step-label">Datos de la llamada</span></div>
+      <div class="step active"><div class="step-num">2</div><span class="step-label">Copiar a la IA</span></div>
+      <div class="step"><div class="step-num">3</div><span class="step-label">Pegar respuesta</span></div>
+      <div class="step"><div class="step-num">4</div><span class="step-label">Ver reporte</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Copia este prompt y pégalo en Claude, ChatGPT o cualquier IA</div>
+      <div class="prompt-box-wrap">
+        <div class="prompt-box" id="prompt-text"></div>
+        <button class="btn btn-sm copy-btn" onclick="copyPrompt()" id="copy-btn">Copiar</button>
+      </div>
+      <p class="copy-ok" id="copy-ok">✓ Copiado al portapapeles</p>
+      <div class="ai-links">
+        <span style="font-size:12px;color:var(--text3);align-self:center">Abrir en:</span>
+        <a class="ai-link" href="https://claude.ai" target="_blank"><span class="ai-dot" style="background:#d4a27a"></span> Claude</a>
+        <a class="ai-link" href="https://chat.openai.com" target="_blank"><span class="ai-dot" style="background:#74aa9c"></span> ChatGPT</a>
+        <a class="ai-link" href="https://gemini.google.com" target="_blank"><span class="ai-dot" style="background:#4285f4"></span> Gemini</a>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" onclick="goStep3()">Ya lo pegué — continuar →</button>
+      <button class="btn" onclick="showPage('pg-input')">← Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASO 3: Pegar respuesta -->
+<div id="pg-step3" class="page">
+  <div class="wrap">
+    <div class="steps">
+      <div class="step done"><div class="step-num">✓</div><span class="step-label">Datos de la llamada</span></div>
+      <div class="step done"><div class="step-num">✓</div><span class="step-label">Copiar a la IA</span></div>
+      <div class="step active"><div class="step-num">3</div><span class="step-label">Pegar respuesta</span></div>
+      <div class="step"><div class="step-num">4</div><span class="step-label">Ver reporte</span></div>
+    </div>
+    <div class="paste-instruction">
+      <div class="pi-icon">📋</div>
+      <div class="pi-text">
+        <strong>Pega aquí la respuesta de la IA</strong>
+        <p>Copia la respuesta completa que te dio la IA (incluyendo el bloque JSON) y pégala en el campo de abajo. El analizador extraerá los datos automáticamente.</p>
+      </div>
+    </div>
+    <div class="card">
+      <textarea class="json-input" id="json-input" rows="12" placeholder="Pega aquí la respuesta completa de la IA..."></textarea>
+      <div class="err-box" id="err-box"><p id="err-msg"></p></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" onclick="parseAndRender()">Generar reporte →</button>
+      <button class="btn" onclick="showPage('pg-step2')">← Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASO 4: Reporte -->
+<div id="pg-report" class="page">
+  <div class="wrap">
+    <div class="r-hdr">
+      <div class="r-top">
+        <div>
+          <p style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Reporte · Análisis IA</p>
+          <div class="r-name" id="r-seller"></div>
+          <div class="r-meta">
+            <span>📅 <span id="r-date"></span></span>
+            <span>🎯 <span id="r-product"></span></span>
+            <span>⏱ <span id="r-dur"></span></span>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;text-align:right">Calificación</p>
+          <div class="big-score" id="r-big"></div>
+          <div class="big-sub">/ 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="exec"><h3>Resumen ejecutivo</h3><p id="r-summary"></p></div>
+    <div class="m4">
+      <div class="mc"><div class="mc-lbl">Calificación</div><div class="mc-val" id="r-avg"></div><div class="mc-sub">promedio</div></div>
+      <div class="mc"><div class="mc-lbl">Fases fuertes</div><div class="mc-val" style="color:var(--green)" id="r-high"></div><div class="mc-sub">score ≥ 7</div></div>
+      <div class="mc"><div class="mc-lbl">A mejorar</div><div class="mc-val" style="color:var(--red)" id="r-low"></div><div class="mc-sub">score &lt; 6</div></div>
+      <div class="mc"><div class="mc-lbl">Fase crítica</div><div class="mc-val" id="r-weak" style="font-size:14px;padding-top:5px"></div><div class="mc-sub">mayor oportunidad</div></div>
+    </div>
+    <div class="radar-c"><canvas id="radar" width="500" height="500"></canvas></div>
+    <div class="ptable-c">
+      <table class="ptable">
+        <thead><tr>
+          <th style="width:30px">#</th>
+          <th>Fase</th>
+          <th style="width:68px">Score</th>
+          <th class="col-d">✓ Fortalezas</th>
+          <th class="col-d">△ Oportunidades</th>
+        </tr></thead>
+        <tbody id="r-tbody"></tbody>
+      </table>
+    </div>
+    <div class="impact" id="r-impact">
+      <div class="impact-icon">▲</div>
+      <div><strong id="r-ititle"></strong><p id="r-idesc"></p></div>
+    </div>
+    <div class="actions-c">
+      <div class="card-title" style="margin-bottom:16px">✏️ Plan de mejora — próxima llamada</div>
+      <div id="r-actions"></div>
+    </div>
+    <div class="r-footer no-print">
+      <button class="btn" onclick="window.print()">⊡ Guardar como PDF</button>
+      <button class="btn" onclick="exportJSON()">↓ Exportar JSON</button>
+      <button class="btn btn-primary" onclick="restart()">+ Nueva evaluación</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PHASES = ['hits','rapport','desarrollo','descubrimiento','prepitch','pitch','solucion','presentacion','cierre','objeciones'];
+const PHASE_NAMES = ['Hits','Rapport','Desarrollo','Descubrimiento','Pre pitch','Pitch','Solución','Presentación','Cierre','Objeciones'];
+const PHASE_ICONS = ['🎯','🤝','🔍','💡','📍','🎤','🔧','📊','✅','🛡'];
+let state = {};
+
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+function goStep2() {
+  const transcript = document.getElementById('f-transcript').value.trim();
+  if (!transcript || transcript.length < 40) { alert('Por favor ingresa la transcripción o descripción de la llamada.'); return; }
+  state.seller    = document.getElementById('f-seller').value.trim() || 'Vendedor';
+  state.date      = document.getElementById('f-date').value;
+  state.product   = document.getElementById('f-product').value.trim() || '—';
+  state.dur       = document.getElementById('f-dur').value || '—';
+  state.transcript = transcript;
+  buildPrompt();
+  showPage('pg-step2');
+}
+
+function buildPrompt() {
+  const p = `Eres un experto coach de ventas. Analiza esta llamada de ventas y devuelve ÚNICAMENTE un JSON válido con el análisis completo. No escribas nada fuera del JSON.
+
+DATOS DE LA LLAMADA:
+Vendedor: ${state.seller}
+Producto/Servicio: ${state.product}
+Duración: ${state.dur}
+
+TRANSCRIPCIÓN:
+${state.transcript}
+
+Devuelve exactamente este JSON (sin texto antes ni después):
+{
+  "summary": "Resumen ejecutivo de 2-3 oraciones sobre la llamada",
+  "phases": [
+    { "id": "hits",           "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "rapport",        "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "desarrollo",     "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "descubrimiento", "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "prepitch",       "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "pitch",          "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "solucion",       "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "presentacion",   "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "cierre",         "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] },
+    { "id": "objeciones",     "score": 0, "good": ["fortaleza 1"], "improve": ["mejora 1"] }
+  ],
+  "actions": [
+    { "title": "Acción concreta 1", "desc": "Cómo ejecutarla exactamente en la próxima llamada" },
+    { "title": "Acción concreta 2", "desc": "Cómo ejecutarla exactamente en la próxima llamada" },
+    { "title": "Acción concreta 3", "desc": "Cómo ejecutarla exactamente en la próxima llamada" }
+  ],
+  "impactTitle": "Área con mayor potencial de mejora inmediato",
+  "impactDesc": "Explica por qué esta área es crítica y qué resultado concreto se espera al mejorarla"
+}
+
+REGLAS IMPORTANTES:
+- Calificaciones del 1 al 10 (enteros). Sé riguroso y realista.
+- Si una fase no ocurrió, asígnale score 1 y explícalo.
+- Las fortalezas y mejoras deben ser específicas, no genéricas.
+- Las mejoras deben incluir cómo ejecutarlas (palabras o pasos concretos).
+- Genera entre 3 y 5 acciones para el plan de mejora.
+- Sé constructivo pero directo.`;
+  document.getElementById('prompt-text').textContent = p;
+  state.promptText = p;
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(state.promptText).then(() => {
+    document.getElementById('copy-ok').style.display = 'block';
+    document.getElementById('copy-btn').textContent = '✓ Copiado';
+    setTimeout(() => {
+      document.getElementById('copy-ok').style.display = 'none';
+      document.getElementById('copy-btn').textContent = 'Copiar';
+    }, 2500);
+  });
+}
+
+function goStep3() { showPage('pg-step3'); }
+
+function parseAndRender() {
+  const raw = document.getElementById('json-input').value.trim();
+  document.getElementById('err-box').style.display = 'none';
+  if (!raw) { showErr('Pega la respuesta de la IA antes de continuar.'); return; }
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) { showErr('No se encontró un JSON válido. Asegúrate de copiar la respuesta completa de la IA.'); return; }
+  let analysis;
+  try { analysis = JSON.parse(match[0]); } catch(e) { showErr('El JSON tiene un error de formato: ' + e.message); return; }
+  if (!analysis.phases || !Array.isArray(analysis.phases) || analysis.phases.length < 8) {
+    showErr('El análisis está incompleto. Vuelve a la IA y pídele que complete todas las 10 fases.'); return;
+  }
+  state.analysis = analysis;
+  renderReport();
+  showPage('pg-report');
+  document.getElementById('btn-print').style.display = '';
+  document.getElementById('btn-new').style.display = '';
+  window.scrollTo(0, 0);
+}
+
+function showErr(msg) {
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-box').style.display = 'block';
+}
+
+function renderReport() {
+  const d = state, a = d.analysis;
+  const scores = a.phases.map(p => Number(p.score) || 5);
+  const avg = scores.reduce((x, y) => x + y, 0) / scores.length;
+  const high = scores.filter(s => s >= 7).length;
+  const low  = scores.filter(s => s < 6).length;
+  const weakI = scores.indexOf(Math.min(...scores));
+
+  document.getElementById('r-seller').textContent  = d.seller;
+  document.getElementById('r-date').textContent    = d.date ? fmtDate(d.date) : '—';
+  document.getElementById('r-product').textContent = d.product;
+  document.getElementById('r-dur').textContent     = d.dur;
+  document.getElementById('r-summary').textContent = a.summary || '—';
+
+  const big = document.getElementById('r-big');
+  big.textContent = avg.toFixed(1); big.style.color = sc(avg);
+  const avgEl = document.getElementById('r-avg');
+  avgEl.textContent = avg.toFixed(1); avgEl.style.color = sc(avg);
+  document.getElementById('r-high').textContent = high;
+  document.getElementById('r-low').textContent  = low;
+  document.getElementById('r-weak').textContent = PHASE_NAMES[weakI] || '—';
+
+  drawRadar(a.phases);
+
+  const tbody = document.getElementById('r-tbody');
+  tbody.innerHTML = '';
+  a.phases.forEach((p, i) => {
+    const s = Number(p.score) || 5;
+    const pc = s >= 7 ? 'ph' : s >= 5 ? 'pm' : 'pl';
+    const bc = s >= 7 ? 'bh' : s >= 5 ? 'bm' : 'bl';
+    const good = (p.good    || []).map(g => `<li>${g}</li>`).join('');
+    const imp  = (p.improve || []).map(g => `<li>${g}</li>`).join('');
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--text3);font-size:12px;font-weight:600;text-align:center">${i + 1}</td>
+      <td><div style="font-weight:600">${PHASE_ICONS[i] || ''} ${PHASE_NAMES[i] || p.id}</div><div class="pbar-w"><div class="pbar ${bc}" style="width:${s * 10}%"></div></div></td>
+      <td><span class="pill ${pc}">${s}/10</span></td>
+      <td class="col-d"><ul class="blist">${good || '<li style="color:var(--text3)">—</li>'}</ul></td>
+      <td class="col-d"><ul class="blist">${imp  || '<li style="color:var(--text3)">—</li>'}</ul></td>
+    </tr>`;
+  });
+
+  if (a.impactTitle || a.impactDesc) {
+    document.getElementById('r-ititle').textContent = a.impactTitle || '';
+    document.getElementById('r-idesc').textContent  = a.impactDesc  || '';
+    document.getElementById('r-impact').style.display = 'flex';
+  } else {
+    document.getElementById('r-impact').style.display = 'none';
+  }
+
+  const actEl = document.getElementById('r-actions');
+  actEl.innerHTML = '';
+  (a.actions || []).forEach((act, i) => {
+    actEl.innerHTML += `<div class="act"><div class="act-n">${i + 1}</div><div class="act-body"><strong>${act.title || ''}</strong><p>${act.desc || ''}</p></div></div>`;
+  });
+}
+
+function drawRadar(phases) {
+  const canvas = document.getElementById('radar');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, R = W * 0.36, n = phases.length;
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const tc = dark ? '#a8a69f' : '#5f5e5a';
+  const gc = dark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+  ctx.clearRect(0, 0, W, H);
+
+  function pt(a, r) { return [cx + r * Math.cos(a - Math.PI / 2), cy + r * Math.sin(a - Math.PI / 2)]; }
+
+  [2, 4, 6, 8, 10].forEach(ring => {
+    const r = R * ring / 10;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) { const [x, y] = pt(2 * Math.PI * i / n, r); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.closePath(); ctx.strokeStyle = gc; ctx.lineWidth = .8; ctx.stroke();
+    if (ring === 4 || ring === 8) {
+      ctx.fillStyle = tc; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(ring, cx + 4, cy - r + 11);
+    }
+  });
+
+  for (let i = 0; i < n; i++) {
+    const [x, y] = pt(2 * Math.PI * i / n, R);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y);
+    ctx.strokeStyle = gc; ctx.lineWidth = .8; ctx.stroke();
+  }
+
+  ctx.beginPath();
+  phases.forEach((p, i) => {
+    const [x, y] = pt(2 * Math.PI * i / n, R * (Number(p.score) || 5) / 10);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle   = dark ? 'rgba(91,143,212,.18)' : 'rgba(50,102,173,.14)'; ctx.fill();
+  ctx.strokeStyle = dark ? '#5b8fd4' : '#3266ad'; ctx.lineWidth = 2; ctx.stroke();
+
+  phases.forEach((p, i) => {
+    const s = Number(p.score) || 5;
+    const [x, y] = pt(2 * Math.PI * i / n, R * s / 10);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle   = s >= 7 ? (dark ? '#7ab84a' : '#3b6d11') : s >= 5 ? (dark ? '#d4913a' : '#ba7517') : (dark ? '#d46060' : '#e24b4a');
+    ctx.fill(); ctx.strokeStyle = dark ? '#1c1c1a' : '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+
+  const LR = R + 46;
+  phases.forEach((p, i) => {
+    const angle = 2 * Math.PI * i / n;
+    const [x, y] = pt(angle, LR);
+    ctx.fillStyle = tc; ctx.font = '500 11px -apple-system,sans-serif';
+    ctx.textAlign = Math.abs(x - cx) < 12 ? 'center' : x < cx ? 'right' : 'left';
+    ctx.fillText(PHASE_NAMES[i] || p.id, x, y + 4);
+  });
+}
+
+function exportJSON() {
+  if (!state.analysis) return;
+  const blob = new Blob([JSON.stringify({ ...state }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'llamada-' + (state.seller || 'vendedor').replace(/\s/g, '-') + '-' + (state.date || 'sin-fecha') + '.json';
+  a.click();
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function restart() {
+  if (state.analysis && !confirm('¿Iniciar una nueva evaluación?')) return;
+  state = {};
+  document.getElementById('f-transcript').value = '';
+  document.getElementById('f-seller').value     = '';
+  document.getElementById('f-product').value    = '';
+  document.getElementById('f-dur').value        = '';
+  document.getElementById('f-date').value       = new Date().toISOString().split('T')[0];
+  document.getElementById('json-input').value   = '';
+  document.getElementById('btn-print').style.display = 'none';
+  document.getElementById('btn-new').style.display   = 'none';
+  showPage('pg-input');
+  window.scrollTo(0, 0);
+}
+
+function loadDemo() {
+  document.getElementById('f-seller').value  = 'Andrés Mejía';
+  document.getElementById('f-product').value = 'Software CRM SaaS empresarial';
+  document.getElementById('f-date').value    = new Date().toISOString().split('T')[0];
+  document.getElementById('f-dur').value     = '30–45 min';
+  document.getElementById('f-transcript').value = `[Llamada con Marcela Torres, Directora Comercial de empresa retail, 80 vendedores]
+
+Andrés: Hola Marcela, antes de arrancar quiero preguntarte algo: ¿tu equipo hoy tiene visibilidad en tiempo real de cada prospecto o dependen de reportes que llegan con días de retraso?
+Marcela: La verdad no, los reportes los armamos los lunes y para cuando reaccionamos ya pasaron 3 días.
+Andrés: Exacto, muy común. ¿Cuánto tiempo llevas como directora?
+Marcela: Dos años en el rol.
+Andrés: Y en ese tiempo, ¿cuál ha sido el mayor dolor para escalar el equipo?
+Marcela: El seguimiento. Los vendedores hacen la llamada y no hay forma de saber qué pasó sin preguntarles uno por uno.
+Andrés: ¿Y cuánto tiempo te lleva armar el reporte para gerencia?
+Marcela: Por lo menos medio día cada semana.
+Andrés: Ok. Déjame mostrarte nuestra plataforma... [8 minutos de demo de features sin pausar ni preguntar] ...¿qué te parece?
+Marcela: Interesante. ¿Cuánto cuesta?
+Andrés: Para tu tamaño de empresa son $2,400 al mes.
+Marcela: Uf, está bastante caro.
+Andrés: Podría hablar con mi manager para ver si damos un descuento.
+Marcela: Bueno, mándame algo por correo.
+Andrés: Perfecto, te mando la propuesta hoy.
+[Fin — 38 minutos]`;
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const [y, m, d] = s.split('-');
+  return `${parseInt(d)} ${'ene feb mar abr may jun jul ago sep oct nov dic'.split(' ')[parseInt(m) - 1]} ${y}`;
+}
+
+function sc(s) { return s >= 7 ? 'var(--green)' : s >= 5 ? 'var(--amber)' : 'var(--red)'; }
+</script>
+</body>
+</html>

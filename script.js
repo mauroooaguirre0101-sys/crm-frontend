@@ -349,7 +349,7 @@ function nav(id,el){
   const refetch={
     cont:fetchContenido, found:fetchFundaciones, ang:fetchAngulos,
     ref:fetchReferentes, ig:fetchIG,
-    clients:fetchClients, fin:()=>{fetchIngresos();fetchEgresos();},
+    clients:()=>{Promise.all([fetchClients(),fetchCuotas()]).then(_seedMissingCuotas);}, fin:()=>{fetchIngresos();fetchEgresos();},
     formatos:fetchFormatos, lab:fetchLaboratorio,
     ideas:fetchCrmIdeas,
   };
@@ -562,7 +562,7 @@ function renderDash(){
   const cerradosF=leadsF.filter(l=>l.estado==='Cerrado'||l.estado==='Seña').length;
   const cerradosP=leadsP.filter(l=>l.estado==='Cerrado'||l.estado==='Seña').length;
 
-  const _isRestricted = ['setter','closer'].includes(currentUserRole);
+  const _isRestricted = ['setter','closer','closer_content'].includes(currentUserRole);
 
   if(_isRestricted){
     const agendasF=leadsF.filter(l=>l.estado==='Agendado').length;
@@ -752,7 +752,7 @@ function _loadSOPS(){return ld(_getSopsKey(),[]);}
 function _saveSOPS(arr){sv(_getSopsKey(),arr);}
 
 const SOP_AREAS=['Marketing','Ventas','Productos','Operaciones','Otro'];
-const ROLE_SOP_AREAS={admin:null,content:['Marketing'],closer:['Ventas'],setter:['Ventas']};
+const ROLE_SOP_AREAS={admin:null,content:['Marketing'],closer:['Ventas'],setter:['Ventas'],closer_content:['Ventas']};
 function _sopAreasForRole(){return ROLE_SOP_AREAS[currentUserRole]??null;}
 function sopAreaBadge(a){
   const m={Marketing:'bb',Ventas:'bgr',Productos:'bg',Operaciones:'ba',Otro:'bgy'};
@@ -1068,6 +1068,10 @@ function calShowDetail(fecha,itemId){
   el.style.cssText='position:fixed;inset:0;z-index:350;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
   el.onclick=e=>{if(e.target===el)el.remove();};
   const guionHtml=item.guion?`<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Guión</div><div style="font-size:13px;color:var(--text2);line-height:1.65;white-space:pre-wrap;max-height:130px;overflow-y:auto;background:rgba(0,0,0,.2);border-radius:6px;padding:10px">${esc(item.guion)}</div></div>`:'';
+  const referenciaHtml=item.referencia?`<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Referencia</div><a href="${esc(item.referencia)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--gold);word-break:break-all">${esc(item.referencia)}</a></div>`:'';
+  const showVL=['Reel','YouTube'].includes(tipoLabel);
+  const videoCrudoHtml=showVL&&item.video_crudo?`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">🎥 Video crudo</div><a href="${esc(item.video_crudo)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:#6090d4;word-break:break-all">${esc(item.video_crudo)}</a></div>`:'';
+  const resultadoFinalHtml=showVL&&item.resultado_final?`<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">✅ Resultado final</div><a href="${esc(item.resultado_final)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:#5cb87a;word-break:break-all">${esc(item.resultado_final)}</a></div>`:'';
   el.innerHTML=`<div style="background:var(--surface-2);border:1px solid var(--line);border-left:4px solid ${col};border-radius:12px;padding:22px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
       <div>${tipoContBadge(tipoLabel)}<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:8px">${esc(item.angulo||'Sin ángulo/dolor')}</div><div style="font-size:12px;color:var(--text3);margin-top:3px">${item.fecha||'—'}</div></div>
@@ -1076,10 +1080,13 @@ function calShowDetail(fecha,itemId){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px">
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Formato</div><div style="color:var(--text)">${esc(item.formato)||'—'}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Estado</div>${contBadge(item.estado)}</div>
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">CTA</div><div style="color:var(--text)">${esc(item.cta)||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Notas</div><div style="color:var(--text)">${esc(item.cta)||'—'}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Agendas / Ventas</div><div style="color:var(--text);font-weight:600">${item.agendas||0} / ${item.ventas||0}</div></div>
     </div>
     ${guionHtml}
+    ${referenciaHtml}
+    ${videoCrudoHtml}
+    ${resultadoFinalHtml}
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
       <button class="btn btn-outline" onclick="document.getElementById('cal-detail-overlay').remove()">Cerrar</button>
       <button class="btn btn-outline" onclick="document.getElementById('cal-detail-overlay').remove();_calDuplicate('${itemId}')">Duplicar</button>
@@ -1118,6 +1125,9 @@ function _calPanelOnCatChange(){
     cat:document.getElementById('cp-categoria')?.value,
     winner:document.getElementById('cp-winner')?.checked||false,
     estructura:document.getElementById('cp-estructura')?.value||'',
+    referencia:document.getElementById('cp-referencia')?.value||'',
+    video_crudo:document.getElementById('cp-video-crudo')?.value||'',
+    resultado_final:document.getElementById('cp-resultado-final')?.value||'',
   };
   renderCalPanel(vals);
 }
@@ -1140,6 +1150,10 @@ function renderCalPanel(vals){
   const selVentas=(vals?.ventas!==undefined?vals.ventas:(it?.ventas||0));
   const selWinner=vals?.winner!==undefined?vals.winner:(it?.winner||false);
   const selEstructura=(vals?.estructura!==undefined?vals.estructura:(it?.estructura||''));
+  const selReferencia=(vals?.referencia!==undefined?vals.referencia:(it?.referencia||''));
+  const selVideoCrudo=(vals?.video_crudo!==undefined?vals.video_crudo:(it?.video_crudo||''));
+  const selResultadoFinal=(vals?.resultado_final!==undefined?vals.resultado_final:(it?.resultado_final||''));
+  const showVideoLinks=['Reel','YouTube'].includes(defCat);
   const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const catOpts=['Reel','Carrusel','Historia','YouTube'].map(c=>`<option${defCat===c?' selected':''}>${c}</option>`).join('');
   const estadoOpts=estados.map(s=>`<option${selEstado===s?' selected':''}>${s}</option>`).join('');
@@ -1158,7 +1172,12 @@ function renderCalPanel(vals){
   </div>
   ${isHistoria?`<div class="form-group"><label class="form-label">Estructura</label><textarea id="cp-estructura" rows="3" style="resize:vertical" placeholder="Ej: Hook → Problema → Solución → CTA">${esc(selEstructura)}</textarea></div>`:'<input type="hidden" id="cp-estructura" value="">'}
   <div class="form-group"><label class="form-label">Estado de producción</label><select id="cp-estado">${estadoOpts}</select></div>
-  <div class="form-group"><label class="form-label">CTA</label><input type="text" id="cp-cta" placeholder="Ej: Escribime" value="${esc(selCta)}"></div>
+  <div class="form-group"><label class="form-label">Notas</label><input type="text" id="cp-cta" placeholder="Notas, observaciones…" value="${esc(selCta)}"></div>
+  <div class="form-group"><label class="form-label">Referencia</label><input type="url" id="cp-referencia" placeholder="https://…  URL de video de referencia" value="${esc(selReferencia)}" style="width:100%"></div>
+  ${showVideoLinks?`
+  <div class="form-group"><label class="form-label">🎥 Video crudo</label><input type="url" id="cp-video-crudo" placeholder="https://…  Link al video sin editar" value="${esc(selVideoCrudo)}" style="width:100%"></div>
+  <div class="form-group"><label class="form-label">✅ Resultado final</label><input type="url" id="cp-resultado-final" placeholder="https://…  Link al reel/video editado y publicado" value="${esc(selResultadoFinal)}" style="width:100%"></div>
+  `:`<input type="hidden" id="cp-video-crudo" value=""><input type="hidden" id="cp-resultado-final" value="">`}
   <input type="hidden" id="cp-agendas" value="0">
   <input type="hidden" id="cp-ventas" value="0">
   <div class="form-group" style="display:flex;align-items:center;gap:10px">
@@ -1187,17 +1206,20 @@ async function calSavePanel(){
   const ventas=Number(document.getElementById('cp-ventas')?.value)||0;
   const winner=document.getElementById('cp-winner')?.checked||false;
   const estructura=document.getElementById('cp-estructura')?.value||'';
+  const referencia=document.getElementById('cp-referencia')?.value||'';
+  const video_crudo=document.getElementById('cp-video-crudo')?.value||'';
+  const resultado_final=document.getElementById('cp-resultado-final')?.value||'';
   const esHistoria=isHist;
   if(formato)_calSaveFormato(formato,cat);
   if(_calPanelItem){
-    const updated={..._calPanelItem,tipo,fecha,angulo,objetivo,formato,cta,estado,guion,agendas,ventas,esHistoria,winner,estructura};
+    const updated={..._calPanelItem,tipo,fecha,angulo,objetivo,formato,cta,estado,guion,agendas,ventas,esHistoria,winner,estructura,referencia,video_crudo,resultado_final};
     try{const r=await apiFetch(`${API_URL}/contenido/${_calPanelItem.id}`,{method:'PATCH',body:JSON.stringify(updated)});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al guardar');return;}
     if(_calPanelItem.esHistoria)S.hists=S.hists.filter(x=>x.id!==_calPanelItem.id);
     else S.content=S.content.filter(x=>x.id!==_calPanelItem.id);
     if(esHistoria)S.hists.unshift(updated);else S.content.unshift(updated);
     calClosePanel();renderCont();toast('Guardado ✓');
   }else{
-    const item={id:uid(),fecha,tipo,angulo,objetivo,formato,cta,estado,guion,agendas,ventas,esHistoria,winner,estructura};
+    const item={id:uid(),fecha,tipo,angulo,objetivo,formato,cta,estado,guion,agendas,ventas,esHistoria,winner,estructura,referencia,video_crudo,resultado_final};
     try{
       const r=await apiFetch(`${API_URL}/contenido`,{method:'POST',body:JSON.stringify(item)});
       if(!r.ok)throw new Error();
@@ -1225,7 +1247,7 @@ function _calDuplicate(itemId){
   document.getElementById('cal-panel').style.display='block';
   document.getElementById('cal-panel-title').textContent='Duplicar pieza';
   const cat=item.esHistoria?'Historia':(item.tipo||'Reel');
-  renderCalPanel({fecha:item.fecha,angulo:item.angulo||'',formato:item.formato||'',objetivo:item.objetivo||'',cta:item.cta||'',estado:item.estado||'Creando Guión',guion:item.guion||'',agendas:0,ventas:0,cat,winner:false,estructura:item.estructura||''});
+  renderCalPanel({fecha:item.fecha,angulo:item.angulo||'',formato:item.formato||'',objetivo:item.objetivo||'',cta:item.cta||'',estado:item.estado||'Creando Guión',guion:item.guion||'',agendas:0,ventas:0,cat,winner:false,estructura:item.estructura||'',referencia:item.referencia||'',video_crudo:'',resultado_final:''});
 }
 function renderContCounters(){
   const el=document.getElementById('cont-stats-section');if(!el)return;
@@ -1798,6 +1820,48 @@ async function fetchEgresos(){
     renderDash();
   }catch(e){console.error('[fetchEgresos]',e);}
 }
+async function fetchCuotas(){
+  try{
+    const res=await apiFetch(`${API_URL}/cuotas`);
+    if(!res.ok){console.warn('[fetchCuotas] HTTP',res.status);return;}
+    const data=await res.json();
+    S.cuotas=Array.isArray(data)?data:[];
+    save('cuotas');
+    if(document.getElementById('page-clients')?.classList.contains('active')){renderClients();}
+    _renderMoneyCounters();
+  }catch(e){console.error('[fetchCuotas]',e);}
+}
+async function sincronizarCuotas(){
+  await Promise.all([fetchClients(),fetchCuotas()]);
+  _seedMissingCuotas();
+  toast('Cuotas sincronizadas ✓');
+}
+function _seedMissingCuotas(){
+  if(!S.clients?.length) return;
+  const hasCuotaPP=c=>['cuota','cuotas'].includes((c.pp||'').toLowerCase());
+  const cuotaClientes=S.cuotas||[];
+
+  // 1. Crear cuotas faltantes para clientes sin ninguna entrada
+  const seeded=new Set(cuotaClientes.map(q=>String(q.clienteId)));
+  const toSeed=S.clients.filter(c=>hasCuotaPP(c)&&!seeded.has(String(c.id)));
+  for(const c of toSeed){
+    const monto=+c.cash_collected||0;
+    generarCuotasCliente(c,1,monto);
+  }
+
+  // 2. Actualizar monto=0 en cuotas existentes usando cash_collected del cliente
+  const conMontoCero=cuotaClientes.filter(q=>!q.pagado&&(+q.monto||0)===0);
+  for(const q of conMontoCero){
+    const cliente=S.clients.find(c=>String(c.id)===String(q.clienteId));
+    const monto=+(cliente?.cash_collected)||0;
+    if(!monto) continue;
+    q.monto=monto;
+    apiFetch(`${API_URL}/cuotas/${q.id}`,{method:'PATCH',body:JSON.stringify({monto})}).catch(()=>{});
+  }
+
+  save('cuotas');
+  _renderMoneyCounters();
+}
 async function fetchActivityLog(){
   try{
     const res=await apiFetch(`${API_URL}/activity`);
@@ -1871,7 +1935,7 @@ function origenBadge(o){
 function estadoSelect(lead){
   const estado  = lead.estado || 'Primer Contacto';
   const col     = ESTADO_COLOR[estado] || ESTADO_COLOR['Primer Contacto'];
-  const canSeña = ['admin','closer'].includes(currentUserRole);
+  const canSeña = ['admin','closer','closer_content'].includes(currentUserRole);
   const options = LEAD_ESTADOS.filter(e => e !== 'Seña' || canSeña).map(e =>
     `<option value="${e}" ${e === estado ? 'selected' : ''}>${e}</option>`
   ).join('');
@@ -2301,16 +2365,9 @@ function _applyLeadsFilter(){
       metCard('Perdidos',       perdidos,       'red', _delta(perdidos,prevPerd));
   }
 
-  const segEl = document.getElementById('leads-seguidores-badge');
-  const SEG_ETAS=['Seguir Nuevo','Seguidor Nuevo'];
-  if(segEl) segEl.textContent = filtrados.filter(l=>{
-    if((l.tipo||'').toLowerCase()==='seguidor') return true;
-    const ets=Array.isArray(l.etiquetas)?l.etiquetas:(l.etiqueta?[l.etiqueta]:[]);
-    return ets.some(e=>SEG_ETAS.includes(e));
-  }).length;
-
-  _renderFunnel(leadsCache);
-  _renderEstadoCounters(leadsCache);
+  const _sinSegNuevo=l=>!_getEtiquetas(l).some(e=>e.trim().toLowerCase()==='seguidor nuevo');
+  _renderFunnel(leadsCache.filter(_sinSegNuevo));
+  _renderEstadoCounters(leadsCache.filter(_sinSegNuevo));
   _renderEtiquetas(filtrados);
   _renderLeadsTable();
 }
@@ -2597,7 +2654,7 @@ function _editLeadText(e, id, campo, multiline){
   el.focus();if(!multiline)el.select();
 }
 function _editLeadSelect(e, id, campo){
-  const OPTS={origen:['Inbound','Outbound'],tipo:['Ads','Organico','Outbound','Seguidor']};
+  const OPTS={origen:['Inbound','Outbound'],tipo:['Ads','Organico','Outbound']};
   const cell=e.target.closest('td');
   if(!cell||cell.querySelector('select'))return;
   const lead=leadsTableCache.find(l=>l.id===id)||leadsCache.find(l=>l.id===id);
@@ -2777,7 +2834,7 @@ function _getFunnelLeads(){
       case 'año':    {const c=new Date(now);c.setFullYear(now.getFullYear()-1);leads=leads.filter(l=>new Date(l.created_at||0)>=c);} break;
     }
   }
-  return leads;
+  return leads.filter(l=>!_getEtiquetas(l).some(e=>e.trim().toLowerCase()==='seguidor nuevo'));
 }
 
 function setFunnelFilter(period, el){
@@ -3058,14 +3115,23 @@ function _clientsRow(x,i){
   const ig=(x.instagram||'').replace(/^@/,'');
   const _xid=String(x.id);
   const proxCuota=(S.cuotas||[]).filter(c=>String(c.clienteId)===_xid&&!c.pagado).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0];
-  const proxCuotaTd=proxCuota
-    ?`<td style="font-size:11px;color:#d46060;white-space:nowrap">${proxCuota.fecha}</td>`
-    :`<td style="font-size:11px;color:var(--text3)">—</td>`;
   const isPIF=(x.pp||'').toUpperCase()==='PIF';
+  const isMensualidad=(x.pp||'').toLowerCase()==='mensualidad';
+  let proxCuotaTd;
+  if(isMensualidad&&x.proxpago){
+    const overdue=new Date(x.proxpago)<new Date();
+    const col=overdue?'#d46060':'#5cb87a';
+    const icon=overdue?'⚠ ':'💳 ';
+    proxCuotaTd=`<td style="font-size:11px;color:${col};white-space:nowrap;font-weight:600">${icon}${x.proxpago}</td>`;
+  } else {
+    proxCuotaTd=proxCuota
+      ?`<td style="font-size:11px;color:#d46060;white-space:nowrap">${proxCuota.fecha}</td>`
+      :`<td style="font-size:11px;color:var(--text3)">—</td>`;
+  }
   const cuota2=(S.cuotas||[]).find(c=>String(c.clienteId)===_xid&&c.numero===2);
   const cuota3=(S.cuotas||[]).find(c=>String(c.clienteId)===_xid&&c.numero===3);
   const selectStyle='background:var(--bg2);border:1px solid var(--line);border-radius:var(--rs);color:var(--gold-light);font-size:11px;padding:2px 4px;cursor:pointer';
-  const cuota2Td=isPIF
+  const cuota2Td=(isPIF||isMensualidad)
     ?`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`
     :`<td onclick="event.stopPropagation()" style="text-align:center">
         <select onchange="_toggleOrCreateCuota('${x.id}',2,this.value)" style="${selectStyle}">
@@ -3074,7 +3140,7 @@ function _clientsRow(x,i){
         </select>
         <div style="font-size:9px;color:var(--text3);margin-top:2px">${cuota2?.monto?fmtMoney(+cuota2.monto):''}</div>
       </td>`;
-  const cuota3Td=isPIF
+  const cuota3Td=(isPIF||isMensualidad)
     ?`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`
     :cuota2?.pagado
       ?`<td onclick="event.stopPropagation()" style="text-align:center">
@@ -3086,7 +3152,7 @@ function _clientsRow(x,i){
         </td>`
       :`<td style="text-align:center;font-size:11px;color:var(--text3)">—</td>`;
   const inputStyle='width:72px;padding:2px 5px;font-size:11px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--rs);color:var(--gold-light);text-align:center';
-  const c2ccTd=isPIF
+  const c2ccTd=(isPIF||isMensualidad)
     ?`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`
     :cuota2
       ?`<td onclick="event.stopPropagation()" style="text-align:center">
@@ -3095,7 +3161,7 @@ function _clientsRow(x,i){
             onchange="updateCuotaCC('${cuota2.id}',this.value)" style="${inputStyle}">
         </td>`
       :`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`;
-  const c3ccTd=isPIF
+  const c3ccTd=(isPIF||isMensualidad)
     ?`<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`
     :cuota3
       ?`<td onclick="event.stopPropagation()" style="text-align:center">
@@ -3335,22 +3401,18 @@ async function delClient(id){
   _renderMoneyCounters();renderClients();renderFin();
 }
 
-function generarCuotasCliente(nc, n){
+function generarCuotasCliente(nc, n, montoEstimado=0){
   if((S.cuotas||[]).some(c=>String(c.clienteId)===String(nc.id))){return;}
   const base=nc.inicio?new Date(nc.inicio+'T00:00:00'):new Date();
   for(let i=0;i<n;i++){
     const f=new Date(base);
     f.setMonth(f.getMonth()+i);
-    S.cuotas.push({
-      id:uid(),
-      clienteId:String(nc.id),
-      clienteNombre:nc.nombre,
-      clienteIg:nc.instagram||'',
-      numero:i+2,
-      fecha:f.toISOString().slice(0,10),
-      monto:0,
-      pagado:false
-    });
+    const cuota={id:uid(),clienteId:String(nc.id),clienteNombre:nc.nombre,clienteIg:nc.instagram||'',numero:i+2,fecha:f.toISOString().slice(0,10),monto:montoEstimado,pagado:false};
+    S.cuotas.push(cuota);
+    apiFetch(`${API_URL}/cuotas`,{method:'POST',body:JSON.stringify({id:cuota.id,ref_cliente_id:cuota.clienteId,cliente_nombre:cuota.clienteNombre,cliente_ig:cuota.clienteIg,numero:cuota.numero,fecha:cuota.fecha,monto:montoEstimado,pagado:false})})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(d?.id&&d.id!==cuota.id){const f=S.cuotas.find(x=>x.id===cuota.id);if(f){f.id=d.id;save('cuotas');}}})
+      .catch(()=>{});
   }
   save('cuotas');
 }
@@ -3376,7 +3438,7 @@ function renderCuotas(){
       <td>${c.fecha||'—'}</td>
       <td><input type="number" value="${c.monto||0}" min="0"
         style="width:80px;background:var(--bg2);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:2px 6px"
-        onchange="S.cuotas.find(x=>x.id==='${c.id}').monto=+this.value;save('cuotas');_syncCuotasCounter()">
+        onchange="updateCuotaMonto('${c.id}',this.value)">
       </td>
       <td>${badge}</td>
       <td><button class="btn-icon" onclick="delCuota('${c.id}')" title="Eliminar cuota">×</button></td>
@@ -3392,6 +3454,7 @@ function delCuota(id){
   if(!confirm('¿Eliminar esta cuota?'))return;
   S.cuotas=(S.cuotas||[]).filter(c=>c.id!==id);
   save('cuotas');
+  apiFetch(`${API_URL}/cuotas/${id}`,{method:'DELETE'}).catch(()=>{});
   _renderMoneyCounters();
   renderCuotas();
 }
@@ -3401,6 +3464,7 @@ function toggleCuotaPagada(id){
   if(!c)return;
   c.pagado=!c.pagado;
   save('cuotas');
+  apiFetch(`${API_URL}/cuotas/${id}`,{method:'PATCH',body:JSON.stringify({pagado:c.pagado})}).catch(()=>{});
   if(c.pagado){
     const yaExiste=S.ing.some(x=>(x.cuotaId||x.cuota_id)===c.id);
     if(!yaExiste){
@@ -3433,6 +3497,7 @@ function _toggleOrCreateCuota(clientId,numero,val){
     if(!S.cuotas) S.cuotas=[];
     S.cuotas.push(cuota);
     save('cuotas');
+    apiFetch(`${API_URL}/cuotas`,{method:'POST',body:JSON.stringify({id:cuota.id,ref_cliente_id:cuota.clienteId,cliente_nombre:cuota.clienteNombre,cliente_ig:cuota.clienteIg,numero:cuota.numero,fecha:cuota.fecha,monto:0,pagado:false})}).catch(()=>{});
   }
   if(val!==undefined&&cuota.pagado===wantPagado) return;
   toggleCuotaPagada(cuota.id);
@@ -3463,7 +3528,16 @@ function updateCuotaCC(id,val){
   if(!c)return;
   c.cash_collected=+val||0;
   save('cuotas');
+  apiFetch(`${API_URL}/cuotas/${id}`,{method:'PATCH',body:JSON.stringify({cash_collected:c.cash_collected})}).catch(()=>{});
   _renderMoneyCounters();renderDash();renderFin();renderClients();
+}
+function updateCuotaMonto(id,val){
+  const c=(S.cuotas||[]).find(x=>x.id===id);
+  if(!c)return;
+  c.monto=+val||0;
+  save('cuotas');
+  apiFetch(`${API_URL}/cuotas/${id}`,{method:'PATCH',body:JSON.stringify({monto:c.monto})}).catch(()=>{});
+  _syncCuotasCounter();
 }
 function getCuotasMetrics(){
   const totalCobrado      =S.clients.reduce((a,c)=>a+(+c.cash_collected||0),0);
@@ -3495,7 +3569,8 @@ function _renderMoneyCounters(){
     cc('Clientes con cuotas',m.cuotasPendientes)+
     cc('Dinero a cobrar en cuotas',fmtMoney(m.dineroCobrar),m.dineroCobrar>0?'red':'')+
     cc('Cobrado por cuotas',fmtMoney(m.cobradoCuotas),'green',_delta(m.cobradoEste,m.cobradoPrev))+
-    cc('% Cobranza',m.pctCobranza+'%',m.pctCobranza>=80?'green':m.pctCobranza>=50?'':'red');
+    cc('% Cobranza',m.pctCobranza+'%',m.pctCobranza>=80?'green':m.pctCobranza>=50?'':'red')+
+    `<button onclick="sincronizarCuotas()" class="btn btn-outline" style="font-size:11px;padding:5px 12px;margin-left:4px" title="Generar cuotas faltantes para clientes existentes">🔄 Sincronizar cuotas</button>`;
 }
 
 function getCallsMetrics(shows,closes,calls,usePrev=false){
@@ -3746,10 +3821,11 @@ const ROLE_PAGES = {
   setter: ['dash','acc','leads','calls'],
 };
 const ROLE_ALLOWED = {
-  admin:   ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','fin','ig','formatos','lab','equipo','forms'],
-  closer:  ['dash','acc','leads','funnel','calls'],
-  setter:  ['dash','acc','leads','funnel','calls'],
-  content: ['acc','found','cont','ang','ref','ig','formatos','lab'],
+  admin:          ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','fin','ig','formatos','lab','equipo','forms'],
+  closer:         ['dash','acc','leads','funnel','calls'],
+  setter:         ['dash','acc','leads','funnel','calls'],
+  content:        ['acc','found','cont','ang','ref','ig','formatos','lab'],
+  closer_content: ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','ig','formatos','lab','forms'],
 };
 
 const TASKS_ALLOWED_EMAILS = [
@@ -4045,21 +4121,22 @@ function applyRolePermissions(){
     tasksSection.style.display=tasksVisible?'':'none';
   }
 
-  const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0'};
+  const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0',closer_content:'#7B8FD4'};
+  const roleLabels={admin:'admin',closer:'closer',setter:'setter',content:'content',closer_content:'closer'};
   _updateUserNickname();
-  document.getElementById('user-role-label').textContent=currentUserRole;
+  document.getElementById('user-role-label').textContent=roleLabels[currentUserRole]||currentUserRole;
   document.getElementById('user-role-label').style.color=roleColors[currentUserRole]||'var(--text2)';
   if(currentUserRole==='content'){
     setTimeout(()=>nav('cont',document.getElementById('nav-cont')),100);
-  } else if(['setter','closer'].includes(currentUserRole)){
+  } else if(['setter','closer','closer_content'].includes(currentUserRole)){
     setTimeout(()=>nav('dash',document.getElementById('nav-dash')),100);
   }
   document.getElementById('user-header').style.display='flex';
 
   const thLink=document.getElementById('calls-th-link');
-  if(thLink) thLink.style.display=['admin','closer'].includes(currentUserRole)?'':'none';
+  if(thLink) thLink.style.display=['admin','closer','closer_content'].includes(currentUserRole)?'':'none';
   const btnNewCall=document.getElementById('btn-new-call');
-  if(btnNewCall) btnNewCall.style.display=['admin','closer'].includes(currentUserRole)?'':'none';
+  if(btnNewCall) btnNewCall.style.display=['admin','closer','closer_content'].includes(currentUserRole)?'':'none';
 }
 
 function setupAutoLogout(){
@@ -4194,7 +4271,7 @@ function _startCRM(){
   renderDash();
   fetchLeads();
   fetchCalls();
-  fetchClients();
+  Promise.all([fetchClients(),fetchCuotas()]).then(_seedMissingCuotas);
   fetchIngresos();
   fetchEgresos();
   fetchActivityLog();
@@ -4284,6 +4361,18 @@ async function initApp(user){
     if(cardCrm)     cardCrm.style.display    =isHolding?'none':'';
     if(cardAlumnos) cardAlumnos.style.display =isHolding?'none':'';
     if(cardHolding) cardHolding.style.display =isHolding?'':'none';
+    document.getElementById('menu-screen').style.display='flex';
+    _checkNicknamePrompt();
+    return;
+  }
+
+  if(currentUserRole==='closer_content'){
+    const cardCrm=document.getElementById('menu-card-crm');
+    const cardAlumnos=document.getElementById('menu-card-alumnos');
+    const cardHolding=document.getElementById('menu-card-holding');
+    if(cardCrm)     cardCrm.style.display    ='';
+    if(cardAlumnos) cardAlumnos.style.display ='';
+    if(cardHolding) cardHolding.style.display ='none';
     document.getElementById('menu-screen').style.display='flex';
     _checkNicknamePrompt();
     return;
@@ -4563,6 +4652,8 @@ function verCalendlyForm(callId){
 
   if(!entries.length) return;
 
+  const cfTitle = document.querySelector('#modal-calendly-form .modal-title');
+  if(cfTitle) cfTitle.textContent = call.origen==='GHL' ? '📋 Preguntas de Calificación' : '📋 Formulario Calendly';
   document.getElementById('modal-cf-nombre').textContent=call.nombre||'';
   document.getElementById('modal-cf-body').innerHTML=entries.map(([q,a])=>{
     const sq=q.replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -4583,7 +4674,7 @@ function verCalendlyForm(callId){
 function _renderCallsTable(rows){
   const tbody=document.getElementById('calls-table');
   if(!tbody) return;
-  const canLink=['admin','closer'].includes(currentUserRole);
+  const canLink=['admin','closer','closer_content'].includes(currentUserRole);
 
   const countByIG={};
   callsCache.forEach(c=>{const ig=(c.instagram||'').toLowerCase();countByIG[ig]=(countByIG[ig]||0)+1;});
@@ -4634,6 +4725,9 @@ function _renderCallsTable(rows){
     const reporteCalendlyCell=hasCalendlyForm
       ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verCalendlyForm('${r.id}');event.stopPropagation()">Ver</button>`
       :'<span style="color:var(--text3)">—</span>';
+    const reporteCloserCell=tieneReporte
+      ?`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="verReporteCall('${r.id}');event.stopPropagation()">Ver</button>`
+      :'<span style="color:var(--text3)">—</span>';
 
     console.log('closer',r.closer,'calendar_id',r.calendar_id,'preguntas_calificacion',r.preguntas_calificacion);
 
@@ -4655,17 +4749,26 @@ function _renderCallsTable(rows){
       <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${estadoBadge}</td>
       <td>${motivoText}</td>
-      <td style="text-align:center;font-size:13px;font-weight:700;color:var(--text)">${isPostCall?(r.seguimientos||0):'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="text-align:center">${(()=>{
+        if(!isPostCall) return '<span style="color:var(--text3)">—</span>';
+        if(!r.spc_date) return '<span style="font-size:11px;color:var(--text3)">hoy</span>';
+        const dias=Math.floor((Date.now()-new Date(r.spc_date))/(86400000));
+        const col=dias<=2?'#5cb87a':dias<=5?'#e0b54a':'#d46060';
+        const label=dias===0?'hoy':dias===1?'1 día':`${dias} días`;
+        const notasIcon=r.notas_spc?`<span title="${r.notas_spc.replace(/"/g,'&quot;')}" style="margin-left:4px;cursor:help;opacity:.7">📋</span>`:'';
+        return `<span style="font-size:12px;font-weight:700;color:${col}">${label}</span>${notasIcon}`;
+      })()}</td>
       <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${grabacionCell}</td>
+      <td onclick="event.stopPropagation()">${reporteCloserCell}</td>
       <td onclick="event.stopPropagation()">${reporteCalendlyCell}</td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="16" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
+  }).join('')||'<tr><td colspan="17" style="color:var(--text3);text-align:center;padding:24px">Sin llamadas</td></tr>';
 }
 
 // ========== WHATSAPP HELPERS ==========
@@ -4809,6 +4912,9 @@ function abrirEditCall(id){
   const ecCloser = document.getElementById('ec-closer');
   if(ecCloser) ecCloser.value = r.closer || '';
 
+  const ecNotasSpc = document.getElementById('ec-notas-spc');
+  if(ecNotasSpc) ecNotasSpc.value = r.notas_spc || '';
+
   let rJSON={};
   try{ if(r.reporte) rJSON=typeof r.reporte==='string'?JSON.parse(r.reporte):r.reporte; }catch{}
   document.getElementById('ec-atraccion').value=rJSON.atraccion||'';
@@ -4837,11 +4943,13 @@ function onEditCallEstadoChange(){
   const respWrap=document.getElementById('ec-resp-wrap');
   const fechaWrap=document.getElementById('ec-fecha-wrap');
   const senaWrap=document.getElementById('ec-monto-sena-wrap');
-  if(motivoWrap) motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
-  if(segWrap)   segWrap.style.display=isPostCall?'block':'none';
-  if(respWrap)  respWrap.style.display=isPostCall?'block':'none';
-  if(fechaWrap) fechaWrap.style.display=isPendiente?'block':'none';
-  if(senaWrap)  senaWrap.style.display=isSeña?'block':'none';
+  const spcNotasWrap=document.getElementById('ec-spc-notas-wrap');
+  if(motivoWrap)   motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
+  if(segWrap)      segWrap.style.display=isPostCall?'block':'none';
+  if(respWrap)     respWrap.style.display=isPostCall?'block':'none';
+  if(spcNotasWrap) spcNotasWrap.style.display=isPostCall?'block':'none';
+  if(fechaWrap)    fechaWrap.style.display=isPendiente?'block':'none';
+  if(senaWrap)     senaWrap.style.display=isSeña?'block':'none';
 }
 
 // ========== CLOSER: saveEditCall ==========
@@ -4882,6 +4990,7 @@ async function saveEditCall(){
     link_llamada:link,
     link_grabacion:grabacion,
     reporte,
+    notas_spc:(document.getElementById('ec-notas-spc')?.value||'').trim()||null,
     fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
     ...(monto_sena!==null && {monto_sena}),
     ...(closer!==undefined && {closer}),
@@ -5189,12 +5298,18 @@ function _mostrarPopupCierre(leadId, lead){
   if(el('cierre-nombre')) el('cierre-nombre').value=lead?.nombre||'';
   if(el('cierre-instagram')) el('cierre-instagram').value=lead?.instagram||'';
   if(el('cierre-cash')) el('cierre-cash').value='';
+  const isC4=getCid()==='cliente_4';
+  const optMen=el('cierre-opt-mensualidad');
+  if(optMen) optMen.style.display=isC4?'':'none';
   if(el('cierre-tipo-pago')){ el('cierre-tipo-pago').value='PIF'; }
   if(el('cierre-comprobante')) el('cierre-comprobante').value='';
   if(el('cierre-comprobante-img')) el('cierre-comprobante-img').value='';
   if(el('cierre-comprobante-preview')){el('cierre-comprobante-preview').src='';el('cierre-comprobante-preview').style.display='none';}
   if(el('cierre-nro-cuotas')) el('cierre-nro-cuotas').value='1';
   if(el('cierre-cuota-section')) el('cierre-cuota-section').style.display='none';
+  if(el('cierre-mensualidad-section')) el('cierre-mensualidad-section').style.display='none';
+  if(el('cierre-programa-row')) el('cierre-programa-row').style.display='';
+  if(el('cierre-cash-label')) el('cierre-cash-label').textContent='Monto cobrado hoy (USD)';
   if(el('cierre-programa')) el('cierre-programa').value='';
   updateCuotaFechas();
   const hoy=new Date();
@@ -5212,8 +5327,22 @@ function _mostrarPopupCierre(leadId, lead){
 }
 function toggleCierteCuotaSection(val){
   const sec=document.getElementById('cierre-cuota-section');
-  if(sec) sec.style.display=val==='Cuotas'?'block':'none';
+  const menSec=document.getElementById('cierre-mensualidad-section');
+  const progRow=document.getElementById('cierre-programa-row');
+  const progReq=document.getElementById('cierre-programa-req');
+  const cashLabel=document.getElementById('cierre-cash-label');
+  const esMensualidad=val==='Mensualidad';
+  if(sec)     sec.style.display=val==='Cuotas'?'block':'none';
+  if(menSec)  menSec.style.display=esMensualidad?'block':'none';
+  if(progRow) progRow.style.display=esMensualidad?'none':'';
+  if(progReq) progReq.style.display=esMensualidad?'none':'';
+  if(cashLabel) cashLabel.textContent=esMensualidad?'Monto mensual (USD)':'Monto cobrado hoy (USD)';
   if(val==='Cuotas') updateCuotaFechas();
+  if(esMensualidad){
+    const d=new Date(); d.setDate(d.getDate()+30);
+    const el=document.getElementById('cierre-proxpago-display');
+    if(el) el.textContent=d.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  }
 }
 function _cierreUpdatePrograma(meses){
   const el=document.getElementById('cierre-dia-salida');
@@ -5269,9 +5398,11 @@ async function saveCierre(){
   const comprovanteImgEl=document.getElementById('cierre-comprobante-preview');
   const comprovanteImg=comprovanteImgEl?.src&&comprovanteImgEl.style.display!=='none'?comprovanteImgEl.src:'';
   const esCuotas=tipoPago==='Cuotas';
+  const esMensualidad=tipoPago==='Mensualidad';
   const programaMeses=parseInt(document.getElementById('cierre-programa')?.value)||0;
   if(!nombre){toast('✗ Nombre es obligatorio');return;}
-  if(!programaMeses){toast('✗ Seleccioná el programa');return;}
+  if(!esMensualidad&&!programaMeses){toast('✗ Seleccioná el programa');return;}
+  if(esMensualidad&&(!cash||cash<=0)){toast('✗ Ingresá el monto mensual');return;}
   if(esCuotas&&montosCuota.every(m=>m<=0)){toast('✗ Ingresá al menos el monto de una cuota');return;}
 
   // Chequear duplicado por instagram en localStorage
@@ -5288,14 +5419,15 @@ async function saveCierre(){
   const hoy=new Date();
   const c1=new Date(hoy); c1.setDate(hoy.getDate()+30);
   const c2=new Date(hoy); c2.setDate(hoy.getDate()+60);
-  const sal=new Date(hoy); sal.setMonth(hoy.getMonth()+programaMeses);
+  const sal=esMensualidad?null:new Date(hoy);
+  if(!esMensualidad){ sal.setMonth(hoy.getMonth()+programaMeses); }
   const origenLead=window._pendingCierre?.lead?.origen||null;
   const clienteData={
     id:uid(),
     nombre,
     instagram,
     inicio:hoy.toISOString().slice(0,10),
-    fin:sal.toISOString().slice(0,10),
+    fin:esMensualidad?null:sal.toISOString().slice(0,10),
     pp:esCuotas?'CUOTA':tipoPago,
     mod:'—',
     proxpago:c1.toISOString().slice(0,10),
@@ -5303,7 +5435,7 @@ async function saveCierre(){
     proxpaso:'Onboarding',
     road:'',
     cash_collected:cash,
-    programa:programaMeses+' meses',
+    programa:esMensualidad?'Mensualidad':programaMeses+' meses',
     ...(esCuotas?{nroCuotas}:{}),
     comprobante,
     comprovanteImg,
@@ -5339,7 +5471,12 @@ async function saveCierre(){
   if(esCuotas){
     for(let i=0;i<nroCuotas;i++){
       const f=new Date(hoy); f.setDate(hoy.getDate()+(i+1)*30);
-      S.cuotas.push({id:uid(),clienteId:String(clienteData.id),clienteNombre:nombre,clienteIg:instagram,numero:i+2,fecha:f.toISOString().slice(0,10),monto:montosCuota[i]||0,pagado:false});
+      const cuota={id:uid(),clienteId:String(clienteData.id),clienteNombre:nombre,clienteIg:instagram,numero:i+2,fecha:f.toISOString().slice(0,10),monto:montosCuota[i]||0,pagado:false};
+      S.cuotas.push(cuota);
+      apiFetch(`${API_URL}/cuotas`,{method:'POST',body:JSON.stringify({id:cuota.id,ref_cliente_id:cuota.clienteId,cliente_nombre:cuota.clienteNombre,cliente_ig:cuota.clienteIg,numero:cuota.numero,fecha:cuota.fecha,monto:cuota.monto,pagado:false})})
+        .then(r=>r.ok?r.json():null)
+        .then(d=>{if(d?.id&&d.id!==cuota.id){const x=S.cuotas.find(q=>q.id===cuota.id);if(x){x.id=d.id;save('cuotas');}}})
+        .catch(()=>{});
     }
     save('cuotas');
   }
@@ -5897,9 +6034,19 @@ function renderEquipo(){
 
   const setters=_equipoMembers.filter(m=>m.role==='setter');
   const closers=_equipoMembers.filter(m=>m.role==='closer');
+
+  function getMemberRevenue(m){
+    if(m.role==='setter') return revenue;
+    const closedByMe=periodCalls.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')&&(c.closer||'').toLowerCase().trim()===m.nombre.toLowerCase().trim());
+    const igs=new Set(closedByMe.map(c=>(c.instagram||'').toLowerCase().replace(/^@/,'')).filter(Boolean));
+    if(!igs.size) return 0;
+    return S.ing.filter(x=>_eqInRange(x.fecha)&&x.concepto==='Venta Nueva'&&igs.has((x.instagram||'').toLowerCase().replace(/^@/,''))).reduce((a,x)=>a+(+x.usd||0),0);
+  }
+
   const totalTeam=_equipoMembers.reduce((a,m)=>{
-    const c=calcCommission(revenue,m.rules||[]);
-    return a+revenue*(c.pct/100);
+    const mr=getMemberRevenue(m);
+    const c=calcCommission(mr,m.rules||[]);
+    return a+mr*(c.pct/100);
   },0);
 
   function ruleRow(memberId,r){
@@ -5919,14 +6066,14 @@ function renderEquipo(){
     </div>`;
   }
 
-  function memberCard(m, countersHtml){
-    const comm=calcCommission(revenue,m.rules||[]);
-    const amt=revenue*(comm.pct/100);
+  function memberCard(m, countersHtml, memberRevenue){
+    const comm=calcCommission(memberRevenue,m.rules||[]);
+    const amt=memberRevenue*(comm.pct/100);
     const expanded=_equipoExpanded.has(m.id);
     const roleColor=m.role==='setter'?'var(--green)':'var(--blue)';
     const detail=!(m.rules||[]).length?'Sin reglas configuradas'
       :!comm.rule?'Sin regla que aplique al monto actual'
-      :`${comm.pct}% sobre ${fmtUSD(revenue)} · regla: ${comm.rule.cond==='gte'?'≥':'<'} $${fmt(comm.rule.val)}`;
+      :`${comm.pct}% sobre ${fmtUSD(memberRevenue)} · regla: ${comm.rule.cond==='gte'?'≥':'<'} $${fmt(comm.rule.val)}`;
     return `<div class="eq-member-card">
       <div class="eq-member-hdr">
         <div style="display:flex;align-items:center;gap:10px">
@@ -6055,7 +6202,7 @@ function renderEquipo(){
         <div class="eq-counter-val" style="color:var(--gold)">${agendasCount}</div>
         <div class="eq-counter-label">Agendas</div>
       </div>`;
-      return memberCard(m,cntHtml);
+      return memberCard(m,cntHtml,getMemberRevenue(m));
     }).join('')}
   </div>
 
@@ -6067,12 +6214,24 @@ function renderEquipo(){
     ${_equipoAddingRole==='closer'?addForm('closer'):''}
     ${closers.length===0&&_equipoAddingRole!=='closer'?'<div class="eq-empty-section">No hay closers. Agregá uno con el botón de arriba.</div>':''}
     ${closers.map(m=>{
+      const myRevenue=getMemberRevenue(m);
+      const closedByMe=periodCalls.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')&&(c.closer||'').toLowerCase().trim()===m.nombre.toLowerCase().trim());
+      const myClosures=closedByMe.length;
+      const myCuotas=closedByMe.filter(c=>(c.estado||'')==='Cierre Cuotas').length;
       const cntHtml=`
         <div class="eq-counter" style="border-color:rgba(96,144,212,.2)">
-          <div class="eq-counter-val" style="color:var(--blue)">${cuotasCount}</div>
+          <div class="eq-counter-val" style="color:var(--blue)">${myClosures}</div>
+          <div class="eq-counter-label">Cierres</div>
+        </div>
+        <div class="eq-counter" style="border-color:rgba(96,144,212,.2)">
+          <div class="eq-counter-val" style="color:var(--blue)">${myCuotas}</div>
           <div class="eq-counter-label">Cierre Cuotas</div>
+        </div>
+        <div class="eq-counter" style="border-color:rgba(96,144,212,.2)">
+          <div class="eq-counter-val" style="color:var(--blue);font-size:14px">${fmtUSD(myRevenue)}</div>
+          <div class="eq-counter-label">Facturado</div>
         </div>`;
-      return memberCard(m,cntHtml);
+      return memberCard(m,cntHtml,myRevenue);
     }).join('')}
   </div>
 </div>`;
@@ -6364,7 +6523,6 @@ function _renderSavedPieza(p,tipo){
     const cu=p.com_unicos??(p.comentarios?Math.round(p.comentarios/2):null);
     if(cu!=null) stats.push(`Coments únicos: <b>${_fmt(cu)}</b>`);
     if(p.guardados!=null) stats.push(`Guardados: <b>${_fmt(p.guardados)}</b>`);
-    if(p.seguidores_nuevos!=null) stats.push(`Seguidores nuevos: <b>${_fmt(p.seguidores_nuevos)}</b>`);
   } else if(tipo==='historia'){
     const vf=p.views_frames||[];
     const vu=vf[vf.length-1]||0;
@@ -6531,7 +6689,6 @@ function _labStatsRows(item){
       row('Views',_fmt(item.views)),
       row('Likes',_fmt(item.likes)),
       cu!=null?row('Com. únicos',_fmt(cu)):'',
-      item.seguidores_nuevos!=null?row('Seguidores nuevos',_fmt(item.seguidores_nuevos)):'',
     ].join('');
   }
   if(_labTab==='youtube'){
@@ -6592,7 +6749,6 @@ function _buildLabForm(item){
         </div>
         <div class="form-group"><label class="form-label">Guardados</label><input class="form-input" type="number" id="lab-guardados" value="${item?.guardados||''}"></div>
         <div class="form-group"><label class="form-label">Compartidos</label><input class="form-input" type="number" id="lab-compartidos" value="${item?.compartidos||''}"></div>
-        <div class="form-group" style="grid-column:1/-1"><label class="form-label">Seguidores nuevos</label><input class="form-input" type="number" id="lab-seguidores-nuevos" value="${item?.seguidores_nuevos||''}"></div>
       </div>`;
   } else if(tab==='youtube'){
     const rCTR=_calcRendCTR(item?.ctr); const rRet=_calcRendRetencion(item?.duracion,item?.retencion);
@@ -6803,7 +6959,6 @@ async function saveLabItem(){
     body.com_unicos=Math.round((body.comentarios||0)/2)||null;
     body.guardados=parseFloat(document.getElementById('lab-guardados')?.value)||null;
     body.compartidos=parseFloat(document.getElementById('lab-compartidos')?.value)||null;
-    body.seguidores_nuevos=parseFloat(document.getElementById('lab-seguidores-nuevos')?.value)||null;
   } else if(tab==='youtube'){
     body.views=parseFloat(document.getElementById('lab-views')?.value)||null;
     body.ctr=parseFloat(document.getElementById('lab-ctr')?.value)||null;
@@ -7354,6 +7509,20 @@ let _aiAnalysisId = null;
 let _aiMessages  = [];
 let _aiLoading   = false;
 let _aiAnalysesList = [];
+let _aiScorecard = null;  // scorecard parsed from last analysis
+
+const _AI_CALL_PHASES = [
+  { id:'hits',          name:'Hits',          icon:'🎯' },
+  { id:'rapport',       name:'Rapport',       icon:'🤝' },
+  { id:'desarrollo',    name:'Desarrollo',    icon:'🔍' },
+  { id:'descubrimiento',name:'Descubrimiento',icon:'💡' },
+  { id:'prepitch',      name:'Pre pitch',     icon:'📍' },
+  { id:'pitch',         name:'Pitch',         icon:'🎤' },
+  { id:'solucion',      name:'Solución',      icon:'🔧' },
+  { id:'presentacion',  name:'Presentación',  icon:'📊' },
+  { id:'cierre',        name:'Cierre',        icon:'✅' },
+  { id:'objeciones',    name:'Objeciones',    icon:'🛡' },
+];
 
 function setCallsView(v) {
   _aiView = v;
@@ -7397,12 +7566,412 @@ function _mdToHtml(text) {
   return `<p style="margin:8px 0;color:var(--text2);font-size:13px;line-height:1.6">${html}</p>`;
 }
 
+// ── PDF Export ───────────────────────────────────────────────────────────────
+
+function exportAnalysisPDF() {
+  const sc = _aiScorecard;
+  if (!sc || !sc.phases) { toast('No hay scorecard disponible para exportar'); return; }
+
+  // Get radar canvas as base64 before opening window
+  const canvas = document.getElementById('ai-scorecard-radar');
+  const radarDataUrl = canvas ? canvas.toDataURL('image/png') : null;
+
+  const scores = sc.phases.map(p => Number(p.score) || 0);
+  const avg    = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const high   = scores.filter(s => s >= 7).length;
+  const low    = scores.filter(s => s < 6).length;
+  const weakIdx = scores.indexOf(Math.min(...scores));
+  const weakPhase = _AI_CALL_PHASES[weakIdx];
+  const pById = {};
+  sc.phases.forEach(p => { pById[p.id] = p; });
+
+  const scColor = s => s >= 7 ? '#5cb87a' : s >= 5 ? '#d4913a' : '#d46060';
+  const scBg    = s => s >= 7 ? 'rgba(92,184,122,.18)' : s >= 5 ? 'rgba(212,145,58,.18)' : 'rgba(212,96,96,.18)';
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const phaseRows = _AI_CALL_PHASES.map((ph, i) => {
+    const p  = pById[ph.id] || { score: 0, good: [], improve: [] };
+    const s  = Number(p.score) || 0;
+    const goodItems = (p.good   || []).map(g => `<li>${esc(g)}</li>`).join('');
+    const impItems  = (p.improve|| []).map(g => `<li>${esc(g)}</li>`).join('');
+    return `<tr>
+      <td class="ph-num">${i + 1}</td>
+      <td class="ph-name">${ph.icon} ${ph.name}</td>
+      <td class="ph-score"><span class="score-pill" style="background:${scBg(s)};color:${scColor(s)}">${s}/10</span>
+        <div class="score-bar"><div class="score-fill" style="width:${s * 10}%;background:${scColor(s)}"></div></div>
+      </td>
+      <td class="ph-good"><ul>${goodItems || '<li class="dim">—</li>'}</ul></td>
+      <td class="ph-improve"><ul>${impItems || '<li class="dim">—</li>'}</ul></td>
+    </tr>`;
+  }).join('');
+
+  const actionsHtml = (sc.actions || []).map((a, i) => `
+    <div class="action">
+      <div class="action-num">${i + 1}</div>
+      <div class="action-body">
+        <div class="action-title">${esc(a.title || '')}</div>
+        <div class="action-desc">${esc(a.desc || '')}</div>
+      </div>
+    </div>`).join('');
+
+  // Narrative analysis (first assistant message, already stripped of scorecard)
+  const narrativeRaw = _aiMessages[1]?.content || '';
+  const narrativeHtml = narrativeRaw
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^\*\*(.+?)\*\*/gm, '<strong>$1</strong>')
+    .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]+?<\/li>)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/^([^<\n].+)$/gm, (m) => m.startsWith('<') ? m : `<p>${m}</p>`);
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reporte de Llamada — ${esc(sc.summary?.slice(0,40) || 'Análisis')}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:#1a1a18;color:#f0ede6;font-size:13px;line-height:1.6;padding:32px 40px}
+  @media print{body{padding:20px 28px} @page{size:A4;margin:12mm 14mm}}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08)}
+  .header-left .label{font-size:9px;font-weight:700;color:#d4a832;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+  .header-left .title{font-size:28px;font-weight:800;color:#f0ede6;line-height:1.1;margin-bottom:4px}
+  .header-left .meta{font-size:11px;color:#a8a69f}
+  .header-right{text-align:right}
+  .header-right .score-label{font-size:9px;color:#a8a69f;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+  .big-score{font-size:52px;font-weight:800;line-height:1}
+  .big-sub{font-size:11px;color:#a8a69f;margin-top:2px}
+  .exec{background:#252523;border-left:3px solid #5b8fd4;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:24px}
+  .exec p{font-size:14px;line-height:1.75;color:#d8d4cc}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+  .kpi{background:#252523;border-radius:8px;padding:12px;text-align:center}
+  .kpi-label{font-size:9px;color:#6b6965;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .kpi-val{font-size:26px;font-weight:800}
+  .kpi-sub{font-size:10px;color:#6b6965;margin-top:2px}
+  .radar-wrap{display:flex;justify-content:center;margin-bottom:24px;background:#252523;border-radius:10px;padding:16px}
+  .radar-wrap img{max-width:380px;height:auto}
+  .section-title{font-size:10px;font-weight:700;color:#a8a69f;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+  .ptable{width:100%;border-collapse:collapse;margin-bottom:24px}
+  .ptable thead tr{background:#252523}
+  .ptable th{font-size:9px;font-weight:700;color:#6b6965;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .ptable td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top}
+  .ph-num{color:#6b6965;font-size:11px;font-weight:700;text-align:center;width:28px}
+  .ph-name{font-weight:700;font-size:12px;width:110px}
+  .ph-score{width:80px}
+  .score-pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .score-bar{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:5px}
+  .score-fill{height:100%;border-radius:2px}
+  .ph-good ul,.ph-improve ul{list-style:none;padding:0}
+  .ph-good li,.ph-improve li{font-size:11px;color:#a8a69f;line-height:1.55;padding:1px 0}
+  .ph-good li::before{content:'✓ ';color:#5cb87a}
+  .ph-improve li::before{content:'△ ';color:#d4913a}
+  .dim{color:#4a4a48!important}
+  .impact{background:rgba(212,145,58,.08);border:1px solid rgba(212,145,58,.2);border-radius:10px;padding:14px 18px;margin-bottom:24px;display:flex;gap:12px}
+  .impact-icon{font-size:18px;flex-shrink:0;margin-top:2px}
+  .impact-title{font-size:13px;font-weight:700;color:#d4913a;margin-bottom:4px}
+  .impact-desc{font-size:12px;line-height:1.65;color:#c8c0b4}
+  .actions-wrap{background:#252523;border-radius:10px;padding:16px;margin-bottom:24px}
+  .action{display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.02);border-radius:6px;margin-bottom:8px}
+  .action:last-child{margin-bottom:0}
+  .action-num{width:24px;height:24px;border-radius:50%;background:#d4a832;color:#1a1a18;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .action-title{font-size:12px;font-weight:700;margin-bottom:2px}
+  .action-desc{font-size:11px;color:#a8a69f;line-height:1.6}
+  .narrative{background:#252523;border-radius:10px;padding:18px 20px;margin-top:24px}
+  .narrative h3{font-size:11px;font-weight:700;color:#d4a832;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px}
+  .narrative h3:first-child{margin-top:0;border-top:none;padding-top:0}
+  .narrative h4{font-size:12px;font-weight:700;color:#c0bdb6;margin:10px 0 4px}
+  .narrative p{font-size:12px;color:#c0bdb6;margin-bottom:8px;line-height:1.7}
+  .narrative ul{padding-left:16px;margin-bottom:8px}
+  .narrative li{font-size:12px;color:#c0bdb6;margin-bottom:3px;line-height:1.6}
+  .narrative strong{color:#f0ede6}
+  .footer{margin-top:28px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:10px;color:#4a4a48}
+  .no-print{display:block;text-align:center;margin-bottom:20px}
+  @media print{.no-print{display:none!important}}
+  button.print-btn{background:#d4a832;color:#1a1a18;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+
+<div class="no-print">
+  <button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <div class="label">Reporte · Análisis IA</div>
+    <div class="title">Análisis de Llamada</div>
+    <div class="meta">${dateStr}</div>
+  </div>
+  <div class="header-right">
+    <div class="score-label">Calificación</div>
+    <div class="big-score" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
+    <div class="big-sub">/ 10</div>
+  </div>
+</div>
+
+<div class="exec"><p>${esc(sc.summary || '')}</p></div>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Calificación</div>
+    <div class="kpi-val" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
+    <div class="kpi-sub">promedio</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Fases fuertes</div>
+    <div class="kpi-val" style="color:#5cb87a">${high}</div>
+    <div class="kpi-sub">score ≥ 7</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">A mejorar</div>
+    <div class="kpi-val" style="color:#d46060">${low}</div>
+    <div class="kpi-sub">score &lt; 6</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Fase crítica</div>
+    <div class="kpi-val" style="font-size:14px;padding-top:6px">${weakPhase ? weakPhase.icon + ' ' + weakPhase.name : '—'}</div>
+    <div class="kpi-sub">mayor oportunidad</div>
+  </div>
+</div>
+
+${radarDataUrl ? `<div class="radar-wrap"><img src="${radarDataUrl}" alt="Radar de fases"></div>` : ''}
+
+<div class="section-title">Fases de la llamada</div>
+<table class="ptable">
+  <thead><tr>
+    <th>#</th><th>Fase</th><th>Score</th>
+    <th>✓ Fortalezas</th><th>△ Oportunidades</th>
+  </tr></thead>
+  <tbody>${phaseRows}</tbody>
+</table>
+
+${sc.impactTitle ? `
+<div class="impact">
+  <div class="impact-icon">▲</div>
+  <div>
+    <div class="impact-title">${esc(sc.impactTitle)}</div>
+    <div class="impact-desc">${esc(sc.impactDesc || '')}</div>
+  </div>
+</div>` : ''}
+
+${actionsHtml ? `
+<div class="section-title">Plan de mejora — próxima llamada</div>
+<div class="actions-wrap">${actionsHtml}</div>` : ''}
+
+${narrativeHtml ? `
+<div class="section-title" style="margin-top:8px">Análisis detallado</div>
+<div class="narrative">${narrativeHtml}</div>` : ''}
+
+<div class="footer">
+  <span>Generado por CRM · Análisis IA</span>
+  <span>${dateStr}</span>
+</div>
+
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 900);
+}
+
+// ── Scorecard visual ─────────────────────────────────────────────────────────
+
+function _scColor(s){ return s>=7?'#5cb87a':s>=5?'#d4a832':'#d46060'; }
+function _scBgColor(s){ return s>=7?'rgba(92,184,122,.12)':s>=5?'rgba(212,168,50,.12)':'rgba(212,96,96,.12)'; }
+
+function _renderScorecardSection(sc){
+  if(!sc||!sc.phases||!sc.phases.length) return '';
+  const scores = sc.phases.map(p=>Number(p.score)||0);
+  const avg    = scores.reduce((a,b)=>a+b,0)/scores.length;
+  const high   = scores.filter(s=>s>=7).length;
+  const low    = scores.filter(s=>s<6).length;
+  const weakI  = scores.indexOf(Math.min(...scores));
+  const weakPhase = _AI_CALL_PHASES[weakI];
+
+  const phasesById = {};
+  sc.phases.forEach(p=>{ phasesById[p.id]=p; });
+
+  const phaseRows = _AI_CALL_PHASES.map((ph,i)=>{
+    const p   = phasesById[ph.id]||{score:0,good:[],improve:[]};
+    const s   = Number(p.score)||0;
+    const col = _scColor(s);
+    const bg  = _scBgColor(s);
+    const goodList = (p.good||[]).map(g=>`<li style="margin-bottom:3px">${g}</li>`).join('');
+    const impList  = (p.improve||[]).map(g=>`<li style="margin-bottom:3px">${g}</li>`).join('');
+    return `
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--text3);text-align:center;width:32px">${i+1}</td>
+        <td style="padding:10px 12px">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">${ph.icon} ${ph.name}</div>
+          <div style="height:4px;background:var(--line);border-radius:2px;width:100%;max-width:120px">
+            <div style="height:100%;border-radius:2px;background:${col};width:${s*10}%"></div>
+          </div>
+        </td>
+        <td style="padding:10px 12px;text-align:center">
+          <span style="font-size:13px;font-weight:700;padding:2px 9px;border-radius:20px;background:${bg};color:${col}">${s}/10</span>
+        </td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--text2)">
+          <ul style="list-style:none;padding:0;margin:0">${goodList||'<li style="color:var(--text3)">—</li>'}</ul>
+        </td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--text2)">
+          <ul style="list-style:none;padding:0;margin:0">${impList||'<li style="color:var(--text3)">—</li>'}</ul>
+        </td>
+      </tr>`;
+  }).join('');
+
+  const actionsHtml = (sc.actions||[]).map((a,i)=>`
+    <div style="display:flex;gap:12px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px">
+      <div style="width:26px;height:26px;border-radius:50%;background:var(--gold);color:#000;font-size:12px;font-weight:700;
+                  display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">${a.title||''}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">${a.desc||''}</div>
+      </div>
+    </div>`).join('');
+
+  const impactHtml = (sc.impactTitle||sc.impactDesc)?`
+    <div style="background:rgba(212,168,50,0.07);border:1px solid rgba(212,168,50,0.25);border-radius:10px;padding:16px 18px;margin-bottom:16px;display:flex;gap:12px">
+      <div style="font-size:18px;flex-shrink:0;margin-top:2px">▲</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#d4a832;margin-bottom:4px">${sc.impactTitle||''}</div>
+        <div style="font-size:12px;line-height:1.65">${sc.impactDesc||''}</div>
+      </div>
+    </div>`:'' ;
+
+  return `
+    <div id="ai-scorecard-section" style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">📊 Scorecard de llamada</div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Score global</div>
+          <div style="font-size:28px;font-weight:700;color:${_scColor(avg)}">${avg.toFixed(1)}</div>
+          <div style="font-size:10px;color:var(--text3)">/ 10</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Fases fuertes</div>
+          <div style="font-size:28px;font-weight:700;color:#5cb87a">${high}</div>
+          <div style="font-size:10px;color:var(--text3)">score ≥ 7</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">A mejorar</div>
+          <div style="font-size:28px;font-weight:700;color:#d46060">${low}</div>
+          <div style="font-size:10px;color:var(--text3)">score &lt; 6</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Fase crítica</div>
+          <div style="font-size:13px;font-weight:700;padding-top:6px">${weakPhase?weakPhase.icon+' '+weakPhase.name:'—'}</div>
+          <div style="font-size:10px;color:var(--text3)">mayor oportunidad</div>
+        </div>
+      </div>
+
+      <!-- Radar chart -->
+      <div style="display:flex;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:16px">
+        <canvas id="ai-scorecard-radar" width="420" height="420"></canvas>
+      </div>
+
+      <!-- Phase table -->
+      <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:rgba(255,255,255,0.03);border-bottom:1px solid var(--line)">
+              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:32px">#</th>
+              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">Fase</th>
+              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:70px">Score</th>
+              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">✓ Fortalezas</th>
+              <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">△ Mejoras</th>
+            </tr>
+          </thead>
+          <tbody>${phaseRows}</tbody>
+        </table>
+      </div>
+
+      ${impactHtml}
+
+      <!-- Action plan -->
+      ${actionsHtml?`
+        <div style="border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:12px">✏️ Plan de mejora — próxima llamada</div>
+          ${actionsHtml}
+        </div>`:''}
+
+      <div style="height:1px;background:var(--line);margin-bottom:20px"></div>
+    </div>`;
+}
+
+function _drawScorecardRadar(sc){
+  const canvas = document.getElementById('ai-scorecard-radar');
+  if(!canvas||!sc||!sc.phases) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height, cx=W/2, cy=H/2, R=W*0.34, n=_AI_CALL_PHASES.length;
+  ctx.clearRect(0,0,W,H);
+  const pt=(a,r)=>[cx+r*Math.cos(a-Math.PI/2), cy+r*Math.sin(a-Math.PI/2)];
+  const gridC='rgba(255,255,255,0.07)', tc='#a8a69f';
+
+  [2,4,6,8,10].forEach(ring=>{
+    const r=R*ring/10;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){const[x,y]=pt(2*Math.PI*i/n,r);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.closePath(); ctx.strokeStyle=gridC; ctx.lineWidth=.8; ctx.stroke();
+    if(ring===4||ring===8){
+      ctx.fillStyle=tc; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(ring,cx+4,cy-r+11);
+    }
+  });
+  for(let i=0;i<n;i++){
+    const[x,y]=pt(2*Math.PI*i/n,R);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y);
+    ctx.strokeStyle=gridC; ctx.lineWidth=.8; ctx.stroke();
+  }
+
+  const pById={};
+  sc.phases.forEach(p=>{ pById[p.id]=p; });
+
+  ctx.beginPath();
+  _AI_CALL_PHASES.forEach((ph,i)=>{
+    const s=Number(pById[ph.id]?.score)||0;
+    const[x,y]=pt(2*Math.PI*i/n,R*s/10);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.closePath();
+  ctx.fillStyle='rgba(91,143,212,.18)'; ctx.fill();
+  ctx.strokeStyle='#5b8fd4'; ctx.lineWidth=2; ctx.stroke();
+
+  _AI_CALL_PHASES.forEach((ph,i)=>{
+    const s=Number(pById[ph.id]?.score)||0;
+    const[x,y]=pt(2*Math.PI*i/n,R*s/10);
+    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
+    ctx.fillStyle=_scColor(s); ctx.fill();
+    ctx.strokeStyle='#1c1c1a'; ctx.lineWidth=1.5; ctx.stroke();
+  });
+
+  const LR=R+44;
+  _AI_CALL_PHASES.forEach((ph,i)=>{
+    const angle=2*Math.PI*i/n;
+    const[x,y]=pt(angle,LR);
+    ctx.fillStyle=tc; ctx.font='500 10px -apple-system,sans-serif';
+    ctx.textAlign=Math.abs(x-cx)<12?'center':x<cx?'right':'left';
+    ctx.fillText(ph.icon+' '+ph.name, x, y+4);
+  });
+}
+
 function renderCallsIA() {
   const root = document.getElementById('calls-ia-root');
   if (!root) return;
   if (_aiSubView === 'historial') { _renderAIHistorialView(); return; }
   _renderAINewView();
 }
+
+// ── Analyzer metadata (seller / product / duration) ──────────────────────────
+let _analyzerMeta = { seller: '', product: '', dur: '' };
 
 function _renderAINewView() {
   const root = document.getElementById('calls-ia-root');
@@ -7414,83 +7983,103 @@ function _renderAINewView() {
     `<option value="${c.id}">${c.nombre||c.instagram||'Sin nombre'} — ${c.instagram||''}</option>`
   ).join('');
 
+  const stepDone  = `<div class="ca-step done"><div class="ca-step-num">✓</div>`;
+  const stepAct   = (n,l) => `<div class="ca-step active"><div class="ca-step-num">${n}</div><span>${l}</span></div>`;
+  const stepIdle  = (n,l) => `<div class="ca-step"><div class="ca-step-num">${n}</div><span>${l}</span></div>`;
+
+  const steps = hasAnalysis
+    ? `${stepDone}<span>Datos</span></div>${stepDone}<span>Analizando</span></div>${stepAct(3,'Ver reporte')}`
+    : `${stepAct(1,'Datos de la llamada')}${stepIdle(2,'Analizar')}${stepIdle(3,'Ver reporte')}`;
+
+  const inputStyle = 'width:100%;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit';
+  const selStyle   = 'width:100%;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit;appearance:none';
+
   root.innerHTML = `
-    <!-- Header bar -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="setAISubView('historial')" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
+    <div class="ca-wrap">
+      <!-- Header bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <button onclick="setAISubView('historial')" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
           border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
           Historial${_aiAnalysesList.length > 0 ? ` (${_aiAnalysesList.length})` : ''}
         </button>
-        ${isAdmin ? `<button onclick="openAIConfig()" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          ⚙ Configurar IA
-        </button>` : ''}
+        <div style="display:flex;gap:8px">
+          ${isAdmin ? `<button onclick="openAIConfig()" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
+            border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">⚙ Config</button>` : ''}
+          ${hasAnalysis ? `<button onclick="startNewAIAnalysis()" style="padding:5px 14px;font-size:12px;font-weight:700;border-radius:var(--rs);
+            border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">+ Nueva evaluación</button>` : ''}
+        </div>
       </div>
-      <div style="display:flex;gap:8px">
-        ${hasAnalysis ? `<button onclick="startNewAIAnalysis()" style="padding:7px 16px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-          border:1px solid rgba(184,72,72,0.4);background:rgba(184,72,72,0.1);color:#d47070;cursor:pointer">
-          Terminar análisis
-        </button>` : ''}
-        ${hasAnalysis ? '' : `<button onclick="startNewAIAnalysis()" style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-          border:1px solid var(--gold);background:rgba(224,181,74,0.12);color:var(--gold);cursor:pointer">
-          + Nuevo análisis
-        </button>`}
-      </div>
-    </div>
 
-    <!-- Panel principal -->
-    <div class="card" style="padding:24px">
+      <!-- Steps -->
+      <div class="ca-steps">${steps}</div>
 
-      <!-- Transcript input — solo visible si no hay análisis activo -->
+      <!-- INPUT FORM -->
       <div id="ai-input-section" style="${hasAnalysis?'display:none':''}">
-        <div style="margin-bottom:12px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Vincular a llamada (opcional)</div>
-          <select id="ai-call-select" style="width:100%;max-width:420px;padding:8px 12px;font-size:12.5px;background:rgba(255,255,255,0.04);
-            border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text2)">
-            <option value="">— Sin vincular —</option>
-            ${callOptions}
-          </select>
-        </div>
-        <div style="margin-bottom:16px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Transcript de la llamada</div>
-          <textarea id="ai-transcript-input" rows="8"
-            placeholder="Pegá el transcript completo de la llamada aquí…"
-            style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
-                   border-radius:var(--rs);padding:14px;font-size:13px;color:var(--text2);line-height:1.65;
-                   resize:vertical;box-sizing:border-box;font-family:inherit;min-height:150px"></textarea>
-        </div>
-        <div style="display:flex;justify-content:flex-end">
-          <button id="ai-analyze-btn" onclick="runAIAnalysis()"
-            style="padding:9px 26px;font-size:13px;font-weight:700;border-radius:var(--rs);
-                   border:none;background:var(--gold);color:#000;cursor:pointer;letter-spacing:.02em">
-            Analizar llamada →
-          </button>
-        </div>
-      </div>
-
-      <!-- Área de análisis + chat -->
-      <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
-        <div style="margin-bottom:16px">
-          <div id="ai-messages-container" style="display:flex;flex-direction:column;gap:20px;max-height:620px;overflow-y:auto;padding-right:6px">
+        <div class="card" style="padding:20px">
+          <div style="font-size:14px;font-weight:700;margin-bottom:16px">Información de la llamada</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Vendedor</label>
+              <input type="text" id="ai-seller" placeholder="Nombre del vendedor" style="${inputStyle}" value="${_analyzerMeta.seller||''}"></div>
+            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Fecha</label>
+              <input type="date" id="ai-date" style="${inputStyle}" value="${new Date().toISOString().slice(0,10)}"></div>
+            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Producto / Servicio</label>
+              <input type="text" id="ai-product" placeholder="Ej: Mentoría, curso, consultoría…" style="${inputStyle}" value="${_analyzerMeta.product||''}"></div>
+            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Duración</label>
+              <select id="ai-dur" style="${selStyle}">
+                <option value="">—</option>
+                <option ${_analyzerMeta.dur==='Menos de 15 min'?'selected':''}>Menos de 15 min</option>
+                <option ${_analyzerMeta.dur==='15–30 min'?'selected':''}>15–30 min</option>
+                <option ${_analyzerMeta.dur==='30–45 min'?'selected':''}>30–45 min</option>
+                <option ${_analyzerMeta.dur==='45–60 min'?'selected':''}>45–60 min</option>
+                <option ${_analyzerMeta.dur==='Más de 60 min'?'selected':''}>Más de 60 min</option>
+              </select></div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Vincular a llamada (opcional)</label>
+            <select id="ai-call-select" style="${selStyle};max-width:420px">
+              <option value="">— Sin vincular —</option>
+              ${callOptions}
+            </select>
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Transcripción o descripción de la llamada</label>
+            <textarea id="ai-transcript-input" rows="10"
+              placeholder="Pegá el transcript completo, o describí lo que pasó con el mayor detalle posible…"
+              style="${inputStyle};resize:vertical;line-height:1.6;min-height:180px;display:block"></textarea>
+            <p style="font-size:11px;color:var(--text3);margin-top:5px">Cuanto más detalle proveas, más preciso y útil será el análisis.</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button id="ai-analyze-btn" onclick="runAIAnalysis()"
+              style="padding:10px 28px;font-size:13.5px;font-weight:700;border-radius:var(--rs);
+                     border:none;background:var(--gold);color:#000;cursor:pointer;letter-spacing:.02em">
+              Continuar →
+            </button>
           </div>
         </div>
-        <!-- Input de seguimiento -->
-        <div style="display:flex;gap:10px;align-items:flex-end;border-top:1px solid var(--line);padding-top:16px">
-          <textarea id="ai-followup-input" rows="2"
-            placeholder="Preguntá algo sobre esta llamada… (Enter para enviar)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}"
-            style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);
-                   border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);line-height:1.5;
-                   resize:none;font-family:inherit"></textarea>
-          <button id="ai-send-btn" onclick="sendAIChatMessage()"
-            style="padding:10px 20px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-                   border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;white-space:nowrap">
-            Enviar →
-          </button>
-        </div>
       </div>
 
+      <!-- REPORT AREA -->
+      <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
+        <div id="ai-messages-container"></div>
+
+        <!-- Follow-up chat -->
+        <div style="margin-top:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Seguimiento — preguntá sobre esta llamada</div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <textarea id="ai-followup-input" rows="2"
+              placeholder="Preguntá algo sobre esta llamada… (Enter para enviar)"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}"
+              style="flex:1;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);
+                     border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);
+                     line-height:1.5;resize:none;font-family:inherit"></textarea>
+            <button id="ai-send-btn" onclick="sendAIChatMessage()"
+              style="padding:10px 20px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
+                     border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;white-space:nowrap">
+              Enviar →
+            </button>
+          </div>
+        </div>
+      </div>
     </div>`;
 
   if (hasAnalysis) _renderAIMessages();
@@ -7579,6 +8168,7 @@ function _renderAIMessages() {
       : `<div style="background:rgba(224,181,74,0.08);border:1px solid rgba(224,181,74,0.15);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2)">${(p.user.content||'').replace(/</g,'&lt;')}</div>`;
 
     const assistantHtml = _mdToHtml(p.assistant?.content || '');
+    const scorecardHtml = (isFirst && _aiScorecard) ? _renderScorecardSection(_aiScorecard) : '';
 
     return `
       <div>
@@ -7588,6 +8178,7 @@ function _renderAIMessages() {
           <div style="margin-top:12px">
             <div style="font-size:10.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✦ Análisis IA</div>
             <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);padding:18px 20px">
+              ${scorecardHtml}
               ${assistantHtml}
             </div>
           </div>` : ''}
@@ -7596,6 +8187,12 @@ function _renderAIMessages() {
 
   // Scroll to bottom
   container.scrollTop = container.scrollHeight;
+
+  // Export button — show if scorecard exists
+  const exportWrap = document.getElementById('ai-export-wrap');
+  if (exportWrap) {
+    exportWrap.style.display = _aiScorecard ? '' : 'none';
+  }
 
   // Show chat area
   const chatArea = document.getElementById('ai-chat-area');
@@ -7627,10 +8224,12 @@ async function runAIAnalysis() {
     const data = await res.json();
 
     _aiAnalysisId = data.id;
-    _aiMessages = data.messages || [];
+    _aiMessages   = data.messages || [];
+    _aiScorecard  = data.scorecard || null;
 
     if (transcriptEl) transcriptEl.value = '';
     renderCallsIA();
+    if (_aiScorecard) setTimeout(()=>_drawScorecardRadar(_aiScorecard), 50);
     loadAIAnalysesList();
     toast('Análisis completado ✓');
   } catch (err) {
@@ -7702,9 +8301,11 @@ async function loadAIAnalysis(id) {
     if (!res.ok) return;
     const data = await res.json();
     _aiAnalysisId = data.id;
-    _aiMessages = data.messages || [];
-    _aiSubView = 'nuevo';
+    _aiMessages   = data.messages || [];
+    _aiScorecard  = data.scorecard || null;
+    _aiSubView    = 'nuevo';
     renderCallsIA();
+    if (_aiScorecard) setTimeout(()=>_drawScorecardRadar(_aiScorecard), 50);
   } catch (err) {
     toast('Error al cargar análisis');
   }
@@ -7712,8 +8313,9 @@ async function loadAIAnalysis(id) {
 
 function startNewAIAnalysis() {
   _aiAnalysisId = null;
-  _aiMessages = [];
-  _aiSubView = 'nuevo';
+  _aiMessages   = [];
+  _aiScorecard  = null;
+  _aiSubView    = 'nuevo';
   renderCallsIA();
 }
 
@@ -8695,7 +9297,6 @@ function _repsKPIs(v,comp){
   return `
     <div class="reps-section-label">Ventas</div>
     <div class="reps-kpi-grid">
-      ${kpi('Seguidores Nuevos', v.seguidores_nuevos??0,        'var(--text1)',  comp.delta_seguidores)}
       ${kpi('Leads Generados',   leads,                          'var(--text1)',  comp.delta_leads)}
       ${kpi('Agendas',           agendas,                        'var(--gold)',   '')}
       ${kpi('% Agendamiento',    pctAgend+'%',                   '#6090d4',      '')}
@@ -8734,7 +9335,6 @@ function _repsComparativa(v,comp){
           <th style="font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding-bottom:8px;padding-left:8px">Δ</th>
         </tr></thead>
         <tbody>
-          ${row('Seguidores Nuevos', v.seguidores_nuevos??'—',         ant.seguidores_nuevos??'—',  comp.delta_seguidores)}
           ${row('Leads',             v.leads??'—',                     ant.leads??'—',              comp.delta_leads)}
           ${row('Cerrados',          v.cerrados??'—',                  ant.cerrados??'—',           comp.delta_cerrados)}
           ${row('Facturación',       fmtMoney(v.facturacion??0),       fmtMoney(ant.facturacion??0), comp.delta_facturacion)}
@@ -9095,7 +9695,6 @@ function repsExportPDF(){
       const pPctCShows = pShows >0 ? Math.round(pC/pShows*100) : 0;
       const pPctCTotal = pL     >0 ? Math.round(pC/pL*100)     : 0;
       return [
-        ['Seguidores Nuevos', v.seguidores_nuevos??0],
         ['Leads Generados',   pL],
         ['Agendas',           pA],
         ['% Agendamiento',    pPctAgend+'%'],
@@ -9121,7 +9720,6 @@ function repsExportPDF(){
       <th style="text-align:right;padding-left:8px">Δ</th>
     </tr></thead>
     <tbody>
-      ${compRow('Seguidores Nuevos', v.seguidores_nuevos??'—',      ant.seguidores_nuevos??'—',  comp.delta_seguidores)}
       ${compRow('Leads',             v.leads??'—',                  ant.leads??'—',              comp.delta_leads)}
       ${compRow('Cerrados',          v.cerrados??'—',               ant.cerrados??'—',           comp.delta_cerrados)}
       ${compRow('Facturación',       fmtMoney(v.facturacion??0),    fmtMoney(ant.facturacion??0), comp.delta_facturacion)}
