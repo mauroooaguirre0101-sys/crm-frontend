@@ -8061,13 +8061,6 @@ function _renderAINewView() {
       <!-- REPORT AREA -->
       <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
         <div id="ai-messages-container"></div>
-        <div id="ai-export-wrap" style="display:none;text-align:right;margin-top:12px">
-          <button onclick="exportAnalysisPDF()" style="padding:8px 18px;font-size:12px;font-weight:700;border-radius:var(--rs);
-            border:1px solid rgba(212,168,50,0.4);background:rgba(212,168,50,0.1);color:var(--gold);cursor:pointer;font-family:inherit">
-            📄 Exportar PDF
-          </button>
-        </div>
-
         <!-- Follow-up chat -->
         <div style="margin-top:16px">
           <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Seguimiento — preguntá sobre esta llamada</div>
@@ -8082,6 +8075,12 @@ function _renderAINewView() {
               style="padding:10px 20px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
                      border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;white-space:nowrap">
               Enviar →
+            </button>
+            <button id="ai-export-wrap" onclick="exportAnalysisPDF()"
+              style="padding:10px 16px;font-size:12px;font-weight:700;border-radius:var(--rs);
+                     border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);
+                     color:var(--text2);cursor:pointer;white-space:nowrap;font-family:inherit">
+              📄 PDF
             </button>
           </div>
         </div>
