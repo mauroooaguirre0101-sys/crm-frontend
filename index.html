@@ -313,16 +313,20 @@
     <div class="auth-sub">Iniciá sesión para continuar</div>
     <div class="auth-error" id="auth-error"></div>
     <div class="form-group"><label class="form-label">Email</label>
-      <input type="email" id="auth-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')login()"></div>
+      <input type="email" id="auth-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')_loginWithRemember()"></div>
     <div class="form-group" style="margin-top:12px"><label class="form-label">Contraseña</label>
       <div style="position:relative">
-        <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()" style="padding-right:40px;width:100%;box-sizing:border-box">
+        <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')_loginWithRemember()" style="padding-right:40px;width:100%;box-sizing:border-box">
         <button type="button" id="auth-pass-eye" onclick="toggleAuthPass(this)"
           style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);display:flex;align-items:center;padding:0;line-height:0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div></div>
-    <button class="btn btn-gold" id="auth-btn" onclick="login()" style="width:100%;margin-top:18px;justify-content:center;padding:11px">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="auth-remember" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer">
+      <span style="font-size:12px;color:var(--text3)">Recordar mis datos</span>
+    </label>
+    <button class="btn btn-gold" id="auth-btn" onclick="_loginWithRemember()" style="width:100%;margin-top:14px;justify-content:center;padding:11px">
       Iniciar sesión
     </button>
   </div>
@@ -418,6 +422,7 @@
         <div id="ump-email-detail" style="font-size:11px;color:var(--text3);margin-bottom:8px">—</div>
         <div id="ump-tasks" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></div>
       </div>
+      <div class="user-menu-item" onclick="openChangeNickname()">✎ Cambiar apodo</div>
       <div class="user-menu-item danger" onclick="logout()">Cerrar sesión</div>
     </div>
   </div>
@@ -445,6 +450,7 @@
     <div class="nav-item" id="nav-formatos" onclick="nav('formatos',this)"><div class="nav-dot"></div><span class="nav-text">Formatos</span></div>
     <div class="nav-item" id="nav-lab" onclick="nav('lab',this)"><div class="nav-dot"></div><span class="nav-text">Laboratorio</span></div>
     <div class="nav-section-label">Ventas</div>
+    <div class="nav-item" id="nav-objectives" onclick="nav('objectives',this)"><div class="nav-dot"></div><span class="nav-text">Objetivos Mes</span></div>
     <div class="nav-item" id="nav-leads" onclick="nav('leads',this)"><div class="nav-dot"></div><span class="nav-text">Leads</span></div>
     <div class="nav-item" id="nav-funnel" onclick="nav('funnel',this)"><div class="nav-dot"></div><span class="nav-text">Funnel</span></div>
     <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><div class="nav-dot"></div><span class="nav-text">Llamadas</span></div>
@@ -495,11 +501,25 @@
       <div class="currency-info" id="currency-info-text">Moneda base del sistema</div>
     </div>
   </div>
-  <div class="tabs" id="dash-tabs">
-    <div class="tab" data-period="dia" onclick="setDashFilter('dia',this)">Día</div>
-    <div class="tab" data-period="semana" onclick="setDashFilter('semana',this)">Semana</div>
-    <div class="tab active" data-period="mes" onclick="setDashFilter('mes',this)">Mes</div>
-    <div class="tab" data-period="año" onclick="setDashFilter('año',this)">Año</div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0">
+    <div class="tabs" id="dash-tabs" style="margin-bottom:0">
+      <div class="tab" data-period="dia" onclick="setDashFilter('dia',this)">Día</div>
+      <div class="tab" data-period="semana" onclick="setDashFilter('semana',this)">Semana</div>
+      <div class="tab active" data-period="mes" onclick="setDashFilter('mes',this)">Mes</div>
+      <div class="tab" data-period="año" onclick="setDashFilter('año',this)">Año</div>
+    </div>
+    <select id="dash-mes-select" onchange="_onDashMesChange(this.value)"
+      style="padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+             background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);
+             color:var(--text2);cursor:pointer;width:auto">
+      <option value="">— Filtrar por mes —</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
   </div>
   <div class="metric-grid metric-grid-4" id="dash-metrics"></div>
   <div class="metric-grid metric-grid-2" id="dash-metrics2"></div>
@@ -703,6 +723,20 @@
 <!-- ÁNGULOS -->
 <section class="page" id="page-ang">
   <div class="page-title">Ángulos</div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <select id="ang-mes-select" onchange="_onAngMesChange(this.value)"
+      style="padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+             background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);
+             color:var(--text2);cursor:pointer;width:auto">
+      <option value="">Vista General</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+  </div>
   <div class="metric-grid metric-grid-2" id="ang-metrics"></div>
   <div class="card">
     <div class="section-header">
@@ -780,6 +814,7 @@
       <div class="tab" data-period="semana" onclick="setLeadsFilter('semana',this)">Semana</div>
       <div class="tab active" data-period="mes" onclick="setLeadsFilter('mes',this)">Mes</div>
       <div class="tab" data-period="año" onclick="setLeadsFilter('año',this)">Año</div>
+      <div class="tab" data-period="todo" onclick="_setVistaGeneral('leads',this)">Vista General</div>
     </div>
     <!-- Selector de mes -->
     <select id="leads-mes-select" onchange="onLeadsMesChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
@@ -881,6 +916,7 @@
       <div class="tab" data-period="semana" onclick="setFunnelFilter('semana',this)">Semana</div>
       <div class="tab active" data-period="mes" onclick="setFunnelFilter('mes',this)">Mes</div>
       <div class="tab" data-period="año" onclick="setFunnelFilter('año',this)">Año</div>
+      <div class="tab" data-period="todo" onclick="_setVistaGeneral('funnel',this)">Vista General</div>
     </div>
     <select id="funnel-mes-select" onchange="onFunnelMesChange()" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
       <option value="">— Filtrar por mes —</option>
@@ -937,15 +973,156 @@
 <!-- Tooltip flotante del funnel -->
 <div id="funnel-tooltip" style="display:none;position:fixed;z-index:500;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:190px;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.6)"></div>
 
+<!-- OBJETIVOS MENSUALES -->
+<section class="page" id="page-objectives">
+  <div class="page-title">Objetivos del Mes</div>
+  <div class="page-sub">Seguimiento de objetivos mensuales · sólo admins pueden crear</div>
+
+  <!-- Header: selectores de mes/año + botón nuevo objetivo -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <select id="obj-mes-sel" onchange="loadObjectives()" style="padding:7px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+        <option value="1">Enero</option><option value="2">Febrero</option>
+        <option value="3">Marzo</option><option value="4">Abril</option>
+        <option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option>
+        <option value="9">Septiembre</option><option value="10">Octubre</option>
+        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+      <select id="obj-año-sel" onchange="loadObjectives()" style="padding:7px 12px;font-size:12px;font-weight:700;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
+    </div>
+    <button id="btn-add-obj" onclick="openAddObjectiveModal()" style="display:none;padding:9px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);background:rgba(224,181,74,0.12);color:var(--gold);cursor:pointer;letter-spacing:.02em">
+      + Nuevo objetivo
+    </button>
+  </div>
+
+  <!-- Estado: cargando -->
+  <div id="obj-loading" style="display:none;color:var(--text3);font-size:13px;padding:12px 0">Cargando objetivos…</div>
+
+  <!-- Estado: vacío -->
+  <div id="obj-empty" style="display:none;padding:60px 20px;text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">🎯</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text2);margin-bottom:6px">Sin objetivos para este mes</div>
+    <div style="font-size:13px;color:var(--text3)" id="obj-empty-hint">Los admins pueden crear objetivos con el botón de arriba.</div>
+  </div>
+
+  <!-- Grid de tarjetas -->
+  <div id="objectives-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px"></div>
+</section>
+
+<!-- MODAL OBJETIVOS — paso 1: input libre + lista actual -->
+<div class="modal-bg" id="modal-add-obj" onclick="closeBg(event,this)" style="display:none">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:500px;position:relative">
+    <button onclick="document.getElementById('modal-add-obj').style.display='none'"
+      title="Cerrar"
+      style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text3);
+             font-size:22px;cursor:pointer;line-height:1;padding:2px 8px;border-radius:4px;z-index:1"
+      onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">×</button>
+
+    <!-- PASO 1 -->
+    <div id="obj-step1">
+      <div class="modal-title">Agregar Nuevo Objetivo</div>
+      <p style="font-size:13px;color:var(--text3);margin:6px 0 20px;line-height:1.5">
+        Describí en tus palabras qué querés trackear y la IA detecta automáticamente cómo calcularlo.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">¿Qué te gustaría agregar?</label>
+        <input type="text" id="obj-ai-input" placeholder="Ej: % de Close Rate sobre shows del mes"
+          maxlength="200"
+          onkeydown="if(event.key==='Enter')interpretObjective()"
+          style="font-size:15px">
+      </div>
+
+      <!-- Error de interpretación -->
+      <div id="obj-ai-error" style="display:none;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.25);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#d46060;margin-bottom:14px"></div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:24px">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-add-obj').style.display='none'">Cancelar</button>
+        <button class="btn btn-gold" id="obj-detect-btn" onclick="interpretObjective()" style="min-width:110px">Detectar →</button>
+      </div>
+
+      <!-- Mes / Año del objetivo -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <span style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Para el mes</span>
+        <select id="modal-add-obj-mes" style="padding:5px 10px;font-size:12px;font-weight:700;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2)">
+          <option value="1">Enero</option><option value="2">Febrero</option>
+          <option value="3">Marzo</option><option value="4">Abril</option>
+          <option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option>
+          <option value="9">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <select id="modal-add-obj-año" style="padding:5px 10px;font-size:12px;font-weight:700;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2)">
+          <option value="2024">2024</option><option value="2025">2025</option>
+          <option value="2026" selected>2026</option><option value="2027">2027</option>
+        </select>
+      </div>
+
+      <!-- Objetivos actuales del mes (con opción de eliminar) -->
+      <div id="obj-modal-list-wrap">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">Objetivos del mes actual</div>
+        <div id="obj-modal-list" style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:12px;color:var(--text3);padding:8px 0">Cargando…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2: confirmación AI -->
+    <div id="obj-step2" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div style="width:36px;height:36px;background:rgba(92,184,122,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">✓</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#5cb87a">Ok, lo detecté</div>
+          <div style="font-size:12px;color:var(--text3)" id="obj-ai-desc-calculo"></div>
+        </div>
+      </div>
+
+      <div style="background:rgba(224,181,74,0.06);border:1px solid rgba(224,181,74,0.2);border-radius:10px;padding:16px 18px;margin-bottom:20px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:4px" id="obj-ai-tipo-label"></div>
+        <div style="font-size:17px;font-weight:700;color:var(--text)" id="obj-ai-titulo-preview"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Meta <span style="font-size:11px;color:var(--text3)" id="obj-ai-meta-hint"></span></label>
+        <input type="number" id="obj-ai-meta" placeholder="30" min="0.1" step="any" style="font-size:20px;font-weight:800;width:140px">
+      </div>
+
+      <div class="modal-footer" style="margin-top:8px">
+        <button class="btn btn-outline" onclick="_objGoStep1()">← Cambiar</button>
+        <button class="btn btn-gold" onclick="saveObjective()" style="min-width:100px">Listo ✓</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- CLIENTES -->
 <section class="page" id="page-clients">
   <div class="page-title">Clientes</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <select id="clients-mes-select" onchange="_onClientsMesChange(this.value)"
+      style="padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+             background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);
+             color:var(--text2);cursor:pointer;width:auto">
+      <option value="">Vista General</option>
+      <option value="0">Enero</option><option value="1">Febrero</option>
+      <option value="2">Marzo</option><option value="3">Abril</option>
+      <option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option>
+      <option value="8">Septiembre</option><option value="9">Octubre</option>
+      <option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+    <button class="btn btn-gold" onclick="openModal('modal-client')">+ Nuevo cliente</button>
+  </div>
   <div class="page-sub" id="clients-sub">0 clientes en programa</div>
   <div class="metric-grid metric-grid-4" id="clients-metrics" style="margin-bottom:20px"></div>
   <div id="clients-money-counters" style="margin-bottom:20px"></div>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-    <button class="btn btn-gold" onclick="openModal('modal-client')">+ Nuevo cliente</button>
-  </div>
   <div id="clients-sections"></div>
 </section>
 
@@ -958,6 +1135,7 @@
       <div class="tab" data-period="semana" onclick="setFinFilter('semana',this)">Semana</div>
       <div class="tab active" data-period="mes" onclick="setFinFilter('mes',this)">Mes</div>
       <div class="tab" data-period="año" onclick="setFinFilter('año',this)">Año</div>
+      <div class="tab" data-period="todo" onclick="_setVistaGeneral('fin',this)">Vista General</div>
     </div>
     <select id="fin-mes-select" onchange="_gfSetMes(this.value)" style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);color:var(--text2);cursor:pointer">
       <option value="">— Filtrar por mes —</option>
@@ -1061,6 +1239,7 @@
       <div class="tab" data-period="semana" onclick="setCallsFilter('semana',this)">Semana</div>
       <div class="tab active" data-period="mes" onclick="setCallsFilter('mes',this)">Mes</div>
       <div class="tab" data-period="año" onclick="setCallsFilter('año',this)">Año</div>
+      <div class="tab" data-period="todo" onclick="_setVistaGeneral('calls',this)">Vista General</div>
     </div>
     <select id="calls-mes-select" onchange="onCallsMesChange()"
       style="width:auto;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;
@@ -1079,8 +1258,7 @@
       oninput="onCallsBusquedaInput()"
       style="padding:7px 12px;font-size:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
              border-radius:var(--rs);color:var(--text);min-width:220px;flex:1;max-width:320px">
-    <button class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:7px 14px" onclick="window.open('analizador_llamadas.html','_blank','width=900,height=800,scrollbars=yes')">🤖 Analizador IA</button>
-    <button id="btn-new-call" class="btn btn-gold" style="margin-left:8px" onclick="openModal('modal-call')">+ Nueva llamada</button>
+    <button id="btn-new-call" class="btn btn-gold" style="margin-left:auto" onclick="openModal('modal-call')">+ Nueva llamada</button>
   </div>
 
   <div class="card">
@@ -2287,5 +2465,729 @@
 </div>
 
 <script src="script.js"></script>
+
+<script>
+// ============================================================
+// OBJETIVOS MENSUALES
+// ============================================================
+(function () {
+  const METRIC_LABELS = {
+    agendas:             'Agendas del mes',
+    agendas_calificadas: 'Agendas calificadas',
+    cierres:             'Cierres',
+    nuevos_clientes:     'Nuevos clientes',
+    facturacion:         'Facturación (USD)',
+    leads_generados:     'Leads generados',
+    no_shows:            'No shows',
+    show_rate:           '% Show Up Rate',
+    close_rate:          '% Close Rate',
+  };
+  const METRIC_IS_PERCENT = new Set(['show_rate', 'close_rate']);
+
+  // Datos que viene del paso AI (para usar en saveObjective)
+  let _pendingObj = null;
+
+  function _getObjMes() { return parseInt(document.getElementById('obj-mes-sel').value); }
+  function _getObjAño() { return parseInt(document.getElementById('obj-año-sel').value); }
+
+  function _fmtNum(n) {
+    if (n === null || n === undefined) return '0';
+    return n % 1 === 0 ? n.toLocaleString('es') : n.toLocaleString('es', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function _isPastMonth(mes, año) {
+    const now = new Date();
+    return año < now.getFullYear() || (año === now.getFullYear() && mes < now.getMonth() + 1);
+  }
+
+  function _esc(s) { return typeof escHtml === 'function' ? escHtml(s) : String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Renderiza las tarjetas en la página principal ──
+  function _renderObjectives(data) {
+    const grid    = document.getElementById('objectives-grid');
+    const empty   = document.getElementById('obj-empty');
+    const mes     = _getObjMes();
+    const año     = _getObjAño();
+    const isAdmin = typeof currentUserRole !== 'undefined' && currentUserRole === 'admin';
+    const isPast  = _isPastMonth(mes, año);
+
+    grid.innerHTML = '';
+
+    if (!data.length) {
+      empty.style.display = '';
+      document.getElementById('obj-empty-hint').textContent = isAdmin
+        ? 'Usá el botón "Nuevo objetivo" para agregar uno.'
+        : 'El admin del negocio puede crear objetivos desde este panel.';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    data.forEach(obj => {
+      const pct      = obj.porcentaje || 0;
+      const isMoney  = obj.tipo_metrica === 'facturacion';
+      const isPct    = METRIC_IS_PERCENT.has(obj.tipo_metrica) || obj.formula?.aggregate === 'percent';
+      const prefix   = isMoney ? '$' : '';
+      const suffix   = isPct ? '%' : '';
+      const barColor = obj.logrado ? '#5cb87a' : pct >= 70 ? 'var(--gold)' : 'var(--text3)';
+      const numColor = obj.logrado ? '#5cb87a' : pct >= 70 ? 'var(--gold)' : 'var(--text2)';
+      const badge    = obj.logrado
+        ? `<div style="margin-top:12px;font-size:12px;font-weight:700;color:#5cb87a">✅ Objetivo logrado</div>`
+        : isPast ? `<div style="margin-top:12px;font-size:12px;font-weight:700;color:#d46060">✗ No alcanzado</div>` : '';
+
+      grid.insertAdjacentHTML('beforeend', `
+        <div class="card" style="padding:24px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:5px">
+            ${METRIC_LABELS[obj.tipo_metrica] || obj.tipo_metrica}
+          </div>
+          <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:20px">${_esc(obj.titulo)}</div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:8px;margin-bottom:12px;overflow:hidden">
+            <div style="width:${pct}%;background:${barColor};border-radius:99px;height:8px;transition:width .5s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font-size:13px;color:var(--text2)">${prefix}${_fmtNum(obj.current)}${suffix} / ${prefix}${_fmtNum(obj.meta)}${suffix}</div>
+            <div style="font-size:30px;font-weight:900;color:${numColor};letter-spacing:-1.5px;line-height:1">${pct}%</div>
+          </div>
+          ${badge}
+        </div>
+      `);
+    });
+  }
+
+  // ── Renderiza la lista en el modal (con botones Editar / Eliminar) ──
+  function _renderModalList(data) {
+    const wrap = document.getElementById('obj-modal-list');
+    if (!data.length) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">No hay objetivos para este mes todavía.</div>';
+      return;
+    }
+    const isPct = obj => METRIC_IS_PERCENT.has(obj.tipo_metrica) || obj.formula?.aggregate === 'percent';
+    wrap.innerHTML = data.map(obj => `
+      <div id="obj-item-${obj.id}" style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:8px;padding:10px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(obj.titulo)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${METRIC_LABELS[obj.tipo_metrica] || obj.tipo_metrica} · meta: ${_fmtNum(obj.meta)}${isPct(obj)?'%':''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="_openInlineEdit('${obj.id}','${_esc(obj.titulo).replace(/'/g,"\\'")}',${obj.meta})"
+              style="background:rgba(224,181,74,.08);border:1px solid rgba(224,181,74,.25);border-radius:6px;
+                     color:var(--gold);cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px"
+              onmouseover="this.style.background='rgba(224,181,74,.18)'" onmouseout="this.style.background='rgba(224,181,74,.08)'">
+              Editar
+            </button>
+            <button onclick="deleteObjective('${obj.id}', true)"
+              style="background:rgba(212,96,96,.1);border:1px solid rgba(212,96,96,.3);border-radius:6px;
+                     color:#d46060;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px"
+              onmouseover="this.style.background='rgba(212,96,96,.2)'" onmouseout="this.style.background='rgba(212,96,96,.1)'">
+              Eliminar
+            </button>
+          </div>
+        </div>
+        <!-- Formulario de edición inline (oculto por defecto) -->
+        <div id="obj-edit-${obj.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px">
+              <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Título</div>
+              <input id="obj-edit-titulo-${obj.id}" type="text" value="${_esc(obj.titulo)}" maxlength="100"
+                style="width:100%;padding:7px 10px;font-size:13px;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:6px;color:var(--text)">
+            </div>
+            <div style="width:90px">
+              <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Meta</div>
+              <input id="obj-edit-meta-${obj.id}" type="number" value="${obj.meta}" min="0.1" step="any"
+                style="width:100%;padding:7px 10px;font-size:13px;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:6px;color:var(--text)">
+            </div>
+            <div style="display:flex;gap:6px">
+              <button onclick="_saveInlineEdit('${obj.id}')"
+                style="padding:7px 12px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--gold);background:rgba(224,181,74,.12);color:var(--gold);cursor:pointer">
+                Guardar
+              </button>
+              <button onclick="_cancelInlineEdit('${obj.id}')"
+                style="padding:7px 10px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text3);cursor:pointer">
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Carga la página de objetivos ──
+  window.loadObjectives = async function () {
+    const mes     = _getObjMes();
+    const año     = _getObjAño();
+    const grid    = document.getElementById('objectives-grid');
+    const loading = document.getElementById('obj-loading');
+    const empty   = document.getElementById('obj-empty');
+    const addBtn  = document.getElementById('btn-add-obj');
+    const isAdmin = typeof currentUserRole !== 'undefined' && currentUserRole === 'admin';
+
+    addBtn.style.display = isAdmin ? '' : 'none';
+    grid.innerHTML = '';
+    loading.style.display = '';
+    empty.style.display = 'none';
+
+    try {
+      const r    = await apiFetch(`${API_URL}/objectives/progress?mes=${mes}&año=${año}`);
+      const data = await r.json();
+      loading.style.display = 'none';
+      _renderObjectives(data);
+    } catch (e) {
+      loading.style.display = 'none';
+      if (typeof toast === 'function') toast('✗ Error al cargar objetivos');
+    }
+  };
+
+  // ── Abre el modal (paso 1) ──
+  window.openAddObjectiveModal = async function () {
+    const mes = _getObjMes();
+    const año = _getObjAño();
+    document.getElementById('modal-add-obj-mes').value = mes;
+    document.getElementById('modal-add-obj-año').value = año;
+    document.getElementById('obj-ai-input').value = '';
+    document.getElementById('obj-ai-error').style.display = 'none';
+    _objGoStep1();
+    document.getElementById('modal-add-obj').style.display = 'flex';
+
+    // Carga la lista de objetivos actuales en el modal
+    const wrap = document.getElementById('obj-modal-list');
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--text3)">Cargando…</div>';
+    try {
+      const r = await apiFetch(`${API_URL}/objectives?mes=${mes}&año=${año}`);
+      const data = await r.json();
+      _renderModalList(data);
+    } catch {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text3)">No se pudieron cargar.</div>';
+    }
+  };
+
+  // ── Vuelve al paso 1 ──
+  window._objGoStep1 = function () {
+    document.getElementById('obj-step1').style.display = '';
+    document.getElementById('obj-step2').style.display = 'none';
+    _pendingObj = null;
+  };
+
+  // ── Llama al endpoint de interpretación AI ──
+  window.interpretObjective = async function () {
+    const descripcion = document.getElementById('obj-ai-input').value.trim();
+    if (!descripcion) { if (typeof toast === 'function') toast('✗ Describí el objetivo primero'); return; }
+
+    const btn = document.getElementById('obj-detect-btn');
+    const errEl = document.getElementById('obj-ai-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Analizando…';
+
+    try {
+      const r    = await apiFetch(`${API_URL}/objectives/interpret`, {
+        method: 'POST',
+        body: JSON.stringify({ descripcion }),
+      });
+      const data = await r.json();
+
+      if (!r.ok || data.error) {
+        errEl.textContent = data.error || 'No pude interpretar. Intentá describirlo diferente.';
+        errEl.style.display = '';
+        return;
+      }
+
+      // Mostrar paso 2
+      _pendingObj = data;
+      const isPct = METRIC_IS_PERCENT.has(data.tipo_metrica) || data.formula?.aggregate === 'percent';
+      document.getElementById('obj-ai-tipo-label').textContent   = METRIC_LABELS[data.tipo_metrica] || data.tipo_metrica;
+      document.getElementById('obj-ai-titulo-preview').textContent = data.titulo;
+      document.getElementById('obj-ai-desc-calculo').textContent  = data.descripcion_calculo || '';
+      document.getElementById('obj-ai-meta').value               = data.meta_sugerida || '';
+      document.getElementById('obj-ai-meta-hint').textContent    = isPct ? '(en %)' : '';
+      document.getElementById('obj-step1').style.display = 'none';
+      document.getElementById('obj-step2').style.display = '';
+    } catch (e) {
+      errEl.textContent = 'Error de conexión. Intentá de nuevo.';
+      errEl.style.display = '';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Detectar →';
+    }
+  };
+
+  // ── Guarda el objetivo (llamado desde paso 2) ──
+  window.saveObjective = async function () {
+    if (!_pendingObj) return;
+    const meta = parseFloat(document.getElementById('obj-ai-meta').value);
+    const mes  = parseInt(document.getElementById('modal-add-obj-mes').value);
+    const año  = parseInt(document.getElementById('modal-add-obj-año').value);
+
+    if (!meta || meta <= 0) { if (typeof toast === 'function') toast('✗ La meta debe ser mayor a 0'); return; }
+
+    try {
+      const payload = { titulo: _pendingObj.titulo, tipo_metrica: _pendingObj.tipo_metrica, meta, mes, año };
+      if (_pendingObj.formula) payload.formula = _pendingObj.formula;
+      const r = await apiFetch(`${API_URL}/objectives`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) { if (typeof toast === 'function') toast(`✗ ${data.error || 'Error al guardar'}`); return; }
+      document.getElementById('modal-add-obj').style.display = 'none';
+      document.getElementById('obj-mes-sel').value = mes;
+      document.getElementById('obj-año-sel').value = año;
+      await loadObjectives();
+      if (typeof toast === 'function') toast('✓ Objetivo creado');
+    } catch (e) {
+      if (typeof toast === 'function') toast('✗ Error al guardar');
+    }
+  };
+
+  // ── Edición inline de objetivo ──
+  window._openInlineEdit = function (id, titulo, meta) {
+    document.getElementById(`obj-edit-${id}`).style.display = '';
+    document.getElementById(`obj-edit-titulo-${id}`).focus();
+  };
+
+  window._cancelInlineEdit = function (id) {
+    document.getElementById(`obj-edit-${id}`).style.display = 'none';
+  };
+
+  window._saveInlineEdit = async function (id) {
+    const titulo = document.getElementById(`obj-edit-titulo-${id}`).value.trim();
+    const meta   = parseFloat(document.getElementById(`obj-edit-meta-${id}`).value);
+    if (!titulo) { if (typeof toast === 'function') toast('✗ El título no puede estar vacío'); return; }
+    if (!meta || meta <= 0) { if (typeof toast === 'function') toast('✗ La meta debe ser mayor a 0'); return; }
+    try {
+      const r = await apiFetch(`${API_URL}/objectives/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ titulo, meta }),
+      });
+      const data = await r.json();
+      if (!r.ok) { if (typeof toast === 'function') toast(`✗ ${data.error || 'Error al guardar'}`); return; }
+      if (typeof toast === 'function') toast('✓ Objetivo actualizado');
+      await loadObjectives();
+      // Refresca la lista del modal
+      const mes = parseInt(document.getElementById('modal-add-obj-mes').value);
+      const año = parseInt(document.getElementById('modal-add-obj-año').value);
+      const r2  = await apiFetch(`${API_URL}/objectives?mes=${mes}&año=${año}`);
+      _renderModalList(await r2.json());
+    } catch (e) {
+      if (typeof toast === 'function') toast('✗ Error al guardar');
+    }
+  };
+
+  // ── Elimina un objetivo ──
+  window.deleteObjective = async function (id, fromModal = false) {
+    if (!confirm('¿Eliminar este objetivo?')) return;
+    try {
+      const r = await apiFetch(`${API_URL}/objectives/${id}`, { method: 'DELETE' });
+      if (!r.ok) { if (typeof toast === 'function') toast('✗ Error al eliminar'); return; }
+      if (typeof toast === 'function') toast('✓ Objetivo eliminado');
+      await loadObjectives();
+      if (fromModal) {
+        // Refresca la lista dentro del modal
+        const mes = parseInt(document.getElementById('modal-add-obj-mes').value);
+        const año = parseInt(document.getElementById('modal-add-obj-año').value);
+        const r2  = await apiFetch(`${API_URL}/objectives?mes=${mes}&año=${año}`);
+        const d2  = await r2.json();
+        _renderModalList(d2);
+      }
+    } catch (e) {
+      if (typeof toast === 'function') toast('✗ Error al eliminar');
+    }
+  };
+
+  // Auto-carga cuando la sección se activa
+  const _pageEl = document.getElementById('page-objectives');
+  if (_pageEl) {
+    new MutationObserver(() => {
+      if (_pageEl.classList.contains('active')) loadObjectives();
+    }).observe(_pageEl, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // Pre-selecciona mes/año actual
+  const _now = new Date();
+  const _mesSel = document.getElementById('obj-mes-sel');
+  const _añoSel = document.getElementById('obj-año-sel');
+  if (_mesSel) _mesSel.value = _now.getMonth() + 1;
+  if (_añoSel) _añoSel.value = _now.getFullYear();
+})();
+
+// ============================================================
+// FILTRO: MES CALENDARIO ACTUAL POR DEFECTO
+// ============================================================
+(function () {
+  const FILTER_SECTIONS = ['leads', 'calls', 'fin', 'funnel', 'ang'];
+  const SEL_IDS = {
+    leads: 'leads-mes-select', calls: 'calls-mes-select',
+    fin:   'fin-mes-select',   funnel:'funnel-mes-select',
+    dash:  'dash-mes-select',  ang:   'ang-mes-select',
+  };
+
+  // Devuelve el mes actual como string '0'-'11' (0=enero, 5=junio, etc.)
+  function _curMonth() { return String(new Date().getMonth()); }
+
+  // Re-render de cada sección usando el _gf actual
+  function _triggerSectionRender(section) {
+    const fn = {
+      leads:  () => { if (typeof fetchLeadsPage       === 'function') fetchLeadsPage(1); },
+      calls:  () => { if (typeof _applyCallsFilter    === 'function') _applyCallsFilter(); },
+      fin:    () => { if (typeof renderFin             === 'function') renderFin(); },
+      funnel: () => { if (typeof renderFunnelMetricas === 'function') renderFunnelMetricas(); },
+      dash:   () => { if (typeof renderDash            === 'function') renderDash(); },
+      ang:    () => { if (typeof renderAng             === 'function') renderAng(); },
+    }[section];
+    if (fn) fn();
+  }
+
+  // Setea el selector + _gf.mes para una sección dada
+  function _applyMonthToSection(section, monthStr) {
+    const sel = document.getElementById(SEL_IDS[section]);
+    if (sel) sel.value = monthStr;
+    if (typeof _gf !== 'undefined') {
+      _gf.mes    = monthStr;
+      _gf.period = monthStr !== '' ? '' : 'año'; // si se limpia, usa año como fallback
+    }
+  }
+
+  // ── Ocultar tab "Mes" (usa rolling 30d, no mes calendario) ──
+  function _hideMesTabs() {
+    document.querySelectorAll('.tab[data-period="mes"]').forEach(t => {
+      t.style.display = 'none';
+    });
+  }
+
+  // ── Setear mes actual en TODOS los selectores y _gf ──
+  function _initCurrentMonth() {
+    const m = _curMonth();
+    if (typeof _gf !== 'undefined') { _gf.mes = m; _gf.period = ''; }
+    Object.values(SEL_IDS).forEach(id => {
+      const s = document.getElementById(id);
+      if (s) s.value = m;
+    });
+  }
+
+  // ── Patchear _gfIsInRange: soporte 'todo' + 'mes' como calendario (safety net) ──
+  function _applyPatch() {
+    if (typeof _gfIsInRange !== 'function') return;
+    const _orig = _gfIsInRange;
+    window._gfIsInRange = function (dateStr) {
+      if (typeof _gf === 'undefined') return _orig(dateStr);
+      if (_gf.period === 'todo') return true;
+      // Safety net: si por alguna razón _gf.period='mes' sigue activo, usar mes calendario
+      if (_gf.period === 'mes' && _gf.mes === '') {
+        if (!dateStr) return false;
+        const d = new Date(dateStr), now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      return _orig(dateStr);
+    };
+  }
+
+  // ── Selector de mes del dashboard ──
+  window._onDashMesChange = function (val) {
+    if (typeof _gfSetMes === 'function') _gfSetMes(val);
+    if (val === '' && typeof _gfSet === 'function') _gfSet('año');
+    if (typeof renderDash === 'function') renderDash();
+  };
+
+  // ── Override nav(): mes actual al navegar + sync apodos ──
+  let _nicksSynced = false;
+  function _patchNav() {
+    if (typeof nav !== 'function') return;
+    const _origNav = nav;
+    window.nav = function (section, el) {
+      if (!_nicksSynced) { _nicksSynced = true; _syncNicknamesFromDB(); }
+
+      const ALL = [...FILTER_SECTIONS, 'dash'];
+      if (ALL.includes(section)) {
+        const m = _curMonth();
+        _applyMonthToSection(section, m);
+        // Desactivar todos los tabs de período para que ninguno quede marcado
+        const pageEl = document.getElementById(`page-${section}`);
+        if (pageEl) pageEl.querySelectorAll('.tab[data-period]').forEach(t => t.classList.remove('active'));
+      }
+
+      _origNav(section, el);
+
+      // Para leads, forzar re-fetch con el nuevo filtro de mes
+      if (section === 'leads' && typeof fetchLeadsPage === 'function') {
+        fetchLeadsPage(1);
+      }
+    };
+  }
+
+  // ── Vista General: sin filtro de fecha ──
+  window._setVistaGeneral = function (section, tabEl) {
+    if (typeof _gf === 'undefined') return;
+    _gf.period = 'todo';
+    _gf.mes    = '';
+    const sel = document.getElementById(SEL_IDS[section]);
+    if (sel) sel.value = '';
+    const pageEl = document.getElementById(`page-${section}`);
+    if (pageEl) {
+      pageEl.querySelectorAll('.tab[data-period]').forEach(t => t.classList.remove('active'));
+      if (tabEl) tabEl.classList.add('active');
+    }
+    _triggerSectionRender(section);
+  };
+
+  // ── Sync apodos/aliases desde DB → localStorage (cache) ──
+  window._syncNicknamesFromDB = async function () {
+    try {
+      const [r1, r2, r3] = await Promise.all([
+        apiFetch(`${API_URL}/user-nicknames`),
+        apiFetch(`${API_URL}/client-aliases`),
+        apiFetch(`${API_URL}/client-aliases/can-edit`),
+      ]);
+      if (r1.ok) {
+        const nicknames = await r1.json();
+        const map = {};
+        nicknames.forEach(n => { map[n.user_email] = n.nickname; });
+        const existing = JSON.parse(localStorage.getItem('crm_user_nicknames') || '{}');
+        localStorage.setItem('crm_user_nicknames', JSON.stringify({ ...existing, ...map }));
+      }
+      if (r2.ok) {
+        const aliases = await r2.json();
+        const map = {};
+        aliases.forEach(a => { map[a.cliente_id] = a.alias; });
+        localStorage.setItem('crm_client_aliases', JSON.stringify(map));
+        if (typeof renderClienteSelector === 'function') renderClienteSelector();
+      }
+      // Mostrar/ocultar botón de editar alias según permiso
+      if (r3.ok) {
+        const { canEdit } = await r3.json();
+        _canEditAliases = !!canEdit;
+      }
+      const aliasBtn = document.getElementById('cs-alias-btn');
+      if (aliasBtn) aliasBtn.style.display = _canEditAliases ? '' : 'none';
+    } catch (e) { /* silencioso */ }
+  };
+
+  // ── Abrir modal de apodo con el valor actual pre-llenado ──
+  window.openChangeNickname = function () {
+    const email = typeof currentUser !== 'undefined' ? currentUser?.email : null;
+    const current = email && typeof _getNickname === 'function' ? _getNickname(email) : '';
+    const input = document.getElementById('nickname-input');
+    if (input) input.value = current || '';
+    if (typeof openModal === 'function') openModal('modal-nickname');
+    else document.getElementById('modal-nickname').style.display = 'flex';
+    setTimeout(() => input?.focus(), 150);
+    // Cerrar el menú de usuario si estaba abierto
+    const menu = document.getElementById('user-menu');
+    if (menu) menu.classList.remove('open');
+  };
+
+  // ── Filtro de mes para Ángulos ──
+  window._onAngMesChange = function (val) {
+    if (typeof renderAng === 'function') renderAng();
+  };
+
+  function _patchRenderAng() {
+    if (typeof renderAng !== 'function') return;
+    const _orig = renderAng;
+    window.renderAng = function () {
+      const sel = document.getElementById('ang-mes-select');
+      const mesVal = sel ? sel.value : '';
+
+      if (mesVal === '') {
+        return _orig(); // Vista General: sin filtro
+      }
+
+      const m  = parseInt(mesVal, 10);
+      const yr = new Date().getFullYear();
+      const _inMonth = dateStr => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getMonth() === m && d.getFullYear() === yr;
+      };
+
+      // Guardar arrays originales y reemplazar temporalmente con datos del mes
+      const origLeads = leadsCache.splice(0);
+      const origIng   = S.ing ? S.ing.slice() : [];
+
+      origLeads.filter(l => _inMonth(l.created_at)).forEach(l => leadsCache.push(l));
+      S.ing = origIng.filter(i => _inMonth(i.fecha));
+
+      try {
+        _orig();
+      } finally {
+        // Restaurar siempre, aunque _orig() lance error
+        leadsCache.splice(0);
+        origLeads.forEach(l => leadsCache.push(l));
+        S.ing = origIng;
+      }
+    };
+  }
+
+  // ── Parchear saveNickname para persistir en DB ──
+  function _patchNicknames() {
+    if (typeof saveNickname !== 'function') return;
+    const _orig = saveNickname;
+    window.saveNickname = async function () {
+      const nick = document.getElementById('nickname-input')?.value?.trim();
+      _orig(); // guarda en localStorage y cierra modal
+      if (!nick) return;
+      try {
+        await apiFetch(`${API_URL}/user-nicknames`, {
+          method: 'POST',
+          body: JSON.stringify({ nickname: nick }),
+        });
+        // Propagar a todos: re-sync para que otros usuarios vean el cambio en su próxima sesión
+      } catch (e) {}
+    };
+  }
+
+  // ── Parchear editClienteAlias — solo super-admin puede editar aliases ──
+  let _canEditAliases = false;
+
+  function _patchAliases() {
+    if (typeof editClienteAlias !== 'function') return;
+    const _origAlias = editClienteAlias;
+    window.editClienteAlias = function () {
+      if (!_canEditAliases) {
+        if (typeof toast === 'function') toast('✗ Solo el super-admin puede cambiar los apodos de clientes');
+        return;
+      }
+      const cidBefore = typeof _getClienteSeleccionado === 'function' ? _getClienteSeleccionado() : null;
+      _origAlias();
+      if (!cidBefore) return;
+      const alias = (typeof _getAliases === 'function' ? _getAliases() : {})[cidBefore] || '';
+      apiFetch(`${API_URL}/client-aliases`, {
+        method: 'POST',
+        body: JSON.stringify({ cliente_id: cidBefore, alias }),
+      }).catch(() => {});
+    };
+  }
+
+  // Aplicar todo al cargar
+  _applyPatch();
+  _hideMesTabs();
+  _patchNav();
+  _patchRenderAng();
+  _patchNicknames();
+  _patchAliases();
+
+  // Setear mes actual inmediatamente (antes del login, para que el estado sea correcto desde el inicio)
+  _initCurrentMonth();
+})();
+
+// ============================================================
+// BLOQUEO DE ACCESO: si el backend rechaza al usuario, cerrar sesión
+// ============================================================
+(function () {
+  function _patchInitApp() {
+    if (typeof initApp !== 'function') return;
+    const _orig = initApp;
+    window.initApp = async function (user) {
+      // Validar acceso en el backend ANTES de inicializar la app
+      try {
+        const res = await fetch(`${API_URL}/login`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email: user.email }),
+        });
+        if (!res.ok) {
+          // Sin acceso → cerrar sesión Supabase + mostrar error
+          if (typeof _sb !== 'undefined') await _sb.auth.signOut().catch(() => {});
+          ['userEmail','clientes','clienteSeleccionado','crm_railway_user'].forEach(k => localStorage.removeItem(k));
+          document.getElementById('auth-loader')?.classList.add('hidden');
+          document.getElementById('auth-overlay')?.classList.remove('hidden');
+          const errEl = document.getElementById('auth-error');
+          if (errEl) {
+            errEl.textContent = 'Tu usuario no tiene acceso al CRM. Contactá al administrador.';
+            errEl.style.display = 'block';
+          }
+          const btn = document.getElementById('auth-btn');
+          if (btn) { btn.disabled = false; btn.textContent = 'Iniciar sesión'; }
+          return; // no continuar con initApp original
+        }
+      } catch (e) {
+        // Error de red: dejar que el flujo original continúe
+        console.warn('[access-check]', e);
+      }
+      const result = await _orig(user);
+      // Post-login: asegurar que los selectores muestren el mes actual
+      if (typeof _initCurrentMonth === 'function') _initCurrentMonth();
+      return result;
+    };
+  }
+  _patchInitApp();
+})();
+
+// ============================================================
+// FIX TIMEZONE: popup de llamada muestra hora local, no UTC
+// ============================================================
+(function () {
+  function _utcToLocalInput(utcStr) {
+    if (!utcStr) return '';
+    const d = new Date(utcStr);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function _patch() {
+    if (typeof abrirEditCall !== 'function') return;
+    const _orig = abrirEditCall;
+    window.abrirEditCall = function (id) {
+      _orig(id);
+      const r = (typeof callsCache !== 'undefined' ? callsCache : []).find(c => c.id === id);
+      if (!r?.fecha_llamada) return;
+      const fechaEl = document.getElementById('ec-fecha-llamada');
+      if (fechaEl) fechaEl.value = _utcToLocalInput(r.fecha_llamada);
+    };
+  }
+
+  // Parchear cuando script.js ya cargó
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _patch);
+  } else {
+    _patch();
+  }
+})();
+
+// ============================================================
+// RECORDAR CONTRASEÑA
+// ============================================================
+(function () {
+  const K_EMAIL    = 'crm_saved_email';
+  const K_PASS     = 'crm_saved_pass';
+  const K_REMEMBER = 'crm_remember';
+
+  // Pre-llenar campos si hay datos guardados
+  function _prefillLogin() {
+    if (localStorage.getItem(K_REMEMBER) !== '1') return;
+    const email = localStorage.getItem(K_EMAIL);
+    const pass  = localStorage.getItem(K_PASS);
+    if (!email || !pass) return;
+    const eEl = document.getElementById('auth-email');
+    const pEl = document.getElementById('auth-pass');
+    const rEl = document.getElementById('auth-remember');
+    if (eEl) eEl.value = email;
+    if (pEl) pEl.value = pass;
+    if (rEl) rEl.checked = true;
+  }
+
+  // Wrapper del botón login que guarda/borra credenciales antes de autenticar
+  window._loginWithRemember = function () {
+    const email    = (document.getElementById('auth-email')?.value || '').trim();
+    const pass     = document.getElementById('auth-pass')?.value || '';
+    const remember = document.getElementById('auth-remember')?.checked;
+
+    if (remember && email && pass) {
+      localStorage.setItem(K_EMAIL,    email);
+      localStorage.setItem(K_PASS,     pass);
+      localStorage.setItem(K_REMEMBER, '1');
+    } else {
+      localStorage.removeItem(K_EMAIL);
+      localStorage.removeItem(K_PASS);
+      localStorage.removeItem(K_REMEMBER);
+    }
+
+    if (typeof login === 'function') login();
+  };
+
+  // Ejecutar al cargar la página
+  _prefillLogin();
+})();
+</script>
 </body>
 </html>
