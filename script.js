@@ -4725,11 +4725,11 @@ function _renderCallsTable(rows){
     }
     const _fmtFecha=f=>new Date(f).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     const fechaSub=(r.reagendada||estado==='Re agenda'||estado==='Pendiente')&&r.fecha_llamada
-      ?`<span style="font-size:10px;font-weight:600;white-space:nowrap;color:${(r.reagendada||estado==='Re agenda')?'#e0a848':'#6090d4'}">&nbsp;${(r.reagendada||estado==='Re agenda')?'🔄':'📅'} ${_fmtFecha(r.fecha_llamada)}</span>`
+      ?`<span style="font-size:10px;font-weight:600;white-space:nowrap;color:${(r.reagendada||estado==='Re agenda')?'#e0a848':'#6090d4'};margin-top:3px">${(r.reagendada||estado==='Re agenda')?'🔄':'📅'} ${_fmtFecha(r.fecha_llamada)}</span>`
       :'';
-    const estadoBadge=`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:0;white-space:nowrap">
+    const estadoBadge=`<div style="display:inline-flex;flex-direction:column;align-items:flex-start">
       <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-        padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap;flex-shrink:0">${estado||'—'}</span>${pagoHtml}${fechaSub}</div>`;
+        padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${fechaSub}</div>`;
 
     const infoPrevia=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="abrirInfoPreviaEdit('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">${r.info_previa?'Ver / Editar':'+ Agregar'}</button>`;
 
