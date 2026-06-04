@@ -2853,6 +2853,8 @@ function onFunnelMesChange(){
   renderFunnelMetricas();
 }
 
+function _fmtPct(v){ if(v===0) return '0'; if(v<1) return v.toFixed(1); return Math.round(v).toString(); }
+
 function renderFunnelMetricas(){
   const all = _getFunnelLeads();
   const perdidos = all.filter(_esPerdidoEfectivo);
@@ -2867,7 +2869,7 @@ function renderFunnelMetricas(){
       ...f,
       detail: f.estados.map(e=>({ estado:e, count:activos.filter(l=>l.estado===e).length })),
       count:  leadsInFase.length,
-      pct:    total>0 ? Math.round(leadsInFase.length/total*100) : 0,
+      pct:    total>0 ? (leadsInFase.length/total*100) : 0,
       cal:    leadsInFase.filter(l=>l.calificado===true).length,
       descal: leadsInFase.filter(l=>l.descalificado===true).length,
     };
@@ -2910,7 +2912,7 @@ function _renderFunnelSVG(){
       <polygon points="${x1L},${y1} ${x1R},${y1} ${x2R},${y2} ${x2L},${y2}"
         fill="url(#fg${i})" stroke="${f.color}" stroke-width="0.8" style="cursor:pointer"
         onmouseenter="_showFunnelTip(event,${i})" onmousemove="_moveFunnelTip(event)" onmouseleave="_hideFunnelTip()"/>
-      <text x="${cx}" y="${cy-10}" text-anchor="middle" font-family="'Inter',sans-serif" font-weight="900" font-size="24" fill="${f.color}">${f.pct}%</text>
+      <text x="${cx}" y="${cy-10}" text-anchor="middle" font-family="'Inter',sans-serif" font-weight="900" font-size="24" fill="${f.color}">${_fmtPct(f.pct)}%</text>
       <text x="${cx}" y="${cy+12}" text-anchor="middle" font-family="'Inter',sans-serif" font-weight="600" font-size="11" fill="${f.color}" opacity="0.85" letter-spacing="1">${f.label.toUpperCase()}</text>
       <text x="${cx}" y="${cy+27}" text-anchor="middle" font-family="'Inter',sans-serif" font-weight="500" font-size="10" fill="${f.color}" opacity="0.55">${f.count} lead${f.count!==1?'s':''}</text>
       <text x="${cx-145}" y="${cy+20}" text-anchor="end" font-family="'Inter',sans-serif" font-weight="700" font-size="12" fill="#5cb87a" opacity="${f.cal>0?'1':'0.25'}">C${f.cal}</text>
@@ -2932,7 +2934,7 @@ function _renderFunnelTable(){
       <td style="font-weight:700;color:${f.color}">${f.label}</td>
       <td style="color:var(--text3);font-size:12px">${f.estados.join(', ')}</td>
       <td style="text-align:right;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;color:${f.color}">${f.count}</td>
-      <td style="text-align:right;color:var(--text2);font-size:13px;font-weight:600">${f.pct}%</td>
+      <td style="text-align:right;color:var(--text2);font-size:13px;font-weight:600">${_fmtPct(f.pct)}%</td>
       <td style="text-align:center"><span style="color:#5cb87a;font-weight:700;font-size:13px">${cal||'—'}</span></td>
       <td style="text-align:center"><span style="color:#d46060;font-weight:700;font-size:13px">${descal||'—'}</span></td>
     </tr>`;
@@ -2954,7 +2956,7 @@ function _showFunnelTip(event, idx){
     ${lines}
     <div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:14px">
       <span style="font-size:11px;color:var(--text3)">Total</span>
-      <span style="font-size:11px;font-weight:800;color:${f.color}">${f.count} (${f.pct}%)</span>
+      <span style="font-size:11px;font-weight:800;color:${f.color}">${f.count} (${_fmtPct(f.pct)}%)</span>
     </div>`;
   tip.style.display='block';
   _moveFunnelTip(event);
@@ -9433,7 +9435,7 @@ function _repsFunnel(funnel){
             <div style="width:${w}%;height:100%;background:${col};border-radius:4px;opacity:.75"></div>
           </div>
           <div style="font-size:12px;font-weight:700;color:var(--text1);min-width:22px;text-align:right">${f.count}</div>
-          <div style="font-size:10px;color:var(--text3);min-width:28px;text-align:right">${f.pct}%</div>
+          <div style="font-size:10px;color:var(--text3);min-width:28px;text-align:right">${_fmtPct(f.pct)}%</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -9734,7 +9736,7 @@ function repsExportPDF(){
   const funnelRows=(m.funnel?.fases||[]).map(f=>`<tr>
     <td style="font-size:11px;padding:4px 0;color:#333">${f.label}</td>
     <td style="text-align:right;font-size:11px;font-weight:700">${f.count}</td>
-    <td style="text-align:right;font-size:11px;color:#888">${f.pct}%</td>
+    <td style="text-align:right;font-size:11px;color:#888">${_fmtPct(f.pct)}%</td>
   </tr>`).join('');
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
