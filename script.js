@@ -2101,8 +2101,8 @@ function agruparPorEtiqueta(leads){
   const grupos={};
   leads.forEach(l=>{
     const ets=_getEtiquetas(l);
-    const key=ets.length?ets[ets.length-1]:'(sin etiqueta)';
-    grupos[key]=(grupos[key]||0)+1;
+    if(!ets.length){ grupos['(sin etiqueta)']=(grupos['(sin etiqueta)']||0)+1; return; }
+    ets.forEach(e=>{ grupos[e]=(grupos[e]||0)+1; });
   });
   return Object.entries(grupos).sort((a,b)=>b[1]-a[1]).reduce((acc,[k,v])=>{acc[k]=v;return acc;},{});
 }
