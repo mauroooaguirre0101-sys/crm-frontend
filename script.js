@@ -349,7 +349,7 @@ function nav(id,el){
   const refetch={
     cont:fetchContenido, found:fetchFundaciones, ang:fetchAngulos,
     ref:fetchReferentes, ig:fetchIG,
-    clients:()=>{Promise.all([fetchClients(),fetchCuotas()]).then(_seedMissingCuotas);}, fin:()=>{fetchIngresos();fetchEgresos();},
+    clients:()=>{const sel=document.getElementById('clients-mes-select');if(sel)sel.value=String(new Date().getMonth());return Promise.all([fetchClients(),fetchCuotas()]).then(_seedMissingCuotas);}, fin:()=>{fetchIngresos();fetchEgresos();},
     formatos:fetchFormatos, lab:fetchLaboratorio,
     ideas:fetchCrmIdeas,
   };
@@ -3196,25 +3196,43 @@ function _clientsRow(x,i){
 
 function renderClients(){
   const now=new Date();
-  const thisMonth=now.getMonth(), thisYear=now.getFullYear();
-  const prevMonth=thisMonth===0?11:thisMonth-1;
-  const prevYear=thisMonth===0?thisYear-1:thisYear;
+  const thisYear=now.getFullYear();
 
-  const activos=S.clients.filter(c=>c.estado==='Al día');
-  const inactivos=S.clients.filter(c=>c.estado==='Inactivo');
-  const pendientes=S.clients.filter(c=>c.estado==='Pendiente');
-  const vencidos=S.clients.filter(c=>c.estado==='Vencido');
+  // Read month filter from select
+  const selMes=document.getElementById('clients-mes-select');
+  const mesFiltro=selMes?selMes.value:'';
+  const mesNum=mesFiltro!==''?parseInt(mesFiltro):now.getMonth();
+  const prevMes=mesNum===0?11:mesNum-1;
+  const prevYear=mesNum===0?thisYear-1:thisYear;
 
-  // Nuevos este mes vs mes anterior (por fecha de inicio)
+  // Filter clients active during the selected month (started before end of month, ended after start of month or no end date)
+  let base=S.clients;
+  if(mesFiltro!==''){
+    const firstDay=new Date(thisYear,mesNum,1);
+    const lastDay=new Date(thisYear,mesNum+1,0);
+    base=S.clients.filter(c=>{
+      const d=c.inicio?_parseDate(c.inicio):null;
+      if(!d||d>lastDay) return false;
+      const f=c.fin?_parseDate(c.fin):null;
+      return !f||f>=firstDay;
+    });
+  }
+
+  const activos=base.filter(c=>c.estado==='Al día');
+  const inactivos=base.filter(c=>c.estado==='Inactivo');
+  const pendientes=base.filter(c=>c.estado==='Pendiente');
+  const vencidos=base.filter(c=>c.estado==='Vencido');
+
+  // Nuevos en el mes seleccionado vs mes anterior (por fecha de inicio)
   const newThisMonth=S.clients.filter(c=>{
     if(!c.inicio) return false;
     const d=_parseDate(c.inicio);
-    return d&&d.getMonth()===thisMonth&&d.getFullYear()===thisYear;
+    return d&&d.getMonth()===mesNum&&d.getFullYear()===thisYear;
   }).length;
   const newLastMonth=S.clients.filter(c=>{
     if(!c.inicio) return false;
     const d=_parseDate(c.inicio);
-    return d&&d.getMonth()===prevMonth&&d.getFullYear()===prevYear;
+    return d&&d.getMonth()===prevMes&&d.getFullYear()===prevYear;
   }).length;
   const deltaNew=newThisMonth-newLastMonth;
   const deltaNewStr=deltaNew===0?'igual que el mes anterior':(deltaNew>0?`+${deltaNew} más que el mes anterior`:`${deltaNew} menos que el mes anterior`);
@@ -3230,7 +3248,14 @@ function renderClients(){
   }
 
   const subEl=document.getElementById('clients-sub');
-  if(subEl) subEl.textContent=`${S.clients.length} cliente${S.clients.length!==1?'s':''} en programa · ${deltaNewStr}`;
+  if(subEl){
+    if(mesFiltro!==''){
+      const nombreMes=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesNum];
+      subEl.textContent=`${base.length} cliente${base.length!==1?'s':''} activos en ${nombreMes} · ${newThisMonth} nuevo${newThisMonth!==1?'s':''} · ${deltaNewStr}`;
+    } else {
+      subEl.textContent=`${S.clients.length} cliente${S.clients.length!==1?'s':''} en programa · ${deltaNewStr}`;
+    }
+  }
 
   _renderMoneyCounters();
 
@@ -3271,6 +3296,9 @@ function renderClients(){
       </div>`;
   }
   renderCuotas();
+}
+function _onClientsMesChange(val){
+  renderClients();
 }
 function toggleClientSection(id){
   const body=document.getElementById(id);
@@ -4695,8 +4723,8 @@ function _renderCallsTable(rows){
       const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
       if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
     }
-    const fechaProg=estado==='Pendiente'&&r.fecha_llamada
-      ?`<div style="font-size:10px;color:#6090d4;font-weight:600;margin-top:3px">📅 ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+    const fechaProg=(estado==='Pendiente'||estado==='Re agenda')&&r.fecha_llamada
+      ?`<div style="font-size:10px;color:${estado==='Re agenda'?'#e0a848':'#6090d4'};font-weight:600;margin-top:3px">${estado==='Re agenda'?'🔄':'📅'} ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
       :'';
     const reagendadaBadge=r.reagendada&&r.fecha_llamada
       ?`<div style="font-size:10px;color:#e0b54a;font-weight:600;margin-top:3px">🔄 Re Agendada para el ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
@@ -4991,7 +5019,7 @@ async function saveEditCall(){
     link_grabacion:grabacion,
     reporte,
     notas_spc:(document.getElementById('ec-notas-spc')?.value||'').trim()||null,
-    fecha_llamada:estado==='Pendiente'&&rawFecha?new Date(rawFecha).toISOString():null,
+    fecha_llamada:(estado==='Pendiente'||estado==='Re agenda')&&rawFecha?new Date(rawFecha).toISOString():null,
     ...(monto_sena!==null && {monto_sena}),
     ...(closer!==undefined && {closer}),
   };
