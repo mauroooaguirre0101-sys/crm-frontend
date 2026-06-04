@@ -4723,14 +4723,13 @@ function _renderCallsTable(rows){
       const pagoTotal=(S.ing||[]).filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase()===ig).reduce((a,x)=>a+(+x.usd||0),0);
       if(pagoTotal>0) pagoHtml=`<div style="font-size:10px;color:#5cb85c;font-weight:700;margin-top:3px">${fmtMoney(pagoTotal)}</div>`;
     }
-    const fechaProg=(estado==='Pendiente'||estado==='Re agenda')&&r.fecha_llamada
-      ?`<div style="font-size:10px;color:${estado==='Re agenda'?'#e0a848':'#6090d4'};font-weight:600;margin-top:3px">${estado==='Re agenda'?'🔄':'📅'} ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+    const _fmtFecha=f=>new Date(f).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const fechaSub=(r.reagendada||estado==='Re agenda'||estado==='Pendiente')&&r.fecha_llamada
+      ?`<span style="font-size:10px;font-weight:600;white-space:nowrap;color:${(r.reagendada||estado==='Re agenda')?'#e0a848':'#6090d4'}">&nbsp;${(r.reagendada||estado==='Re agenda')?'🔄':'📅'} ${_fmtFecha(r.fecha_llamada)}</span>`
       :'';
-    const reagendadaBadge=r.reagendada&&r.fecha_llamada
-      ?`<div style="font-size:10px;color:#e0b54a;font-weight:600;margin-top:3px">🔄 Re Agendada para el ${new Date(r.fecha_llamada).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
-      :'';
-    const estadoBadge=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-      padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap">${estado||'—'}</span>${pagoHtml}${reagendadaBadge||fechaProg}`;
+    const estadoBadge=`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:0;white-space:nowrap">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+        padding:3px 8px;border-radius:20px;background:${col.bg};border:1px solid ${col.border};color:${col.text};white-space:nowrap;flex-shrink:0">${estado||'—'}</span>${pagoHtml}${fechaSub}</div>`;
 
     const infoPrevia=`<button class="btn btn-outline" style="font-size:10px;padding:3px 8px" onclick="abrirInfoPreviaEdit('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">${r.info_previa?'Ver / Editar':'+ Agregar'}</button>`;
 
@@ -4963,20 +4962,23 @@ function abrirEditCall(id){
 }
 function onEditCallEstadoChange(){
   const estado=document.getElementById('ec-estado')?.value||'';
-  const isPostCall = estado === 'Seguimiento Post Call';
+  const isPostCall  = estado === 'Seguimiento Post Call';
   const isPendiente = estado === 'Pendiente';
+  const isReagenda  = estado === 'Re agenda';
   const isSeña      = estado === 'Seña';
   const motivoWrap=document.getElementById('ec-motivo-wrap');
   const segWrap=document.getElementById('ec-seg-wrap');
   const respWrap=document.getElementById('ec-resp-wrap');
   const fechaWrap=document.getElementById('ec-fecha-wrap');
+  const fechaLabel=fechaWrap?.querySelector('label');
   const senaWrap=document.getElementById('ec-monto-sena-wrap');
   const spcNotasWrap=document.getElementById('ec-spc-notas-wrap');
   if(motivoWrap)   motivoWrap.style.display=CALL_ESTADOS_MOTIVO.has(estado)?'block':'none';
   if(segWrap)      segWrap.style.display=isPostCall?'block':'none';
   if(respWrap)     respWrap.style.display=isPostCall?'block':'none';
   if(spcNotasWrap) spcNotasWrap.style.display=isPostCall?'block':'none';
-  if(fechaWrap)    fechaWrap.style.display=isPendiente?'block':'none';
+  if(fechaWrap)    fechaWrap.style.display=(isPendiente||isReagenda)?'block':'none';
+  if(fechaLabel)   fechaLabel.textContent=isReagenda?'🔄 Nueva fecha de reagenda':'📅 Fecha y hora de llamada';
   if(senaWrap)     senaWrap.style.display=isSeña?'block':'none';
 }
 
