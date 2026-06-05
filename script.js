@@ -7191,11 +7191,23 @@ function _renderFormsEditor(){
   const qRows = questions.map((q,i)=>{
     const hasOpts = (q.tipo==='radio'||q.tipo==='checkbox') && Array.isArray(q.opciones);
 
+    const tipoSelector = isEdit ? `
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+        ${[['text','Texto corto'],['textarea','Texto largo'],['radio','Opción múltiple'],['checkbox','Casillas'],['scale','Escala']].map(([v,l])=>{
+          const active = q.tipo===v;
+          return `<span onclick="_formsChangeTipo(${i},'${v}')"
+            style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;transition:all .15s;
+              border:1px solid ${active?'var(--gold)':'var(--line-strong)'};
+              background:${active?'rgba(224,181,74,.1)':'var(--surface-3)'};
+              color:${active?'var(--gold)':'var(--text3)'}">${l}</span>`;
+        }).join('')}
+      </div>` : '';
+
     const titlePart = isEdit
       ? `<input type="text" value="${_formsEsc(q.titulo)}"
            oninput="_formsQCache['${_formsTab}'][${i}].titulo=this.value"
            style="width:100%;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:7px;padding:7px 10px;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none"
-           onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">`
+           onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'">${tipoSelector}`
       : `<div style="font-size:13.5px;font-weight:600;color:var(--text);line-height:1.4">${_formsEsc(q.titulo)}</div>`;
 
     let optsPart = '';
@@ -7325,6 +7337,20 @@ function _formsRemoveQuestion(qIdx){
   const qs = _formsQCache[_formsTab];
   if(!qs) return;
   qs.splice(qIdx, 1);
+  _renderFormsEditor();
+}
+
+function _formsChangeTipo(qIdx, newTipo){
+  const q = _formsQCache[_formsTab][qIdx];
+  if(q.tipo === newTipo) return;
+  q.tipo = newTipo;
+  if(newTipo==='radio'||newTipo==='checkbox'){
+    if(!q.opciones||!q.opciones.length) q.opciones=['Opción 1','Opción 2'];
+  } else {
+    delete q.opciones;
+  }
+  if(newTipo==='textarea'){ if(!q.maxlength) q.maxlength=500; } else { delete q.maxlength; }
+  if(newTipo==='scale'){ if(!q.min) q.min=1; if(!q.max) q.max=10; } else { delete q.min; delete q.max; }
   _renderFormsEditor();
 }
 
