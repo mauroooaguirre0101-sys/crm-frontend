@@ -13,7 +13,7 @@
 /* ── SPLASH ── */
 #splash{
   position:fixed;inset:0;z-index:9999;
-  background:#0a0b0f;
+  background:#09090e;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   transition:opacity .55s ease;
   overflow:hidden;
@@ -24,7 +24,7 @@
   position:absolute;inset:0;
   background:
     radial-gradient(ellipse 70% 55% at 15% 10%,rgba(224,181,74,.055) 0%,transparent 65%),
-    radial-gradient(ellipse 55% 70% at 85% 90%,rgba(96,144,212,.04) 0%,transparent 65%);
+    radial-gradient(ellipse 55% 70% at 85% 90%,rgba(200,200,220,.025) 0%,transparent 65%);
   pointer-events:none;
 }
 
@@ -308,7 +308,9 @@
 <!-- AUTH OVERLAY (login) -->
 <div id="auth-overlay" class="hidden">
   <div class="auth-box">
-    <div class="auth-logo">CR</div>
+    <div class="auth-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
     <div class="auth-title">Bienvenido al CRM de control</div>
     <div class="auth-sub">Iniciá sesión para continuar</div>
     <div class="auth-error" id="auth-error"></div>
@@ -335,23 +337,31 @@
 <!-- ADMIN MENU SCREEN -->
 <div id="menu-screen" style="display:none;position:fixed;inset:0;z-index:150;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:40px">
   <div style="text-align:center">
-    <div style="font-size:44px;font-weight:900;color:var(--gold);letter-spacing:-2px;line-height:1;font-family:'Barlow Condensed',sans-serif">CR</div>
-    <div style="font-size:28px;font-weight:800;color:var(--text);margin-top:12px;letter-spacing:-.5px">Bienvenido al CRM de control</div>
+    <div style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:rgba(224,181,74,0.1);border:1px solid rgba(224,181,74,0.25);margin:0 auto 18px;color:var(--gold)">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
+    <div style="font-size:28px;font-weight:800;color:var(--text);letter-spacing:-.5px">Bienvenido al CRM de control</div>
     <div style="font-size:14px;color:var(--text3);margin-top:8px">Seleccioná el módulo que querés usar</div>
   </div>
   <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
     <div id="menu-card-crm" onclick="enterCRM()" style="background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
-      <div style="font-size:52px;margin-bottom:20px">📈</div>
+      <div style="display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:rgba(224,181,74,0.1);border:1px solid rgba(224,181,74,0.2);margin:0 auto 22px;color:var(--gold)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
       <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Marketing &amp; Ventas</div>
       <div style="font-size:13px;color:var(--text3);line-height:1.5">CRM, leads, clientes y finanzas</div>
     </div>
     <div id="menu-card-alumnos" onclick="enterAlumnos()" style="background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
-      <div style="font-size:52px;margin-bottom:20px">🎓</div>
+      <div style="display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);margin:0 auto 22px;color:var(--blue)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+      </div>
       <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Alumnos</div>
       <div style="font-size:13px;color:var(--text3);line-height:1.5">Seguimiento semanal de consultoría</div>
     </div>
     <div id="menu-card-holding" onclick="enterHolding()" style="display:none;background:var(--surface);border:1.5px solid rgba(224,181,74,0.35);border-radius:20px;padding:48px 56px;cursor:pointer;text-align:center;transition:all .2s;min-width:260px">
-      <div style="font-size:52px;margin-bottom:20px">🏢</div>
+      <div style="display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:rgba(224,181,74,0.12);border:1px solid rgba(224,181,74,0.28);margin:0 auto 22px;color:var(--gold)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
       <div style="font-size:22px;font-weight:700;color:var(--gold);margin-bottom:8px">Clientes Holding</div>
       <div style="font-size:13px;color:var(--text3);line-height:1.5">Facturación consolidada de todos los clientes</div>
     </div>
@@ -363,7 +373,7 @@
   <div style="background:var(--surface);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:12px">
       <button onclick="exitHolding()" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--line)'">← Volver al menú</button>
-      <span style="font-size:14px;font-weight:700;color:var(--gold)">🏢 Clientes Holding</span>
+      <span style="font-size:14px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Clientes Holding</span>
     </div>
     <button onclick="logout()" style="background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:600;font-family:inherit">Cerrar sesión</button>
   </div>
@@ -430,8 +440,13 @@
 
 <!-- SIDEBAR -->
 <nav id="sidebar">
+  <button class="sidebar-pin-btn" id="sidebar-pin-btn" onclick="toggleSidebarPin()" title="Fijar barra lateral">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+  </button>
   <div class="sidebar-logo">
-    <div class="logo-circle">CR</div>
+    <div class="logo-circle">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
     <div class="logo-text">
       <div class="logo-name">CRM Pro</div>
       <div class="logo-sub">Sistema de gestión</div>
@@ -439,30 +454,30 @@
   </div>
   <div class="nav-scroll">
     <div class="nav-section-label">Principal</div>
-    <div class="nav-item active" id="nav-dash" onclick="nav('dash',this)"><div class="nav-dot"></div><span class="nav-text">Dashboard</span></div>
-    <div class="nav-item" id="nav-acc" onclick="nav('acc',this)"><div class="nav-dot"></div><span class="nav-text">SOPs</span></div>
+    <div class="nav-item active" id="nav-dash" onclick="nav('dash',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="nav-text">Dashboard</span></div>
+    <div class="nav-item" id="nav-acc" onclick="nav('acc',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg><span class="nav-text">SOPs</span></div>
     <div class="nav-section-label">Marketing</div>
-    <div class="nav-item" id="nav-found" onclick="nav('found',this)"><div class="nav-dot"></div><span class="nav-text">Fundaciones</span></div>
-    <div class="nav-item" id="nav-cont" onclick="nav('cont',this)"><div class="nav-dot"></div><span class="nav-text">Contenido</span></div>
-    <div class="nav-item" id="nav-ang" onclick="nav('ang',this)"><div class="nav-dot"></div><span class="nav-text">Ángulos</span></div>
-    <div class="nav-item" id="nav-ref" onclick="nav('ref',this)"><div class="nav-dot"></div><span class="nav-text">Referentes</span></div>
-    <div class="nav-item" id="nav-ig" onclick="nav('ig',this)"><div class="nav-dot"></div><span class="nav-text">Instagram</span></div>
-    <div class="nav-item" id="nav-formatos" onclick="nav('formatos',this)"><div class="nav-dot"></div><span class="nav-text">Formatos</span></div>
-    <div class="nav-item" id="nav-lab" onclick="nav('lab',this)"><div class="nav-dot"></div><span class="nav-text">Laboratorio</span></div>
+    <div class="nav-item" id="nav-found" onclick="nav('found',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span class="nav-text">Fundaciones</span></div>
+    <div class="nav-item" id="nav-cont" onclick="nav('cont',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.5"/><polygon points="10 8 16 12 10 16 10 8"/></svg><span class="nav-text">Contenido</span></div>
+    <div class="nav-item" id="nav-ang" onclick="nav('ang',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span class="nav-text">Ángulos</span></div>
+    <div class="nav-item" id="nav-ref" onclick="nav('ref',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="nav-text">Referentes</span></div>
+    <div class="nav-item" id="nav-ig" onclick="nav('ig',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg><span class="nav-text">Instagram</span></div>
+    <div class="nav-item" id="nav-formatos" onclick="nav('formatos',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><span class="nav-text">Formatos</span></div>
+    <div class="nav-item" id="nav-lab" onclick="nav('lab',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></svg><span class="nav-text">Laboratorio</span></div>
     <div class="nav-section-label">Ventas</div>
-    <div class="nav-item" id="nav-objectives" onclick="nav('objectives',this)"><div class="nav-dot"></div><span class="nav-text">Objetivos Mes</span></div>
-    <div class="nav-item" id="nav-leads" onclick="nav('leads',this)"><div class="nav-dot"></div><span class="nav-text">Leads</span></div>
-    <div class="nav-item" id="nav-funnel" onclick="nav('funnel',this)"><div class="nav-dot"></div><span class="nav-text">Funnel</span></div>
-    <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><div class="nav-dot"></div><span class="nav-text">Llamadas</span></div>
-    <div class="nav-item" id="nav-clients" onclick="nav('clients',this)"><div class="nav-dot"></div><span class="nav-text">Clientes</span></div>
-    <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><div class="nav-dot"></div><span class="nav-text">Finanzas</span></div>
-    <div class="nav-item" id="nav-equipo" onclick="nav('equipo',this)"><div class="nav-dot"></div><span class="nav-text">Equipo</span></div>
-    <div class="nav-item" id="nav-forms" onclick="nav('forms',this)"><div class="nav-dot"></div><span class="nav-text">Formularios</span></div>
-    <div class="nav-item" id="nav-ideas" onclick="nav('ideas',this)"><div class="nav-dot"></div><span class="nav-text">💡 Baúl de Ideas</span></div>
+    <div class="nav-item" id="nav-objectives" onclick="nav('objectives',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span class="nav-text">Objetivos Mes</span></div>
+    <div class="nav-item" id="nav-leads" onclick="nav('leads',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-text">Leads</span></div>
+    <div class="nav-item" id="nav-funnel" onclick="nav('funnel',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="nav-text">Funnel</span></div>
+    <div class="nav-item" id="nav-calls" onclick="nav('calls',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.64 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="nav-text">Llamadas</span></div>
+    <div class="nav-item" id="nav-clients" onclick="nav('clients',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span class="nav-text">Clientes</span></div>
+    <div class="nav-item" id="nav-fin" onclick="nav('fin',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span class="nav-text">Finanzas</span></div>
+    <div class="nav-item" id="nav-equipo" onclick="nav('equipo',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 21a8 8 0 0 0-6.06-7.73"/><path d="M16 4.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-text">Equipo</span></div>
+    <div class="nav-item" id="nav-forms" onclick="nav('forms',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="nav-text">Formularios</span></div>
+    <div class="nav-item" id="nav-ideas" onclick="nav('ideas',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.3 10.8 18 9.5 18 8A6 6 0 0 0 6 8c0 1.5.7 2.8 1.5 3.5.8.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg><span class="nav-text">Baúl de Ideas</span></div>
     <div id="nav-tasks-section" style="display:none">
       <div class="nav-section-label">Gestión</div>
-      <div class="nav-item" id="nav-tasks" onclick="nav('tasks',this)"><div class="nav-dot"></div><span class="nav-text">Tareas</span></div>
-      <div class="nav-item" id="nav-reports" onclick="nav('reports',this)"><div class="nav-dot"></div><span class="nav-text">Reportes</span></div>
+      <div class="nav-item" id="nav-tasks" onclick="nav('tasks',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="nav-text">Tareas</span></div>
+      <div class="nav-item" id="nav-reports" onclick="nav('reports',this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="nav-text">Reportes</span></div>
     </div>
   </div>
 </nav>
@@ -472,8 +487,9 @@
 
 <!-- DASHBOARD -->
 <section class="page active" id="page-dash">
-  <div class="dash-header-row">
-    <div class="dash-title-group">
+  <div id="dash-greeting-block"></div>
+  <div class="dash-header-row" id="dash-header-row">
+    <div class="dash-title-group" id="dash-title-group-static">
       <div class="page-title">Dashboard</div>
       <div class="page-sub" style="margin-bottom:0">Resumen general del negocio</div>
     </div>
@@ -501,14 +517,14 @@
       <div class="currency-info" id="currency-info-text">Moneda base del sistema</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0">
+  <div id="dash-filter-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:0">
     <div class="tabs" id="dash-tabs" style="margin-bottom:0">
       <div class="tab" data-period="dia" onclick="setDashFilter('dia',this)">Día</div>
       <div class="tab" data-period="semana" onclick="setDashFilter('semana',this)">Semana</div>
       <div class="tab active" data-period="mes" onclick="setDashFilter('mes',this)">Mes</div>
       <div class="tab" data-period="año" onclick="setDashFilter('año',this)">Año</div>
     </div>
-    <select id="dash-mes-select" onchange="_onDashMesChange(this.value)"
+    <select id="dash-mes-select" onchange="_gfSetMes(this.value)"
       style="padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
              background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);
              color:var(--text2);cursor:pointer;width:auto">
@@ -520,14 +536,32 @@
       <option value="8">Septiembre</option><option value="9">Octubre</option>
       <option value="10">Noviembre</option><option value="11">Diciembre</option>
     </select>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:4px">
+      <span style="font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.04em;white-space:nowrap">RANGO</span>
+      <input type="date" class="gf-date-from" id="dash-date-from" onchange="_gfSetDateRange(this.value,document.getElementById('dash-date-to').value)"
+        style="padding:5px 8px;font-size:11px;background:rgba(10,10,16,0.8);border:1px solid rgba(212,168,50,0.15);border-radius:var(--rs);color:var(--text2);cursor:pointer;color-scheme:dark;width:130px">
+      <span style="font-size:10px;color:var(--text3)">→</span>
+      <input type="date" class="gf-date-to" id="dash-date-to" onchange="_gfSetDateRange(document.getElementById('dash-date-from').value,this.value)"
+        style="padding:5px 8px;font-size:11px;background:rgba(10,10,16,0.8);border:1px solid rgba(212,168,50,0.15);border-radius:var(--rs);color:var(--text2);cursor:pointer;color-scheme:dark;width:130px">
+      <button onclick="_gfSet('mes')" style="font-size:10px;padding:4px 8px;border-radius:var(--rs);background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text3);cursor:pointer" title="Limpiar rango">✕</button>
+    </div>
   </div>
+  <!-- Admin new layout -->
+  <div id="dash-admin-hero" style="display:none;margin-top:20px"></div>
+  <!-- Legacy containers (used by restricted view) -->
   <div class="metric-grid metric-grid-4" id="dash-metrics"></div>
   <div class="metric-grid metric-grid-2" id="dash-metrics2"></div>
   <div class="savings-grid" id="dash-savings"></div>
-  <div class="card" id="dash-chart-card" style="margin-bottom:20px">
-    <div class="section-header"><h3>Ingresos vs Egresos</h3></div>
-    <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
+  <div class="card" id="dash-chart-card" style="margin-bottom:20px;padding:20px 24px 16px">
+    <div id="dash-chart-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:13px;font-weight:700;letter-spacing:-.01em">Rendimiento del negocio</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Ingresos vs Egresos · año actual</div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:220px"><canvas id="dashChart"></canvas></div>
   </div>
+  <div id="dash-admin-bottom" style="display:none;margin-bottom:20px"></div>
   <div class="card" id="dash-mov-card">
     <div class="section-header"><h3>Últimos movimientos</h3></div>
     <div class="table-wrap"><table>
@@ -1444,9 +1478,10 @@
   <div id="forms-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px">
     <button class="lab-tab active" id="forms-tab-onboarding" onclick="switchFormsTab('onboarding')">Onboarding</button>
     <button class="lab-tab" id="forms-tab-reporte_semanal" onclick="switchFormsTab('reporte_semanal')">Reporte Semanal</button>
+    <button class="lab-tab" id="forms-tab-analytics" onclick="switchFormsTab('analytics')">Analytics IA</button>
   </div>
   <div id="forms-body"></div>
-  <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:20px">
+  <div id="forms-responses-section" style="margin-top:28px;border-top:1px solid var(--line);padding-top:20px">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px">Respuestas recibidas</div>
     <div id="forms-responses-body"></div>
   </div>
@@ -1690,8 +1725,15 @@
       Resultado: <span id="pc-whatsapp-preview" style="color:var(--gold)">+598</span>
     </div>
   </div>
-  <div class="form-group"><label class="form-label">Fecha y hora de la llamada</label>
-    <input type="datetime-local" id="pc-fecha-llamada" style="background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:9px 12px;color:var(--text);font-size:13px;width:100%;color-scheme:dark">
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Fecha y hora de la llamada</label>
+      <input type="datetime-local" id="pc-fecha-llamada" style="background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:9px 12px;color:var(--text);font-size:13px;width:100%;color-scheme:dark">
+    </div>
+    <div class="form-group"><label class="form-label">Agendado por <span style="color:var(--red)">*</span></label>
+      <select id="pc-agendado-por" style="width:100%;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:9px 12px;color:var(--text);font-size:13px;cursor:pointer">
+        <option value="">Seleccioná…</option>
+      </select>
+    </div>
   </div>
   <!-- Campos extra solo para cliente_2 / GHL -->
   <div id="pc-ghl-fields" style="display:none;border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;margin-top:4px">
@@ -2415,6 +2457,82 @@
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-cierre')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveCierre()">Crear cliente</button>
+  </div>
+</div></div>
+
+<!-- MODAL SEÑA → VENTA CERRADA -->
+<div class="modal-bg" id="modal-sena-cierre" onclick="closeBg(event,this)">
+<div class="modal" style="width:500px">
+  <div class="modal-title">🎉 ¿Venta cerrada? Registrar cierre</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:16px">La seña ya fue contabilizada en Cash Collected. Ingresá el precio total para completar la venta.</div>
+
+  <div style="background:rgba(212,168,50,0.06);border:1px solid rgba(212,168,50,0.15);border-radius:var(--rs);padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Lead</div>
+      <div id="sc-nombre" style="font-size:14px;font-weight:700;color:var(--text)">—</div>
+      <div id="sc-instagram-display" style="font-size:12px;color:var(--blue)">—</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Seña cobrada</div>
+      <div id="sc-monto-sena-display" style="font-size:20px;font-weight:700;color:#d4a832">—</div>
+    </div>
+  </div>
+
+  <input type="hidden" id="sc-call-id">
+  <input type="hidden" id="sc-instagram">
+  <input type="hidden" id="sc-monto-sena">
+
+  <div class="form-grid form-grid-2">
+    <div class="form-group">
+      <label class="form-label">Precio total del programa (USD) <span style="color:var(--red)">*</span></label>
+      <input type="number" id="sc-total" placeholder="ej: 2000" min="0" step="any" oninput="_scUpdateCalc()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tipo de pago</label>
+      <select id="sc-tipo-pago" onchange="_scToggleCuotas(this.value)">
+        <option value="PIF">PIF</option>
+        <option value="Cuotas">Cuotas</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="sc-cuota-section" style="display:none;background:rgba(212,168,50,0.04);border:1px solid rgba(212,168,50,0.12);border-radius:var(--rs);padding:12px;margin-bottom:12px">
+    <div class="form-group" style="margin-bottom:8px">
+      <label class="form-label">Número de cuotas</label>
+      <input type="number" id="sc-nro-cuotas" value="2" min="1" max="12" style="width:80px" oninput="_scUpdateCuotaFechas()">
+    </div>
+    <div id="sc-cuotas-fechas" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <div class="form-grid form-grid-2">
+    <div class="form-group">
+      <label class="form-label">Programa <span style="color:var(--red)">*</span></label>
+      <select id="sc-programa">
+        <option value="">— Seleccionar —</option>
+        <option value="3">3 meses</option>
+        <option value="4">4 meses</option>
+        <option value="6">6 meses</option>
+        <option value="12">12 meses</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Comprobante / Referencia</label>
+      <input type="text" id="sc-comprobante" placeholder="Nº transferencia, link…">
+    </div>
+  </div>
+
+  <div id="sc-calc-box" style="display:none;background:rgba(92,184,122,0.06);border:1px solid rgba(92,184,122,0.18);border-radius:var(--rs);padding:12px;margin-bottom:16px">
+    <div style="font-size:11px;font-weight:700;color:#5cb87a;margin-bottom:8px">Resumen de la venta</div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">Facturación (precio total)</span><span id="sc-calc-fac" style="color:var(--gold-light);font-weight:700">—</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">CC adicional (total − seña)</span><span id="sc-calc-cc" style="color:#5cb87a;font-weight:700">—</span></div>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:4px;padding-top:6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">CC total acumulado</span><span id="sc-calc-total-cc" style="color:#5cb87a;font-weight:700">—</span></div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-sena-cierre')">Cancelar</button>
+    <button class="btn btn-gold" id="sc-save-btn" onclick="_confirmarSenaCierre()">Registrar venta</button>
   </div>
 </div></div>
 
