@@ -5197,7 +5197,10 @@ function _renderCallsTable(rows){
       <td onclick="event.stopPropagation()">${grabacionCell}</td>
       <td onclick="event.stopPropagation()">${reporteCloserCell}</td>
       <td onclick="event.stopPropagation()">${reporteCalendlyCell}</td>
-      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${formatearFecha(r.created_at)}</td>
+      ${r.fecha_realizada
+        ? `<td style="font-size:11px;color:var(--text2);white-space:nowrap" title="Fecha en que se realizó la llamada">📞 ${formatearFecha(r.fecha_realizada)}</td>`
+        : `<td style="font-size:11px;color:var(--text3);white-space:nowrap" title="Fecha de registro en el CRM">${formatearFecha(r.created_at)}</td>`
+      }
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
