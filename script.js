@@ -2185,8 +2185,8 @@ async function fetchIngresos(){
     S.ing=Array.isArray(data)?data:[];
     save('ing');
     if(document.getElementById('page-fin')?.classList.contains('active')) renderFin();
-    renderDash();
   }catch(e){console.error('[fetchIngresos]',e);}
+  finally{ renderDash(); }
 }
 async function fetchEgresos(){
   try{
@@ -2196,8 +2196,8 @@ async function fetchEgresos(){
     S.gas=Array.isArray(data)?data:[];
     save('gas');
     if(document.getElementById('page-fin')?.classList.contains('active')) renderFin();
-    renderDash();
   }catch(e){console.error('[fetchEgresos]',e);}
+  finally{ renderDash(); }
 }
 async function fetchCuotas(){
   try{
@@ -6755,7 +6755,11 @@ function renderEquipo(){
     // the ingreso may be entered on any date for a call closed within this period)
     const closedByMe=periodCalls.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')&&(c.closer||'').toLowerCase().trim()===m.nombre.toLowerCase().trim());
     const igs=new Set(closedByMe.map(c=>(c.instagram||'').toLowerCase().replace(/^@/,'')).filter(Boolean));
-    if(!igs.size) return 0;
+    if(!igs.size){
+      // Fallback for single-closer setup: if calls have no closer field populated,
+      // the one closer closes all sales → use total period revenue as base
+      return closers.length===1 ? revenue : 0;
+    }
     return S.ing.filter(x=>x.concepto==='Venta Nueva'&&igs.has((x.instagram||'').toLowerCase().replace(/^@/,''))).reduce((a,x)=>a+(+x.usd||0),0);
   }
 
