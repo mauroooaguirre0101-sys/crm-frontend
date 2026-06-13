@@ -2208,6 +2208,7 @@ async function fetchCuotas(){
     save('cuotas');
     if(document.getElementById('page-clients')?.classList.contains('active')){renderClients();}
     _renderMoneyCounters();
+    renderDash();
   }catch(e){console.error('[fetchCuotas]',e);}
 }
 async function sincronizarCuotas(){
@@ -3151,6 +3152,7 @@ async function fetchLeads(incremental=false){
     console.error('[fetchLeads]',e);
   }finally{
     _applyLeadsFilter();
+    if(document.getElementById('page-dash')?.classList.contains('active')) renderDash();
   }
 }
 
@@ -4978,6 +4980,7 @@ async function fetchCalls(){
   finally{
     if(loader) loader.style.display='none';
     _applyCallsFilter();
+    if(document.getElementById('page-dash')?.classList.contains('active')) renderDash();
   }
 }
 function renderCallsPage(){
@@ -6714,12 +6717,46 @@ function renderEquipo(){
   const setters=_equipoMembers.filter(m=>m.role==='setter');
   const closers=_equipoMembers.filter(m=>m.role==='closer');
 
+  // Finds revenue for a single closed call: tries instagram match first, then nombre → S.clients → S.ing
+  function _findLeadRevenue(call){
+    const ig=(call.instagram||'').toLowerCase().replace(/^@/,'');
+    if(ig){
+      const byIg=S.ing.filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase().replace(/^@/,'')===ig).reduce((a,x)=>a+(+x.usd||0),0);
+      if(byIg>0) return byIg;
+    }
+    const nom=(call.nombre||'').toLowerCase().trim();
+    if(nom){
+      const client=(S.clients||[]).find(c=>(c.nombre||'').toLowerCase().trim()===nom);
+      if(client){
+        const cig=(client.instagram||'').toLowerCase().replace(/^@/,'');
+        if(cig){
+          const byCig=S.ing.filter(x=>x.concepto==='Venta Nueva'&&(x.instagram||'').toLowerCase().replace(/^@/,'')===cig).reduce((a,x)=>a+(+x.usd||0),0);
+          if(byCig>0) return byCig;
+        }
+        const byId=S.ing.filter(x=>String(x.clienteId||x.ref_cliente_id||'')===String(client.id)).reduce((a,x)=>a+(+x.usd||0),0);
+        if(byId>0) return byId;
+      }
+      const byNom=S.ing.filter(x=>x.concepto==='Venta Nueva'&&(x.clienteNombre||x.nombre||'').toLowerCase().trim()===nom).reduce((a,x)=>a+(+x.usd||0),0);
+      if(byNom>0) return byNom;
+    }
+    return 0;
+  }
+
   function getMemberRevenue(m){
-    if(m.role==='setter') return revenue;
+    if(m.role==='setter'){
+      // Only revenue from leads THIS setter agendated that converted to a close
+      const myClosedCalls=periodCalls.filter(c=>
+        ['Cierre','Cierre Cuotas'].includes(c.estado||'')&&
+        (c.agendado_por||'').toLowerCase().trim()===m.nombre.toLowerCase().trim()
+      );
+      return myClosedCalls.reduce((tot,call)=>tot+_findLeadRevenue(call),0);
+    }
+    // closer: match by closer name → instagram handles → S.ing (no date filter on revenue —
+    // the ingreso may be entered on any date for a call closed within this period)
     const closedByMe=periodCalls.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||'')&&(c.closer||'').toLowerCase().trim()===m.nombre.toLowerCase().trim());
     const igs=new Set(closedByMe.map(c=>(c.instagram||'').toLowerCase().replace(/^@/,'')).filter(Boolean));
     if(!igs.size) return 0;
-    return S.ing.filter(x=>_eqInRange(x.fecha)&&x.concepto==='Venta Nueva'&&igs.has((x.instagram||'').toLowerCase().replace(/^@/,''))).reduce((a,x)=>a+(+x.usd||0),0);
+    return S.ing.filter(x=>x.concepto==='Venta Nueva'&&igs.has((x.instagram||'').toLowerCase().replace(/^@/,''))).reduce((a,x)=>a+(+x.usd||0),0);
   }
 
   const totalTeam=_equipoMembers.reduce((a,m)=>{
@@ -6745,7 +6782,7 @@ function renderEquipo(){
     </div>`;
   }
 
-  function memberCard(m, countersHtml, memberRevenue){
+  function memberCard(m, countersHtml, memberRevenue, extraHtml=''){
     const comm=calcCommission(memberRevenue,m.rules||[]);
     const amt=memberRevenue*(comm.pct/100);
     const expanded=_equipoExpanded.has(m.id);
@@ -6772,6 +6809,7 @@ function renderEquipo(){
         </div>
       </div>
       ${countersHtml?`<div class="eq-counters" style="margin:10px 0 0">${countersHtml}</div>`:''}
+      ${extraHtml}
       ${expanded?`<div class="eq-member-rules">
         <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">
           Reglas de comisión
@@ -6877,20 +6915,51 @@ function renderEquipo(){
     ${_equipoAddingRole==='setter'?addForm('setter'):''}
     ${setters.length===0&&_equipoAddingRole!=='setter'?'<div class="eq-empty-section">No hay setters. Agregá uno con el botón de arriba.</div>':''}
     ${setters.map(m=>{
-      const canEdit = (localStorage.getItem('userEmail')||'') === 'maurooo.aguirre0101@gmail.com';
-      const displayCount = (m.agendas_manual !== null && m.agendas_manual !== undefined) ? m.agendas_manual : '—';
-      const editBtn = canEdit
-        ? `<button onclick="equipoEditAgendas('${m.id}',${m.agendas_manual ?? 'null'})" title="Editar"
-             style="font-size:11px;padding:2px 7px;border-radius:5px;background:transparent;border:1px solid rgba(255,255,255,.1);color:var(--text3);cursor:pointer;margin-left:6px;line-height:1.4">✎</button>`
-        : '';
-      const cntHtml=`<div class="eq-counter" style="border-color:rgba(224,181,74,.15);display:flex;flex-direction:column;align-items:center;justify-content:center">
-        <div style="display:flex;align-items:center">
-          <div class="eq-counter-val" style="color:var(--gold)">${displayCount}</div>
-          ${editBtn}
+      const myAllAgendas=periodCalls.filter(c=>(c.agendado_por||'').toLowerCase().trim()===m.nombre.toLowerCase().trim());
+      const myClosedCalls=myAllAgendas.filter(c=>['Cierre','Cierre Cuotas'].includes(c.estado||''));
+      const myRevenue=getMemberRevenue(m);
+
+      const cntHtml=`
+        <div class="eq-counter" style="border-color:rgba(92,184,122,.2)">
+          <div class="eq-counter-val" style="color:var(--green)">${myAllAgendas.length}</div>
+          <div class="eq-counter-label">Agendas</div>
         </div>
-        <div class="eq-counter-label">Agendas</div>
-      </div>`;
-      return memberCard(m,cntHtml,getMemberRevenue(m));
+        <div class="eq-counter" style="border-color:rgba(92,184,122,.2)">
+          <div class="eq-counter-val" style="color:var(--green)">${myClosedCalls.length}</div>
+          <div class="eq-counter-label">Cerradas</div>
+        </div>
+        <div class="eq-counter" style="border-color:rgba(92,184,122,.2)">
+          <div class="eq-counter-val" style="color:var(--green);font-size:14px">${fmtUSD(myRevenue)}</div>
+          <div class="eq-counter-label">Facturado</div>
+        </div>`;
+
+      const _fmtD=d=>{if(!d)return'—';const dt=new Date(d);return dt.getDate()+'/'+(dt.getMonth()+1);};
+      const _statusChip=call=>{
+        const e=call.estado||'';
+        if(['Cierre','Cierre Cuotas'].includes(e)){
+          const rev=_findLeadRevenue(call);
+          return `<span style="background:rgba(92,184,122,.12);color:var(--green);border:1px solid rgba(92,184,122,.25);border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;white-space:nowrap">${e}${rev>0?' · '+fmtUSD(rev):''}</span>`;
+        }
+        if(e==='Pendiente'||e==='Re agenda')
+          return `<span style="background:rgba(224,181,74,.1);color:var(--gold);border:1px solid rgba(224,181,74,.2);border-radius:20px;padding:1px 8px;font-size:10px;font-weight:600;white-space:nowrap">${e}</span>`;
+        if(e==='No asistió'||e==='Cancelada')
+          return `<span style="background:rgba(212,96,96,.1);color:var(--red);border:1px solid rgba(212,96,96,.2);border-radius:20px;padding:1px 8px;font-size:10px;font-weight:600;white-space:nowrap">${e}</span>`;
+        return `<span style="color:var(--text3);font-size:10px">${e||'—'}</span>`;
+      };
+
+      const agendaList=myAllAgendas.length===0?'':`
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px">
+          ${myAllAgendas.map(c=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);gap:8px">
+              <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nombre||'Sin nombre'}</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                ${_statusChip(c)}
+                <span style="color:var(--text3);font-size:11px;min-width:30px;text-align:right">${_fmtD(c.fecha_llamada)}</span>
+              </div>
+            </div>`).join('')}
+        </div>`;
+
+      return memberCard(m,cntHtml,myRevenue,agendaList);
     }).join('')}
   </div>
 
@@ -7909,8 +7978,17 @@ function _renderFormsEditor(){
            style="width:24px;height:24px;border-radius:50%;background:rgba(212,96,96,.15);border:1px solid rgba(212,96,96,.3);color:var(--red);font-size:15px;line-height:1;cursor:pointer;flex-shrink:0;margin-top:1px" title="Eliminar pregunta">×</button>`
       : '';
 
+    const moveButtons = isEdit ? `
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:1px">
+        <button onclick="_formsMoveQuestion(${i},-1)" ${i===0?'disabled':''} title="Mover arriba"
+          style="width:20px;height:20px;border-radius:4px;background:var(--surface-3);border:1px solid var(--line-strong);color:${i===0?'var(--text3)':'var(--text2)'};font-size:10px;cursor:${i===0?'default':'pointer'};display:flex;align-items:center;justify-content:center;flex-shrink:0">▲</button>
+        <button onclick="_formsMoveQuestion(${i},1)" ${i===questions.length-1?'disabled':''} title="Mover abajo"
+          style="width:20px;height:20px;border-radius:4px;background:var(--surface-3);border:1px solid var(--line-strong);color:${i===questions.length-1?'var(--text3)':'var(--text2)'};font-size:10px;cursor:${i===questions.length-1?'default':'pointer'};display:flex;align-items:center;justify-content:center;flex-shrink:0">▼</button>
+      </div>` : '';
+
     return `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:14px 16px">
-      <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        ${moveButtons}
         <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--text3);background:var(--surface-3);border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin-top:2px;white-space:nowrap">${q.id}</span>
         <div style="flex:1">
           ${titlePart}
@@ -8040,6 +8118,15 @@ function _formsRemoveQuestion(qIdx){
   const qs = _formsQCache[_formsTab];
   if(!qs) return;
   qs.splice(qIdx, 1);
+  _renderFormsEditor();
+}
+
+function _formsMoveQuestion(qIdx, dir){
+  const qs = _formsQCache[_formsTab];
+  if(!qs) return;
+  const to = qIdx + dir;
+  if(to < 0 || to >= qs.length) return;
+  [qs[qIdx], qs[to]] = [qs[to], qs[qIdx]];
   _renderFormsEditor();
 }
 
