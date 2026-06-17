@@ -2287,7 +2287,7 @@ const LEAD_ESTADOS = [
   'Perdido',
 ];
 const ESTADO_PERDIDO = new Set(['Perdido']);
-const ESTADO_CERRADO = new Set(['Cerrada','Seña']);
+const ESTADO_CERRADO = new Set(['Cerrada','Cerrado','Seña']);
 function _esPerdidoEfectivo(l){ return ESTADO_PERDIDO.has(l.estado)||((l.seguimientos||0)>=4&&l.respondio_seguimiento_4==='NO'); }
 
 const ESTADO_COLOR = {

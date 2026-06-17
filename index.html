@@ -757,7 +757,7 @@
 <!-- ÁNGULOS -->
 <section class="page" id="page-ang">
   <div class="page-title">Ángulos</div>
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
     <select id="ang-mes-select" onchange="_onAngMesChange(this.value)"
       style="padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
              background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.18);border-radius:var(--rs);
@@ -770,6 +770,13 @@
       <option value="8">Septiembre</option><option value="9">Octubre</option>
       <option value="10">Noviembre</option><option value="11">Diciembre</option>
     </select>
+    <span style="font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.04em;text-transform:uppercase">Rango</span>
+    <input type="date" id="ang-date-from" style="padding:5px 8px;font-size:11px;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.15);border-radius:var(--rs);color:var(--text2);cursor:pointer;color-scheme:dark"
+      onchange="_onAngDateChange()">
+    <span style="font-size:11px;color:var(--text3)">→</span>
+    <input type="date" id="ang-date-to" style="padding:5px 8px;font-size:11px;background:rgba(8,8,7,0.8);border:1px solid rgba(212,168,50,0.15);border-radius:var(--rs);color:var(--text2);cursor:pointer;color-scheme:dark"
+      onchange="_onAngDateChange()">
+    <button onclick="_angClearFilter()" style="font-size:10px;padding:4px 8px;border-radius:var(--rs);background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text3);cursor:pointer" title="Limpiar filtros">✕</button>
   </div>
   <div class="metric-grid metric-grid-2" id="ang-metrics"></div>
   <div class="card">
@@ -3094,8 +3101,32 @@
     if (menu) menu.classList.remove('open');
   };
 
-  // ── Filtro de mes para Ángulos ──
+  // ── Filtros de Ángulos ──
   window._onAngMesChange = function (val) {
+    // When a month is selected, clear date range inputs
+    if (val !== '') {
+      const df = document.getElementById('ang-date-from');
+      const dt = document.getElementById('ang-date-to');
+      if (df) df.value = '';
+      if (dt) dt.value = '';
+    }
+    if (typeof renderAng === 'function') renderAng();
+  };
+
+  window._onAngDateChange = function () {
+    // When date range changes, clear month selector
+    const sel = document.getElementById('ang-mes-select');
+    if (sel) sel.value = '';
+    if (typeof renderAng === 'function') renderAng();
+  };
+
+  window._angClearFilter = function () {
+    const sel = document.getElementById('ang-mes-select');
+    const df  = document.getElementById('ang-date-from');
+    const dt  = document.getElementById('ang-date-to');
+    if (sel) sel.value = '';
+    if (df)  df.value  = '';
+    if (dt)  dt.value  = '';
     if (typeof renderAng === 'function') renderAng();
   };
 
@@ -3103,32 +3134,58 @@
     if (typeof renderAng !== 'function') return;
     const _orig = renderAng;
     window.renderAng = function () {
-      const sel = document.getElementById('ang-mes-select');
+      const sel    = document.getElementById('ang-mes-select');
       const mesVal = sel ? sel.value : '';
 
-      if (mesVal === '') {
+      // Extracts YYYY-MM-DD as LOCAL date (avoids UTC timezone shift)
+      const _localDate = dateStr => {
+        if (!dateStr) return null;
+        const s = String(dateStr).trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return null;
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      };
+
+      let _inRange;
+
+      if (mesVal !== '') {
+        // Month filter: all days within the selected calendar month
+        const mo = parseInt(mesVal, 10);
+        const yr = new Date().getFullYear();
+        const from = new Date(yr, mo, 1);
+        const to   = new Date(yr, mo + 1, 0, 23, 59, 59, 999);
+        _inRange = dateStr => { const d = _localDate(dateStr); return d && d >= from && d <= to; };
+      } else {
+        // Date range filter from the Ángulos date inputs
+        const fromVal = (document.getElementById('ang-date-from') || {}).value || '';
+        const toVal   = (document.getElementById('ang-date-to')   || {}).value || '';
+        if (fromVal || toVal) {
+          const from = fromVal ? _localDate(fromVal) : null;
+          const to   = toVal   ? _localDate(toVal)   : null;
+          if (to) to.setHours(23, 59, 59, 999);
+          _inRange = dateStr => {
+            const d = _localDate(dateStr);
+            if (!d) return false;
+            if (from && d < from) return false;
+            if (to   && d > to)   return false;
+            return true;
+          };
+        }
+      }
+      if (!_inRange) {
         return _orig(); // Vista General: sin filtro
       }
 
-      const m  = parseInt(mesVal, 10);
-      const yr = new Date().getFullYear();
-      const _inMonth = dateStr => {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        return d.getMonth() === m && d.getFullYear() === yr;
-      };
-
-      // Guardar arrays originales y reemplazar temporalmente con datos del mes
+      // Guardar arrays originales y reemplazar temporalmente con datos filtrados
       const origLeads = leadsCache.splice(0);
       const origIng   = S.ing ? S.ing.slice() : [];
 
-      origLeads.filter(l => _inMonth(l.created_at)).forEach(l => leadsCache.push(l));
-      S.ing = origIng.filter(i => _inMonth(i.fecha));
+      origLeads.filter(l => _inRange(l.created_at)).forEach(l => leadsCache.push(l));
+      S.ing = origIng.filter(i => _inRange(i.fecha));
 
       try {
         _orig();
       } finally {
-        // Restaurar siempre, aunque _orig() lance error
         leadsCache.splice(0);
         origLeads.forEach(l => leadsCache.push(l));
         S.ing = origIng;
