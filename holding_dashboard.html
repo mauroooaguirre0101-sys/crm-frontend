@@ -319,7 +319,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="chart-title" style="margin-bottom:0">💸 Gastos de la Holding</div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:11px;color:var(--text3)">Mes:</span>
-          <input type="month" id="gastos-mes-sel" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text);font-family:inherit"
+          <input type="month" id="gastos-mes-sel" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text);font-family:inherit;color-scheme:dark"
             onchange="loadGastos(this.value)">
         </div>
       </div>
@@ -329,10 +329,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <input type="text" id="gasto-concepto" placeholder="Concepto (ej: Servidor, Publicidad, Herramientas…)"
           style="flex:2;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit">
         <input type="number" id="gasto-monto" placeholder="Monto USD" min="0" step="0.01"
-          style="width:130px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit">
+          style="width:120px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit">
+        <select id="gasto-responsable"
+          style="width:100px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit;cursor:pointer">
+          <option value="Mau">Mau</option>
+          <option value="Tomi">Tomi</option>
+          <option value="Valen">Valen</option>
+        </select>
         <button onclick="addGasto()"
           style="padding:7px 16px;background:var(--gold);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">+ Agregar</button>
       </div>
+
+      <!-- Per-person totals -->
+      <div id="gastos-por-persona" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
 
       <!-- Table -->
       <div style="border:1px solid rgba(255,255,255,0.06);border-radius:8px;overflow:hidden">
@@ -340,16 +349,17 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
           <thead>
             <tr style="background:rgba(255,255,255,0.03)">
               <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Concepto</th>
+              <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Responsable</th>
               <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Monto</th>
               <th style="padding:8px 12px;width:40px"></th>
             </tr>
           </thead>
           <tbody id="gastos-tbody">
-            <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Cargando…</td></tr>
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Cargando…</td></tr>
           </tbody>
           <tfoot>
             <tr style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
-              <td style="padding:10px 12px;font-size:12px;font-weight:700">Total del mes</td>
+              <td style="padding:10px 12px;font-size:12px;font-weight:700" colspan="2">Total del mes</td>
               <td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:800;color:#d46060" id="gastos-total">$0</td>
               <td></td>
             </tr>
@@ -943,31 +953,59 @@ async function loadGastos(mes){
   }catch{}
 }
 
+const RESP_COLORS={Mau:'#6090d4',Tomi:'#5cb87a',Valen:'#a78bfa'};
+
 function renderGastos(){
   const total=_gastosData.reduce((s,g)=>s+(parseFloat(g.monto)||0),0);
   document.getElementById('gastos-total').textContent=fmtMTD(total);
+
+  // Per-person breakdown
+  const byPerson={};
+  _gastosData.forEach(g=>{
+    const r=g.responsable||'Mau';
+    byPerson[r]=(byPerson[r]||0)+(parseFloat(g.monto)||0);
+  });
+  const ppEl=document.getElementById('gastos-por-persona');
+  if(ppEl){
+    ppEl.innerHTML=Object.entries(byPerson).map(([name,sum])=>{
+      const col=RESP_COLORS[name]||'#9ba0b4';
+      return `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:7px 13px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>
+        <span style="font-size:11px;font-weight:700;color:${col}">${name}</span>
+        <span style="font-size:13px;font-weight:800;color:#d46060">${fmtMTD(sum)}</span>
+      </div>`;
+    }).join('');
+  }
+
   const tbody=document.getElementById('gastos-tbody');
   if(!tbody)return;
   if(!_gastosData.length){
-    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Sin gastos registrados para este mes.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Sin gastos registrados para este mes.</td></tr>`;
     return;
   }
-  tbody.innerHTML=_gastosData.map(g=>`
-    <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+  tbody.innerHTML=_gastosData.map(g=>{
+    const resp=g.responsable||'Mau';
+    const col=RESP_COLORS[resp]||'#9ba0b4';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
       <td style="padding:10px 12px;font-size:13px">${g.concepto}</td>
+      <td style="padding:10px 12px">
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:${col}22;color:${col};border:1px solid ${col}44">${resp}</span>
+      </td>
       <td style="padding:10px 12px;font-size:13px;font-weight:700;color:#d46060;text-align:right">${fmtMTD(parseFloat(g.monto)||0)}</td>
       <td style="padding:10px 12px;text-align:right">
         <button onclick="deleteGasto('${g.id}')" style="font-size:11px;padding:3px 9px;background:rgba(212,96,96,0.1);border:1px solid rgba(212,96,96,0.25);color:#d46060;border-radius:6px;cursor:pointer">✕</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function addGasto(){
   const concepto=document.getElementById('gasto-concepto').value.trim();
   const monto=parseFloat(document.getElementById('gasto-monto').value);
+  const responsable=document.getElementById('gasto-responsable').value||'Mau';
   if(!concepto||!monto){toast('Completá concepto y monto');return;}
   try{
-    const r=await fetch(`${API_URL}/holding/gastos`,{method:'POST',headers:{...apiH(),'Content-Type':'application/json'},body:JSON.stringify({concepto,monto,mes:_gastosMes})});
+    const r=await fetch(`${API_URL}/holding/gastos`,{method:'POST',headers:{...apiH(),'Content-Type':'application/json'},body:JSON.stringify({concepto,monto,mes:_gastosMes,responsable})});
     if(!r.ok){toast('Error al guardar');return;}
     document.getElementById('gasto-concepto').value='';
     document.getElementById('gasto-monto').value='';
