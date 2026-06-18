@@ -94,6 +94,7 @@ const alumnoId  = params.get('alumno_id') || '';
 const formTipo  = params.get('tipo') || 'onboarding';
 
 let questions = [];
+let completionMessage = {};
 let currentStep = 0; // 0 = identity, then questions by index
 let responses  = {};
 let totalSteps = 0;
@@ -108,6 +109,7 @@ async function init(){
     if(!r.ok) throw new Error();
     const d = await r.json();
     questions = d.questions || [];
+    completionMessage = d.completion_message || {};
   }catch(e){
     document.getElementById('form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Error al cargar el formulario. Intentá de nuevo.</div>';
     return;
@@ -147,10 +149,12 @@ function renderForm(){
   });
 
   // Success
+  const cmTitulo = completionMessage.titulo || '¡Formulario completado!';
+  const cmTexto  = completionMessage.texto  || 'Gracias por tomarte el tiempo. Tu consultor podrá prepararse mejor para ayudarte a partir de tus respuestas.';
   html += `<div class="success-screen" id="success">
     <div class="success-icon">✓</div>
-    <h2>¡Formulario completado!</h2>
-    <p>Gracias por tomarte el tiempo. Tu consultor podrá prepararse mejor para ayudarte a partir de tus respuestas.</p>
+    <h2>${escHtml(cmTitulo)}</h2>
+    <p>${escHtml(cmTexto)}</p>
   </div>`;
 
   body.innerHTML = html;
@@ -160,8 +164,24 @@ function renderForm(){
 function renderField(q, id){
   if(q.tipo==='text') return `<div class="field"><input type="text" id="${id}" placeholder="${esc(q.placeholder||'')}"></div>`;
   if(q.tipo==='textarea') return `<div class="field"><textarea id="${id}" rows="4" maxlength="${q.maxlength||500}" placeholder="${esc(q.placeholder||'')}" oninput="updateCount('${id}','cnt_${id}',${q.maxlength||500})"></textarea><div class="char-count"><span id="cnt_${id}">0</span>/${q.maxlength||500}</div></div>`;
-  if(q.tipo==='radio') return `<div class="radio-group">${(q.opciones||[]).map(o=>`<label class="radio-option"><input type="radio" name="${id}" value="${esc(o)}"><div class="radio-label">${escHtml(o)}</div></label>`).join('')}</div>`;
-  if(q.tipo==='checkbox') return `<div class="checkbox-group">${(q.opciones||[]).map(o=>`<label class="check-option"><input type="checkbox" name="${id}" value="${esc(o)}"><span>${escHtml(o)}</span></label>`).join('')}</div>`;
+  if(q.tipo==='radio'){
+    const hasOtro = (q.opciones||[]).includes('Otro');
+    const opts = (q.opciones||[]).map(o=>{
+      const onChange = o==='Otro' ? `onchange="toggleOtroInput('${id}',true)"` : (hasOtro ? `onchange="toggleOtroInput('${id}',false)"` : '');
+      return `<label class="radio-option"><input type="radio" name="${id}" value="${esc(o)}" ${onChange}><div class="radio-label">${escHtml(o)}</div></label>`;
+    }).join('');
+    const otroWrap = hasOtro ? `<div id="${id}_otro_wrap" style="display:none;margin-top:10px"><input type="text" id="${id}_otro_input" placeholder="Especificá…" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 13px;font-size:13px;font-family:inherit;color:var(--text);outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'"></div>` : '';
+    return `<div class="radio-group">${opts}</div>${otroWrap}`;
+  }
+  if(q.tipo==='checkbox'){
+    const hasOtro = (q.opciones||[]).includes('Otro');
+    const opts = (q.opciones||[]).map(o=>{
+      const onChange = o==='Otro' ? `onchange="toggleOtroCheckbox('${id}',this)"` : '';
+      return `<label class="check-option"><input type="checkbox" name="${id}" value="${esc(o)}" ${onChange}><span>${escHtml(o)}</span></label>`;
+    }).join('');
+    const otroWrap = hasOtro ? `<div id="${id}_otro_wrap" style="display:none;margin-top:10px"><input type="text" id="${id}_otro_input" placeholder="Especificá…" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 13px;font-size:13px;font-family:inherit;color:var(--text);outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--line-strong)'"></div>` : '';
+    return `<div class="checkbox-group">${opts}</div>${otroWrap}`;
+  }
   if(q.tipo==='scale'){
     const min=q.min||1, max=q.max||10;
     const btns=Array.from({length:max-min+1},(_,i)=>i+min).map(n=>`<button type="button" class="scale-btn" id="${id}_${n}" onclick="selectScale('${id}',${n},${min},${max})">${n}</button>`).join('');
@@ -216,8 +236,18 @@ function collectStep(step){
   const id = `q_${q.id}`;
   if(q.tipo==='text') responses[q.id] = document.getElementById(id)?.value.trim()||'';
   else if(q.tipo==='textarea') responses[q.id] = document.getElementById(id)?.value.trim()||'';
-  else if(q.tipo==='radio'){ const c=document.querySelector(`input[name="${id}"]:checked`); responses[q.id]=c?c.value:''; }
-  else if(q.tipo==='checkbox') responses[q.id]=[...document.querySelectorAll(`input[name="${id}"]:checked`)].map(x=>x.value);
+  else if(q.tipo==='radio'){
+    const c=document.querySelector(`input[name="${id}"]:checked`);
+    let val=c?c.value:'';
+    if(val==='Otro'){ const t=(document.getElementById(`${id}_otro_input`)?.value||'').trim(); if(t) val='Otro: '+t; }
+    responses[q.id]=val;
+  }
+  else if(q.tipo==='checkbox'){
+    let vals=[...document.querySelectorAll(`input[name="${id}"]:checked`)].map(x=>x.value);
+    const oi=vals.indexOf('Otro');
+    if(oi!==-1){ const t=(document.getElementById(`${id}_otro_input`)?.value||'').trim(); if(t) vals[oi]='Otro: '+t; }
+    responses[q.id]=vals;
+  }
   else if(q.tipo==='scale') responses[q.id]=responses[`_scale_${q.id}`]||'';
 }
 
@@ -257,6 +287,17 @@ async function submitForm(){
 
 function esc(s){ return (s||'').replace(/"/g,'&quot;'); }
 function escHtml(s){ const d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
+
+function toggleOtroInput(id, show){
+  const wrap=document.getElementById(`${id}_otro_wrap`);
+  if(wrap) wrap.style.display=show?'block':'none';
+  if(!show){ const inp=document.getElementById(`${id}_otro_input`); if(inp) inp.value=''; }
+}
+function toggleOtroCheckbox(id, cb){
+  const wrap=document.getElementById(`${id}_otro_wrap`);
+  if(wrap) wrap.style.display=cb.checked?'block':'none';
+  if(!cb.checked){ const inp=document.getElementById(`${id}_otro_input`); if(inp) inp.value=''; }
+}
 
 init();
 </script>

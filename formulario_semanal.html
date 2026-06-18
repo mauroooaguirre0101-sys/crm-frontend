@@ -47,7 +47,6 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
 .radio-option{flex:1;min-width:80px;cursor:pointer}
 .radio-option input{display:none}
 .radio-label{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;border:1px solid var(--line-strong);border-radius:10px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface-2);cursor:pointer;transition:all .15s;text-align:center;line-height:1.3}
-.emoji{font-size:18px}
 .radio-option input:checked + .radio-label{border-color:var(--gold);background:rgba(224,181,74,0.1);color:var(--gold)}
 .radio-label:hover{border-color:var(--line-strong);background:var(--surface-3);color:var(--text)}
 
@@ -58,10 +57,6 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
 .check-option span{font-size:12.5px;color:var(--text2);font-weight:500}
 
 .btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
-.dots{display:flex;gap:5px}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--surface-3);transition:all .3s}
-.dot.active{background:var(--gold);width:16px;border-radius:3px}
-.dot.done{background:rgba(224,181,74,0.4)}
 
 .btn{display:inline-flex;align-items:center;gap:5px;padding:10px 22px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
 .btn-back{background:transparent;color:var(--text3);padding-left:0}
@@ -96,130 +91,28 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
 
   <div class="form-body">
 
-    <!-- STEP 1 -->
+    <!-- STEP 1: Identity (always hardcoded) -->
     <div class="step active" id="step-1">
-      <div class="step-counter">Paso 1 de 5</div>
+      <div class="step-counter" id="sc-1">Paso 1</div>
       <div class="step-title">¿Quién sos?</div>
       <div class="step-subtitle">Para asociar tu reporte correctamente.</div>
       <div class="two-col">
-        <div class="field"><label class="lbl">Nombre</label><input type="text" id="nombre" placeholder="ej. Martina"></div>
+        <div class="field"><label class="lbl">Nombre</label><input type="text" id="nombre" placeholder="ej. Martina" oninput="var e=document.getElementById('err-nombre');if(e)e.style.display='none'"></div>
         <div class="field"><label class="lbl">Apellido</label><input type="text" id="apellido" placeholder="ej. Rodríguez"></div>
       </div>
+      <div id="err-nombre" style="display:none;color:var(--red);font-size:12px;margin-bottom:14px;padding:8px 12px;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.25);border-radius:8px">Por favor ingresá tu nombre para continuar.</div>
       <div class="field" id="instagram-field">
         <label class="lbl">@ de Instagram <span style="color:var(--text3);font-weight:400">(para identificarte)</span></label>
         <input type="text" id="instagram" placeholder="ej. martina.rodriguez" autocomplete="off" oninput="this.value=this.value.replace(/^@+/,'')">
       </div>
-      <div class="field">
-        <label class="lbl" id="lbl-q1">¿Cómo calificarías tu semana en general?</label>
-        <div class="radio-group">
-          <label class="radio-option"><input type="radio" name="estado" value="muy_bien"><div class="radio-label"><span class="emoji">🚀</span>Muy bien</div></label>
-          <label class="radio-option"><input type="radio" name="estado" value="bien"><div class="radio-label"><span class="emoji">✅</span>Bien</div></label>
-          <label class="radio-option"><input type="radio" name="estado" value="regular"><div class="radio-label"><span class="emoji">😐</span>Regular</div></label>
-          <label class="radio-option"><input type="radio" name="estado" value="dificil"><div class="radio-label"><span class="emoji">⚠️</span>Difícil</div></label>
-        </div>
-      </div>
       <div class="btn-row">
-        <div class="dots"><div class="dot active" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div><div class="dot" id="d4"></div><div class="dot" id="d5"></div></div>
-        <button class="btn btn-next" onclick="next(1)">Continuar →</button>
+        <div></div>
+        <button class="btn btn-next" onclick="_nextStep()">Continuar →</button>
       </div>
     </div>
 
-    <!-- STEP 2 -->
-    <div class="step" id="step-2">
-      <div class="step-counter">Paso 2 de 5</div>
-      <div class="step-title">¿Cómo está tu negocio esta semana?</div>
-      <div class="step-subtitle">Un párrafo corto es suficiente.</div>
-      <div class="field">
-        <label class="lbl" id="lbl-q2">Situación actual</label>
-        <textarea id="situacion" rows="5" maxlength="500" placeholder="Ej: Esta semana lancé mi nueva propuesta y tuve 3 reuniones con potenciales clientes…" oninput="updateCount('situacion','c-sit',500)"></textarea>
-        <div class="char-count"><span id="c-sit">0</span>/500</div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-back" onclick="prev(2)">← Atrás</button>
-        <div class="dots"><div class="dot done"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-        <button class="btn btn-next" onclick="next(2)">Continuar →</button>
-      </div>
-    </div>
-
-    <!-- STEP 3 -->
-    <div class="step" id="step-3">
-      <div class="step-counter">Paso 3 de 5</div>
-      <div class="step-title">Objetivos de esta semana</div>
-      <div class="step-subtitle">¿Qué te propusiste lograr? ¿Qué lograste realmente?</div>
-      <div class="field">
-        <label class="lbl" id="lbl-q3">Objetivos que te planteaste</label>
-        <textarea id="objetivos" rows="3" maxlength="400" placeholder="Ej: 1. Cerrar al menos 2 ventas. 2. Terminar el landing page…" oninput="updateCount('objetivos','c-obj',400)"></textarea>
-        <div class="char-count"><span id="c-obj">0</span>/400</div>
-      </div>
-      <div class="field">
-        <label class="lbl" id="lbl-q4">¿Cuáles lograste? ¿Qué quedó pendiente?</label>
-        <textarea id="logros" rows="3" maxlength="400" placeholder="Ej: Cerré 1 venta (no las 2). El landing quedó al 80%…" oninput="updateCount('logros','c-log',400)"></textarea>
-        <div class="char-count"><span id="c-log">0</span>/400</div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-back" onclick="prev(3)">← Atrás</button>
-        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
-        <button class="btn btn-next" onclick="next(3)">Continuar →</button>
-      </div>
-    </div>
-
-    <!-- STEP 4 -->
-    <div class="step" id="step-4">
-      <div class="step-counter">Paso 4 de 5</div>
-      <div class="step-title">Desafíos y puntos de fricción</div>
-      <div class="step-subtitle">¿Dónde te trabaste esta semana?</div>
-      <div class="field">
-        <label class="lbl" id="lbl-q5">¿Qué problemas o desafíos encontraste?</label>
-        <textarea id="problemas" rows="4" maxlength="500" placeholder="Ej: Me costó mucho hacer seguimiento a los leads. No sé cómo manejar a un cliente difícil…" oninput="updateCount('problemas','c-prob',500)"></textarea>
-        <div class="char-count"><span id="c-prob">0</span>/500</div>
-      </div>
-      <div class="field">
-        <label class="lbl" id="lbl-q6">¿En qué áreas necesitás ayuda o apoyo específico?</label>
-        <div class="checkbox-group">
-          <label class="check-option"><input type="checkbox" name="ayuda" value="ventas"><span>💼 Ventas y cierre de clientes</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="marketing"><span>📣 Marketing y adquisición</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="operaciones"><span>⚙️ Operaciones y procesos</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="finanzas"><span>💰 Finanzas y pricing</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="equipo"><span>👥 Equipo y delegación</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="producto"><span>🛠️ Producto o servicio</span></label>
-          <label class="check-option"><input type="checkbox" name="ayuda" value="mindset"><span>🧠 Foco y mentalidad</span></label>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-back" onclick="prev(4)">← Atrás</button>
-        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div><div class="dot"></div></div>
-        <button class="btn btn-next" onclick="next(4)">Continuar →</button>
-      </div>
-    </div>
-
-    <!-- STEP 5 -->
-    <div class="step" id="step-5">
-      <div class="step-counter">Paso 5 de 5</div>
-      <div class="step-title">Seguimiento de recomendaciones</div>
-      <div class="step-subtitle">¿Pudiste aplicar lo que conversamos la semana pasada?</div>
-      <div class="field">
-        <label class="lbl" id="lbl-q7">¿Implementaste las recomendaciones de la sesión anterior?</label>
-        <div class="radio-group">
-          <label class="radio-option"><input type="radio" name="implementacion" value="todas" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">✅</span>Sí, todas</div></label>
-          <label class="radio-option"><input type="radio" name="implementacion" value="algunas" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">🔸</span>Algunas</div></label>
-          <label class="radio-option"><input type="radio" name="implementacion" value="ninguna" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">❌</span>Ninguna</div></label>
-          <label class="radio-option"><input type="radio" name="implementacion" value="primera_vez" onchange="togglePorque(this)"><div class="radio-label"><span class="emoji">👋</span>Primera vez</div></label>
-        </div>
-      </div>
-      <div class="field" id="field-porque" style="display:none">
-        <label class="lbl">¿Por qué no las pudiste implementar?</label>
-        <textarea id="porque_no" rows="3" maxlength="300" placeholder="Ej: No tuve tiempo, me surgió una urgencia…"></textarea>
-      </div>
-      <div class="field">
-        <label class="lbl" id="lbl-q8">¿Querés agregar algo más? <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
-        <textarea id="extra" rows="3" maxlength="400" placeholder="Cualquier cosa que quieras que tengamos en cuenta…"></textarea>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-back" onclick="prev(5)">← Atrás</button>
-        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div></div>
-        <button class="btn btn-submit" id="btn-submit" onclick="submitForm()">Enviar reporte ✓</button>
-      </div>
-    </div>
+    <!-- Dynamic question steps injected here by JS -->
+    <div id="dynamic-steps"></div>
 
     <!-- SUCCESS -->
     <div class="success-screen" id="success">
@@ -229,7 +122,7 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
       <div class="success-next">📅 Recordá tu próxima sesión y tené a mano tus preguntas principales.</div>
     </div>
 
-    <!-- DISCORD SECTION (shared — shown in success and locked) -->
+    <!-- DISCORD SECTION -->
     <div id="discord-section" style="display:none" class="discord-section">
       <div class="ds-label">Discord</div>
       <div id="ds-body">
@@ -260,7 +153,7 @@ input[type="text"]:focus,textarea:focus{border-color:var(--gold)}
     </div>
 
     <!-- EDIT REQUEST MODAL -->
-    <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px">
+    <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px">
       <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;padding:28px;max-width:440px;width:100%">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">Solicitar edición</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.5">Contanos brevemente por qué necesitás editar el reporte. Tu consultor lo revisará y te habilitará la edición.</div>
@@ -282,6 +175,22 @@ const clienteId = params.get('cliente_id') || '';
 const alumnoId  = params.get('alumno_id')  || '';
 let _lockedReporteId = null;
 let _isEditMode = false;
+let _template = [];
+let _currentStep = 1;
+let _totalSteps = 1;
+
+const DEFAULT_TEMPLATE = [
+  { id:'q1', tipo:'radio',    titulo:'¿Cómo calificarías tu semana en general?', opciones:['Muy bien 🔥','Bien ✅','Regular 😐','Difícil ⚠️'] },
+  { id:'q2', tipo:'textarea', titulo:'¿Cómo está tu negocio esta semana?',       subtitulo:'Un párrafo corto es suficiente.', placeholder:'Esta semana lancé mi nueva propuesta…', maxlength:500 },
+  { id:'q3', tipo:'textarea', titulo:'¿Qué objetivos te planteaste esta semana?', placeholder:'1. Cerrar al menos 2 ventas…', maxlength:400 },
+  { id:'q4', tipo:'textarea', titulo:'¿Cuáles lograste? ¿Qué quedó pendiente?',  placeholder:'Cerré 1 venta. El landing quedó al 80%…', maxlength:400 },
+  { id:'q5', tipo:'textarea', titulo:'¿Qué problemas o desafíos encontraste?',   placeholder:'Me costó hacer seguimiento…', maxlength:500 },
+  { id:'q6', tipo:'checkbox', titulo:'¿En qué áreas necesitás ayuda específica?', opciones:['Ventas y cierre','Marketing y adquisición','Operaciones y procesos','Finanzas y pricing','Equipo y delegación','Producto o servicio','Foco y mentalidad'] },
+  { id:'q7', tipo:'radio',    titulo:'¿Implementaste las recomendaciones de la sesión anterior?', opciones:['Sí, todas ✅','Algunas 🔸','Ninguna ❌','Es mi primera vez 🌱'] },
+  { id:'q8', tipo:'textarea', titulo:'¿Querés agregar algo más?',                subtitulo:'Opcional.', placeholder:'Cualquier cosa que quieras que tengamos en cuenta…', maxlength:400 },
+];
+
+function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // Week label
 (function(){
@@ -297,217 +206,426 @@ if(!clienteId){
   document.querySelector('.form-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px">Link inválido. Pedile a tu consultor que te comparta el link correcto.</div>';
 }
 
-// ── Chequear si ya envió el reporte esta semana ──
-async function checkExisting(){
-  if(!alumnoId||!clienteId)return;
-  try{
-    const r=await fetch(API_URL+'/reportes/check/'+encodeURIComponent(alumnoId)+'?cliente_id='+encodeURIComponent(clienteId));
-    if(!r.ok)return;
-    const d=await r.json();
-    if(!d.hasReport)return; // Sin reporte → flujo normal
-    _lockedReporteId=d.reporte_id;
-    if(d.editable){
-      // Edición aprobada y vigente — prefill y modo edición
-      _isEditMode=true;
-      prefillForm(d.report);
-      const editableUntil=new Date(d.editable_until);
-      const mins=Math.max(0,Math.round((editableUntil-new Date())/60000));
-      document.getElementById('week-label').textContent='✏️ Modo edición — quedan ~'+mins+' min';
-      document.getElementById('btn-submit').textContent='Actualizar reporte ✓';
-    } else {
-      // Bloqueado → mostrar vista readonly
-      showLockedView(d.report, d.pendingRequest);
-    }
-  }catch(e){console.warn('[checkExisting]',e);}
-}
+// ── Template & init ──────────────────────────────────────────────
+async function init(){
+  if(!clienteId) return;
+  const [tplData, alumnoData] = await Promise.all([
+    _loadTemplateData(),
+    alumnoId ? _loadAlumnoData() : Promise.resolve(null),
+  ]);
 
-function prefillForm(rep){
-  if(rep.nombre)  document.getElementById('nombre').value=rep.nombre;
-  if(rep.apellido)document.getElementById('apellido').value=rep.apellido;
-  if(rep.situacion)document.getElementById('situacion').value=rep.situacion;
-  if(rep.objetivos)document.getElementById('objetivos').value=rep.objetivos;
-  if(rep.logros)   document.getElementById('logros').value=rep.logros;
-  if(rep.problemas)document.getElementById('problemas').value=rep.problemas;
-  if(rep.extra)    document.getElementById('extra').value=rep.extra;
-  if(rep.estado){const r=document.querySelector('input[name="estado"][value="'+rep.estado+'"]');if(r)r.checked=true;}
-  if(rep.implementacion){const r=document.querySelector('input[name="implementacion"][value="'+rep.implementacion+'"]');if(r){r.checked=true;togglePorque(r);}}
-  if(rep.porque_no)document.getElementById('porque_no').value=rep.porque_no;
-  if(Array.isArray(rep.ayuda))rep.ayuda.forEach(function(v){const c=document.querySelector('input[name="ayuda"][value="'+v+'"]');if(c)c.checked=true;});
-}
+  _template = (tplData && Array.isArray(tplData.questions) && tplData.questions.length)
+    ? tplData.questions
+    : DEFAULT_TEMPLATE;
 
-function showLockedView(rep, pending){
-  document.querySelectorAll('.step').forEach(function(s){s.style.display='none';});
-  const lbl={muy_bien:'🚀 Muy bien',bien:'✅ Bien',regular:'😐 Regular',dificil:'⚠️ Difícil'};
-  const impl={todas:'Sí, todas',algunas:'Algunas',ninguna:'Ninguna',primera_vez:'Primera vez'};
-  const esc=function(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
-  const row=function(t,v){return v?'<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">'+t+'</div><div style="font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-wrap">'+esc(v)+'</div></div>':'';};
-  document.getElementById('locked-answers').innerHTML=
-    (rep.estado?'<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Semana en general</div><div style="font-size:13px;color:var(--gold);font-weight:600">'+(lbl[rep.estado]||rep.estado)+'</div></div>':'')+
-    row('Situación',rep.situacion)+row('Objetivos',rep.objetivos)+row('Logros',rep.logros)+
-    row('Problemas',rep.problemas)+row('Implementación de recomendaciones',impl[rep.implementacion]||rep.implementacion)+
-    (rep.porque_no?row('¿Por qué no?',rep.porque_no):'')+row('Extra',rep.extra);
-  if(pending){
-    document.getElementById('pending-notice').style.display='block';
-    document.getElementById('btn-request-edit').style.display='none';
+  if(tplData && tplData.completion_message){
+    const cm = tplData.completion_message;
+    const h2 = document.querySelector('#success h2');
+    const p  = document.querySelector('#success p');
+    if(h2 && cm.titulo) h2.textContent = cm.titulo;
+    if(p  && cm.texto)  p.textContent  = cm.texto;
   }
-  document.getElementById('locked-screen').style.display='block';
-  document.getElementById('progress').style.width='100%';
-  // Move discord section inside locked screen so it appears below
+
+  if(alumnoData){
+    if(alumnoData.nombre)   document.getElementById('nombre').value  = alumnoData.nombre;
+    if(alumnoData.apellido) document.getElementById('apellido').value = alumnoData.apellido;
+    document.getElementById('instagram-field').style.display = 'none';
+  }
+
+  _buildForm();
+
+  if(alumnoId) await checkExisting();
+}
+
+async function _loadTemplateData(){
+  try{
+    const r = await fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(clienteId)+'&tipo=reporte_semanal');
+    return r.ok ? r.json() : null;
+  }catch{ return null; }
+}
+
+async function _loadAlumnoData(){
+  try{
+    const r = await fetch(API_URL+'/alumno/'+alumnoId);
+    return r.ok ? r.json() : null;
+  }catch{ return null; }
+}
+
+// ── Build dynamic steps ──────────────────────────────────────────
+function _buildForm(){
+  _totalSteps = 1 + _template.length;
+  const sc1 = document.getElementById('sc-1');
+  if(sc1) sc1.textContent = 'Paso 1 de '+_totalSteps;
+
+  const container = document.getElementById('dynamic-steps');
+  if(!container) return;
+  container.innerHTML = _template.map((q, i) => {
+    const stepNum = i + 2;
+    const isLast  = i === _template.length - 1;
+    return _buildStepHtml(q, stepNum, isLast);
+  }).join('');
+
+  _updateProgress();
+}
+
+function _buildStepHtml(q, stepNum, isLast){
+  const subtitle = q.subtitulo
+    ? `<div class="step-subtitle">${_esc(q.subtitulo)}</div>`
+    : '';
+  const porqueNo = (q.id === 'q7' && q.tipo === 'radio')
+    ? `<div class="field" id="field-porque" style="display:none">
+        <label class="lbl">¿Por qué no las pudiste implementar?</label>
+        <textarea id="porque_no" rows="3" maxlength="300" placeholder="Ej: No tuve tiempo, me surgió una urgencia…"></textarea>
+       </div>`
+    : '';
+  const actionBtn = isLast
+    ? `<button class="btn btn-submit" id="btn-submit" onclick="submitForm()">Enviar reporte ✓</button>`
+    : `<button class="btn btn-next" onclick="_nextStep()">Continuar →</button>`;
+
+  const errMsg = _isOptional(q) ? '' :
+    `<div id="err-${q.id}" style="display:none;color:var(--red);font-size:12px;margin-top:8px;padding:8px 12px;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.25);border-radius:8px">Esta pregunta es obligatoria. Por favor completá tu respuesta.</div>`;
+
+  return `<div class="step" id="step-${stepNum}">
+    <div class="step-counter">Paso ${stepNum} de ${_totalSteps}</div>
+    <div class="step-title">${_esc(q.titulo)}</div>
+    ${subtitle}
+    <div class="field">${_buildInputHtml(q)}</div>
+    ${errMsg}
+    ${porqueNo}
+    <div class="btn-row">
+      <button class="btn btn-back" onclick="_prevStep()">← Atrás</button>
+      <div></div>
+      ${actionBtn}
+    </div>
+  </div>`;
+}
+
+function _buildInputHtml(q){
+  const clearErr = `var e=document.getElementById('err-${q.id}');if(e)e.style.display='none';`;
+  if(q.tipo === 'textarea'){
+    const max = q.maxlength || 500;
+    return `<textarea id="input-${q.id}" rows="5" maxlength="${max}"
+      placeholder="${_esc(q.placeholder||'')}"
+      oninput="var c=document.getElementById('cnt-${q.id}');if(c)c.textContent=this.value.length;${clearErr}"></textarea>
+      <div class="char-count"><span id="cnt-${q.id}">0</span>/${max}</div>`;
+  }
+  if(q.tipo === 'text'){
+    return `<input type="text" id="input-${q.id}" placeholder="${_esc(q.placeholder||'')}" oninput="${clearErr}">`;
+  }
+  if(q.tipo === 'radio'){
+    const onch = q.id === 'q7'
+      ? ` onchange="_togglePorque(this);${clearErr}"`
+      : ` onchange="${clearErr}"`;
+    return `<div class="radio-group">${(q.opciones||[]).map(o =>
+      `<label class="radio-option"><input type="radio" name="input-${q.id}" value="${_esc(o)}"${onch}><div class="radio-label">${_esc(o)}</div></label>`
+    ).join('')}</div>`;
+  }
+  if(q.tipo === 'checkbox'){
+    return `<div class="checkbox-group">${(q.opciones||[]).map(o =>
+      `<label class="check-option"><input type="checkbox" name="input-${q.id}" value="${_esc(o)}" onchange="${clearErr}"><span>${_esc(o)}</span></label>`
+    ).join('')}</div>`;
+  }
+  if(q.tipo === 'scale'){
+    const min = q.min||1, max = q.max||10;
+    return `<div class="radio-group">${Array.from({length:max-min+1},(_,i)=>i+min).map(n =>
+      `<label class="radio-option" style="flex:0 0 auto;min-width:44px"><input type="radio" name="input-${q.id}" value="${n}" onchange="${clearErr}"><div class="radio-label" style="padding:10px 4px">${n}</div></label>`
+    ).join('')}</div>`;
+  }
+  return `<input type="text" id="input-${q.id}" placeholder="" oninput="${clearErr}">`;
+}
+
+function _togglePorque(radio){
+  const v = (radio.value||'').toLowerCase();
+  const show = v.includes('algunas') || v.includes('ninguna');
+  const el = document.getElementById('field-porque');
+  if(el) el.style.display = show ? 'block' : 'none';
+}
+
+// ── Validation ───────────────────────────────────────────────────
+function _isOptional(q){
+  return /opcional/i.test(q.subtitulo||'') || /opcional/i.test(q.titulo||'');
+}
+
+function _validateStep(stepNum){
+  if(stepNum === 1){
+    const val = document.getElementById('nombre').value.trim();
+    if(!val){
+      const e = document.getElementById('err-nombre');
+      if(e) e.style.display = 'block';
+      document.getElementById('nombre').focus();
+      return false;
+    }
+    return true;
+  }
+  const q = _template[stepNum - 2];
+  if(!q || _isOptional(q)) return true;
+
+  let filled = false;
+  if(q.tipo === 'textarea' || q.tipo === 'text'){
+    const el = document.getElementById('input-'+q.id);
+    filled = !!(el && el.value.trim());
+  } else if(q.tipo === 'radio' || q.tipo === 'scale'){
+    filled = !!document.querySelector('input[name="input-'+q.id+'"]:checked');
+  } else if(q.tipo === 'checkbox'){
+    filled = !!document.querySelector('input[name="input-'+q.id+'"]:checked');
+  }
+
+  if(!filled){
+    const e = document.getElementById('err-'+q.id);
+    if(e){ e.style.display = 'block'; e.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+    return false;
+  }
+  return true;
+}
+
+// ── Navigation ───────────────────────────────────────────────────
+function _updateProgress(){
+  const el = document.getElementById('progress');
+  if(el) el.style.width = ((_currentStep - 1) / Math.max(_totalSteps, 1) * 100) + '%';
+}
+
+function _nextStep(){
+  if(!_validateStep(_currentStep)) return;
+  if(_currentStep < _totalSteps) _showStep(_currentStep + 1);
+}
+
+function _prevStep(){
+  if(_currentStep > 1) _showStep(_currentStep - 1);
+}
+
+function _showStep(n){
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('step-'+n);
+  if(el) el.classList.add('active');
+  _currentStep = n;
+  _updateProgress();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── Collect answers ──────────────────────────────────────────────
+function _collectRespuestas(){
+  const resp = {};
+  _template.forEach(function(q){
+    if(q.tipo === 'textarea' || q.tipo === 'text'){
+      const el = document.getElementById('input-'+q.id);
+      resp[q.id] = el ? el.value.trim() : '';
+    } else if(q.tipo === 'radio' || q.tipo === 'scale'){
+      const checked = document.querySelector('input[name="input-'+q.id+'"]:checked');
+      resp[q.id] = checked ? (q.tipo === 'scale' ? Number(checked.value) : checked.value) : '';
+    } else if(q.tipo === 'checkbox'){
+      const checked = document.querySelectorAll('input[name="input-'+q.id+'"]:checked');
+      resp[q.id] = Array.from(checked).map(function(c){return c.value;});
+    }
+  });
+  const pn = document.getElementById('porque_no');
+  if(pn) resp.porque_no = pn.value.trim();
+  return resp;
+}
+
+// ── Prefill (edit mode) ──────────────────────────────────────────
+function prefillForm(rep){
+  if(rep.nombre)   document.getElementById('nombre').value  = rep.nombre;
+  if(rep.apellido) document.getElementById('apellido').value = rep.apellido;
+
+  if(rep.respuestas && typeof rep.respuestas === 'object'){
+    _template.forEach(function(q){
+      const val = rep.respuestas[q.id];
+      if(val === undefined || val === null) return;
+      if(q.tipo === 'textarea' || q.tipo === 'text'){
+        const el = document.getElementById('input-'+q.id);
+        if(el){ el.value = val; const c = document.getElementById('cnt-'+q.id); if(c) c.textContent = String(val).length; }
+      } else if(q.tipo === 'radio' || q.tipo === 'scale'){
+        const inputs = document.querySelectorAll('input[name="input-'+q.id+'"]');
+        inputs.forEach(function(inp){ if(inp.value === String(val)){ inp.checked = true; if(q.id === 'q7') _togglePorque(inp); } });
+      } else if(q.tipo === 'checkbox'){
+        const vals = Array.isArray(val) ? val : [val];
+        const inputs = document.querySelectorAll('input[name="input-'+q.id+'"]');
+        inputs.forEach(function(inp){ if(vals.includes(inp.value)) inp.checked = true; });
+      }
+    });
+    const pn = document.getElementById('porque_no');
+    if(pn && rep.respuestas.porque_no) pn.value = rep.respuestas.porque_no;
+  } else {
+    // Old format: fill text fields from named DB columns
+    const textMap = {q2:'situacion',q3:'objetivos',q4:'logros',q5:'problemas',q8:'extra'};
+    _template.forEach(function(q){
+      if(q.tipo === 'textarea' || q.tipo === 'text'){
+        const fn = textMap[q.id];
+        if(fn && rep[fn]){
+          const el = document.getElementById('input-'+q.id);
+          if(el){ el.value = rep[fn]; const c = document.getElementById('cnt-'+q.id); if(c) c.textContent = rep[fn].length; }
+        }
+      }
+    });
+    const pn = document.getElementById('porque_no');
+    if(pn && rep.porque_no) pn.value = rep.porque_no;
+  }
+}
+
+// ── Locked view ──────────────────────────────────────────────────
+function showLockedView(rep, pending){
+  document.querySelectorAll('.step').forEach(function(s){ s.style.display='none'; });
+  const esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  const row = function(t,v){
+    const display = Array.isArray(v) ? v.join(', ') : (v||'');
+    return display ? '<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">'+esc(t)+'</div><div style="font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-wrap">'+esc(display)+'</div></div>' : '';
+  };
+
+  let html = '';
+  if(rep.respuestas && typeof rep.respuestas === 'object'){
+    _template.forEach(function(q){
+      const val = rep.respuestas[q.id];
+      if(val === undefined || val === null || val === '' || (Array.isArray(val) && !val.length)) return;
+      html += row(q.titulo, val);
+    });
+    if(rep.respuestas.porque_no) html += row('¿Por qué no pudiste implementar?', rep.respuestas.porque_no);
+  } else {
+    const lbl = {muy_bien:'🚀 Muy bien',bien:'✅ Bien',regular:'😐 Regular',dificil:'⚠️ Difícil'};
+    const impl = {todas:'Sí, todas',algunas:'Algunas',ninguna:'Ninguna',primera_vez:'Primera vez'};
+    html =
+      (rep.estado ? '<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Semana en general</div><div style="font-size:13px;color:var(--gold);font-weight:600">'+(lbl[rep.estado]||rep.estado)+'</div></div>' : '') +
+      row('Situación',rep.situacion)+row('Objetivos',rep.objetivos)+row('Logros',rep.logros)+
+      row('Problemas',rep.problemas)+row('Implementación de recomendaciones',impl[rep.implementacion]||rep.implementacion)+
+      (rep.porque_no ? row('¿Por qué no?',rep.porque_no) : '')+row('Extra',rep.extra);
+  }
+
+  document.getElementById('locked-answers').innerHTML = html;
+  if(pending){
+    document.getElementById('pending-notice').style.display = 'block';
+    document.getElementById('btn-request-edit').style.display = 'none';
+  }
+  document.getElementById('locked-screen').style.display = 'block';
+  document.getElementById('progress').style.width = '100%';
   document.getElementById('locked-screen').appendChild(document.getElementById('discord-section'));
   showDiscordSection();
 }
 
-function showEditModal(){document.getElementById('edit-modal').style.display='flex';}
-function hideEditModal(){document.getElementById('edit-modal').style.display='none';}
-function showEditRequestModal(){showEditModal();}
-
-async function submitEditRequest(){
-  const motivo=document.getElementById('edit-motivo').value.trim();
-  if(!motivo){document.getElementById('edit-motivo').focus();return;}
+// ── Check existing report ────────────────────────────────────────
+async function checkExisting(){
+  if(!alumnoId || !clienteId) return;
   try{
-    const r=await fetch(API_URL+'/reportes/'+_lockedReporteId+'/request-edit',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({alumno_id:alumnoId,cliente_id:clienteId,motivo:motivo}),
-    });
-    const d=await r.json().catch(function(){return{};});
-    if(!r.ok){alert(d.error||'Error al enviar solicitud');return;}
-    hideEditModal();
-    document.getElementById('pending-notice').style.display='block';
-    document.getElementById('btn-request-edit').style.display='none';
-  }catch(e){alert('Error: '+e.message);}
+    const r = await fetch(API_URL+'/reportes/check/'+encodeURIComponent(alumnoId)+'?cliente_id='+encodeURIComponent(clienteId));
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.hasReport) return;
+    _lockedReporteId = d.reporte_id;
+    if(d.editable){
+      _isEditMode = true;
+      prefillForm(d.report);
+      const mins = Math.max(0, Math.round((new Date(d.editable_until) - new Date()) / 60000));
+      document.getElementById('week-label').textContent = '✏️ Modo edición — quedan ~'+mins+' min';
+      const btn = document.getElementById('btn-submit');
+      if(btn) btn.textContent = 'Actualizar reporte ✓';
+    } else {
+      showLockedView(d.report, d.pendingRequest);
+    }
+  }catch(e){ console.warn('[checkExisting]',e); }
 }
 
-// ── Form navigation ──
-function updateProgress(step){document.getElementById('progress').style.width=((step-1)/5*100)+'%';}
-function next(from){
-  if(from===1&&!document.getElementById('nombre').value.trim()){document.getElementById('nombre').focus();return;}
-  showStep(from+1);
-}
-function prev(from){showStep(from-1);}
-function showStep(n){
-  document.querySelectorAll('.step').forEach(function(s){s.classList.remove('active');});
-  var el=document.getElementById('step-'+n);if(el)el.classList.add('active');
-  updateProgress(n);window.scrollTo({top:0,behavior:'smooth'});
-}
-function updateCount(inputId,countId,max){document.getElementById(countId).textContent=document.getElementById(inputId).value.length;}
-function togglePorque(radio){document.getElementById('field-porque').style.display=(radio.value==='ninguna'||radio.value==='algunas')?'block':'none';}
-
+// ── Submit ───────────────────────────────────────────────────────
 async function submitForm(){
-  const btn=document.getElementById('btn-submit');
-  btn.disabled=true;btn.textContent='Enviando…';
-  const now=new Date(),day=now.getDay();
-  const mon=new Date(now);mon.setDate(now.getDate()+(day===0?-6:1-day));
-  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
-  const semana=mon.toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' — '+sun.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
-  const payload={
-    cliente_id:clienteId,alumno_id:alumnoId||null,
-    nombre:document.getElementById('nombre').value.trim(),
-    apellido:document.getElementById('apellido').value.trim(),
-    instagram:document.getElementById('instagram').value.trim().replace(/^@/,''),
-    semana:semana,
-    estado:document.querySelector('input[name="estado"]:checked')&&document.querySelector('input[name="estado"]:checked').value||'',
-    situacion:document.getElementById('situacion').value.trim(),
-    objetivos:document.getElementById('objetivos').value.trim(),
-    logros:document.getElementById('logros').value.trim(),
-    problemas:document.getElementById('problemas').value.trim(),
-    ayuda:Array.from(document.querySelectorAll('input[name="ayuda"]:checked')).map(function(c){return c.value;}),
-    implementacion:document.querySelector('input[name="implementacion"]:checked')&&document.querySelector('input[name="implementacion"]:checked').value||'',
-    porque_no:document.getElementById('porque_no').value.trim(),
-    extra:document.getElementById('extra').value.trim(),
+  if(!_validateStep(_currentStep)) return;
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  const now = new Date(), day = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate()+(day===0?-6:1-day));
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const semana = mon.toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' — '+sun.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
+
+  const payload = {
+    cliente_id: clienteId,
+    alumno_id:  alumnoId || null,
+    nombre:     document.getElementById('nombre').value.trim(),
+    apellido:   document.getElementById('apellido').value.trim(),
+    instagram:  document.getElementById('instagram').value.trim().replace(/^@/,''),
+    semana,
+    respuestas: _collectRespuestas(),
   };
+
   try{
-    const res=await fetch(API_URL+'/reportes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    if(!res.ok){const e=await res.json().catch(function(){return{};});throw new Error(e.error||'Error al enviar');}
-    document.querySelectorAll('.step').forEach(function(s){s.style.display='none';});
-    document.getElementById('progress').style.width='100%';
-    document.getElementById('success').style.display='block';
-    // Move discord section inside success screen
+    const res = await fetch(API_URL+'/reportes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!res.ok){ const e = await res.json().catch(function(){return{};}); throw new Error(e.error||'Error al enviar'); }
+    document.querySelectorAll('.step').forEach(function(s){ s.style.display='none'; });
+    document.getElementById('progress').style.width = '100%';
+    document.getElementById('success').style.display = 'block';
     document.getElementById('success').appendChild(document.getElementById('discord-section'));
     showDiscordSection();
   }catch(err){
-    btn.disabled=false;btn.textContent=_isEditMode?'Actualizar reporte ✓':'Enviar reporte ✓';
+    btn.disabled = false;
+    btn.textContent = _isEditMode ? 'Actualizar reporte ✓' : 'Enviar reporte ✓';
     alert('Error al enviar el reporte: '+err.message);
   }
 }
 
-updateProgress(1);
+// ── Edit request ─────────────────────────────────────────────────
+function showEditModal(){ document.getElementById('edit-modal').style.display='flex'; }
+function hideEditModal(){ document.getElementById('edit-modal').style.display='none'; }
+function showEditRequestModal(){ showEditModal(); }
 
-// ── Discord section ──────────────────────────────────────────────
-function _buildDiscordURL(){
-  return API_URL+'/auth/discord/login?alumno_id='+encodeURIComponent(alumnoId)+'&cliente_id='+encodeURIComponent(clienteId);
+async function submitEditRequest(){
+  const motivo = document.getElementById('edit-motivo').value.trim();
+  if(!motivo){ document.getElementById('edit-motivo').focus(); return; }
+  try{
+    const r = await fetch(API_URL+'/reportes/'+_lockedReporteId+'/request-edit',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({alumno_id:alumnoId,cliente_id:clienteId,motivo}),
+    });
+    const d = await r.json().catch(function(){return{};});
+    if(!r.ok){ alert(d.error||'Error al enviar solicitud'); return; }
+    hideEditModal();
+    document.getElementById('pending-notice').style.display = 'block';
+    document.getElementById('btn-request-edit').style.display = 'none';
+  }catch(e){ alert('Error: '+e.message); }
 }
 
+// ── Discord ──────────────────────────────────────────────────────
 function showDiscordSection(){
-  if(!alumnoId||!clienteId) return;
-  document.getElementById('discord-section').style.display='block';
-  document.getElementById('discord-connect-btn').href=_buildDiscordURL();
+  if(!alumnoId || !clienteId) return;
+  document.getElementById('discord-section').style.display = 'block';
+  document.getElementById('discord-connect-btn').href = API_URL+'/auth/discord/login?alumno_id='+encodeURIComponent(alumnoId)+'&cliente_id='+encodeURIComponent(clienteId);
   checkDiscordStatus();
 }
 
 async function checkDiscordStatus(){
   if(!alumnoId) return;
   try{
-    const r=await fetch(API_URL+'/alumnos/'+encodeURIComponent(alumnoId)+'/discord');
+    const r = await fetch(API_URL+'/alumnos/'+encodeURIComponent(alumnoId)+'/discord');
     if(!r.ok) return;
-    const d=await r.json();
+    const d = await r.json();
     if(d.connected){
-      const btn=document.getElementById('discord-connect-btn');
-      btn.className='btn-discord connected';
-      btn.textContent='✓ Discord conectado';
+      const btn = document.getElementById('discord-connect-btn');
+      btn.className = 'btn-discord connected';
+      btn.textContent = '✓ Discord conectado';
       btn.removeAttribute('href');
-      const desc=document.querySelector('#ds-body .ds-desc');
-      if(desc) desc.textContent=(d.discord_username?'Cuenta: @'+d.discord_username:'Discord vinculado')+'. Recibirás notificaciones automáticamente.';
+      const desc = document.querySelector('#ds-body .ds-desc');
+      if(desc) desc.textContent = (d.discord_username ? 'Cuenta: @'+d.discord_username : 'Discord vinculado')+'. Recibirás notificaciones automáticamente.';
     }
   }catch(e){ /* silent */ }
 }
 
-// Handle ?discord= param on return from OAuth callback
+// Handle ?discord= param on return from OAuth
 (function(){
-  const disc=params.get('discord');
+  const disc = params.get('discord');
   if(!disc) return;
-  // Clean URL without reloading (keeps alumno_id / cliente_id)
-  const clean=new URL(window.location.href);
+  const clean = new URL(window.location.href);
   clean.searchParams.delete('discord');
   clean.searchParams.delete('reason');
   window.history.replaceState(null,'',clean.toString());
-  if(disc==='connected'){
-    const notice=document.createElement('div');
-    notice.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#5865F2;color:#fff;font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
-    notice.textContent='✓ Discord conectado correctamente';
+  if(disc === 'connected'){
+    const notice = document.createElement('div');
+    notice.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#5865F2;color:#fff;font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+    notice.textContent = '✓ Discord conectado correctamente';
     document.body.appendChild(notice);
-    setTimeout(function(){notice.remove();},4000);
-  } else if(disc==='error'){
-    const reason=params.get('reason')||'desconocido';
-    const msgs={missing_params:'Parámetros inválidos.',invalid_state:'Estado de sesión inválido.',alumno_not_found:'No se encontró tu cuenta.',server_error:'Error en el servidor.'};
+    setTimeout(function(){ notice.remove(); }, 4000);
+  } else if(disc === 'error'){
+    const reason = params.get('reason') || 'desconocido';
+    const msgs = {missing_params:'Parámetros inválidos.',invalid_state:'Estado de sesión inválido.',alumno_not_found:'No se encontró tu cuenta.',server_error:'Error en el servidor.'};
     alert('No se pudo conectar Discord: '+(msgs[reason]||reason));
   }
 })();
-// ────────────────────────────────────────────────────────────────
 
-// Pre-fill nombre/apellido si hay alumno_id, y chequear período
-if(alumnoId){
-  document.getElementById('instagram-field').style.display='none';
-  Promise.all([
-    fetch(API_URL+'/alumno/'+alumnoId).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-  ]).then(function(results){
-    var d=results[0];
-    if(d){if(d.nombre)document.getElementById('nombre').value=d.nombre;if(d.apellido)document.getElementById('apellido').value=d.apellido;}
-  });
-  checkExisting();
-}
-
-// Load dynamic question titles
-if(clienteId){
-  fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(clienteId)+'&tipo=reporte_semanal')
-    .then(function(r){return r.ok?r.json():null;}).then(function(d){
-      if(!d||!Array.isArray(d.questions))return;
-      d.questions.forEach(function(q){
-        var el=document.getElementById('lbl-'+q.id);if(!el||!q.titulo)return;
-        var tn=Array.prototype.find.call(el.childNodes,function(n){return n.nodeType===3;});
-        if(tn)tn.textContent=q.titulo+(el.childNodes.length>1?' ':'');else el.textContent=q.titulo;
-      });
-    }).catch(function(){});
-}
+// ── Start ────────────────────────────────────────────────────────
+init();
 </script>
 </body>
 </html>
