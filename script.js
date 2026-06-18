@@ -6081,8 +6081,10 @@ async function _confirmarSenaCierre(){
   if(!programaMeses){toast('✗ Seleccioná el programa');return;}
   if(esCuotas&&montosCuota.every(m=>m<=0)){toast('✗ Ingresá al menos el monto de una cuota');return;}
 
-  // CC adicional: la seña ya fue contabilizada en getCashCollected via fromSenas
-  const ccAdicional=totalPrice-montoSena;
+  // CC a almacenar en el cliente:
+  // - PIF: precio total completo (la seña deja de contarse en fromSenas al cambiar el call a 'Cierre')
+  // - Cuotas: monto de la seña (= primera cuota ya cobrada; las siguientes se van sumando a medida que se pagan)
+  const ccToStore = esCuotas ? montoSena : totalPrice;
 
   if(instagram){
     const existe=S.clients.find(c=>(c.instagram||'').toLowerCase()===instagram);
@@ -6110,13 +6112,13 @@ async function _confirmarSenaCierre(){
     pp:esCuotas?'CUOTA':tipoPago,
     mod:'—',proxpago:c1.toISOString().slice(0,10),
     estado:'Al día',proxpaso:'Onboarding',road:'',
-    cash_collected:ccAdicional,
+    cash_collected:ccToStore,
     programa:programaMeses+' meses',
     comprobante,origen:origenLead,
   };
 
   try{
-    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:ccAdicional,comprobante,estado:'Al día',pp:clienteData.pp,proxpaso:clienteData.proxpaso,road:clienteData.road,mod:clienteData.mod,proxpago:clienteData.proxpago,programa:clienteData.programa,origen:origenLead})});
+    const res=await apiFetch(`${API_URL}/clientes`,{method:'POST',body:JSON.stringify({nombre,instagram,inicio:clienteData.inicio,fin:clienteData.fin,tipo_pago:tipoPago,cash_collected:ccToStore,comprobante,estado:'Al día',pp:clienteData.pp,proxpaso:clienteData.proxpaso,road:clienteData.road,mod:clienteData.mod,proxpago:clienteData.proxpago,programa:clienteData.programa,origen:origenLead})});
     if(res.ok){
       const data=await res.json().catch(()=>({}));
       if(data?.id) clienteData.id=data.id;
@@ -6165,12 +6167,21 @@ async function _confirmarSenaCierre(){
     }
   }
 
-  _logActivity('Cliente creado (seña)',{nombre,instagram},`Seña ${fmtMoney(montoSena)} + CC adicional ${fmtMoney(ccAdicional)}`);
+  // Cambiar call de 'Seña' a 'Cierre' para que la seña no siga contando en fromSenas
+  const callIdToClose = p.callId;
+  if(callIdToClose){
+    const callInCache = (callsCache||[]).find(c=>c.id===callIdToClose);
+    if(callInCache){ callInCache.estado='Cierre'; }
+    apiFetch(`${API_URL}/calls/${callIdToClose}`,{method:'PATCH',body:JSON.stringify({estado:'Cierre'})})
+      .catch(e=>console.warn('[_confirmarSenaCierre] call estado:',e.message));
+  }
+
+  _logActivity('Cliente creado (seña)',{nombre,instagram},`Seña ${fmtMoney(montoSena)} · Total ${fmtMoney(totalPrice)}`);
   if(typeof renderClients==='function') renderClients();
   playCashSound();
   closeModal('modal-sena-cierre');
   _pendingSenaCierre=null;
-  toast(`✓ Venta registrada — Facturación: ${fmtMoney(totalPrice)}, CC adicional: ${fmtMoney(ccAdicional)}`);
+  toast(`✓ Venta registrada — Facturación: ${fmtMoney(totalPrice)}`);
   renderDash();_renderMoneyCounters();
 }
 
