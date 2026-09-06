@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico Barbería</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --bg:        #0C0C0F;
+  --surf:      #131317;
+  --surf2:     #1C1C22;
+  --border:    #27272F;
+  --text:      #EDEAE3;
+  --text2:     #9B98A6;
+  --text3:     #4E4C58;
+  --gold:      #C8A96E;
+  --gold-dim:  rgba(200,169,110,.15);
+  --gold-line: rgba(200,169,110,.35);
+  --success:   #52B788;
+  --red:       #D95F5F;
+  --radius:    14px;
+  --radius-sm: 9px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: var(--gold); width: 0%;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+  z-index: 100; box-shadow: 0 0 12px rgba(200,169,110,.5);
+}
+
+/* Shell */
+#app {
+  display: flex; align-items: flex-start; justify-content: center;
+  min-height: 100dvh; padding: 40px 20px 60px;
+}
+@media (max-width: 480px) {
+  #app { padding: 28px 16px 48px; align-items: flex-start; }
+}
+
+.step {
+  display: none; width: 100%; max-width: 520px;
+  animation: fadeUp .4s cubic-bezier(.4,0,.2,1) both;
+}
+.step.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+/* Compromiso */
+.commit-wrap { text-align: center; padding: 20px 0 12px; }
+.commit-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 24px; }
+.commit-headline {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(2.4rem, 8vw, 3.8rem);
+  font-weight: 700; line-height: 1.08; text-wrap: balance;
+  margin-bottom: 18px; letter-spacing: -.02em;
+}
+.commit-headline em { font-style: italic; color: var(--gold); }
+.commit-sub { font-size: 15px; color: var(--text2); line-height: 1.75; max-width: 360px; margin: 0 auto 40px; }
+.commit-sub strong { color: var(--text); font-weight: 600; }
+.commit-btns { display: flex; flex-direction: column; gap: 12px; max-width: 340px; margin: 0 auto; }
+.btn-commit-yes {
+  background: var(--gold); color: #0C0C0F; border: none;
+  border-radius: var(--radius); padding: 18px 24px;
+  font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: opacity .15s, transform .15s; min-height: 56px;
+}
+.btn-commit-yes:active { opacity: .82; transform: scale(.98); }
+.btn-commit-no {
+  background: transparent; color: var(--text2);
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 17px 24px; font-family: 'DM Sans', sans-serif;
+  font-size: 16px; font-weight: 400; cursor: pointer;
+  transition: border-color .15s, color .15s; min-height: 56px;
+}
+
+/* Step label */
+.step-label { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; }
+
+/* Question heading */
+.q-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 600; line-height: 1.22; text-wrap: balance;
+  margin-bottom: 24px; letter-spacing: -.015em;
+}
+
+/* Contact fields */
+.field-group { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+.field-wrap { display: flex; flex-direction: column; gap: 6px; }
+.field-wrap label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+.field-wrap input, .field-wrap select {
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 16px;
+  padding: 14px 16px; width: 100%; outline: none;
+  transition: border-color .15s; min-height: 52px;
+  -webkit-appearance: none; appearance: none;
+}
+.field-wrap input::placeholder { color: var(--text3); }
+.field-wrap input:focus, .field-wrap select:focus { border-color: var(--gold); }
+
+/* Phone row with country code */
+.phone-row { display: flex; gap: 8px; }
+.phone-row .country-select-wrap { position: relative; flex-shrink: 0; width: 130px; }
+.phone-row .country-select-wrap::after {
+  content: '▾'; position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%); color: var(--text2); pointer-events: none; font-size: 12px;
+}
+.phone-row .country-select-wrap select { padding-right: 28px; }
+.phone-row input { flex: 1; }
+
+/* Option cards */
+.options-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.opt-card {
+  background: var(--surf); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px;
+  cursor: pointer; display: flex; align-items: center; gap: 14px;
+  transition: border-color .15s, background .15s; user-select: none;
+  min-height: 52px;
+}
+.opt-card:active { background: var(--surf2); }
+.opt-card.selected { border-color: var(--gold); background: var(--gold-dim); }
+.opt-dot {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px solid var(--border); flex-shrink: 0;
+  transition: border-color .15s, background .15s; position: relative;
+}
+.opt-card.selected .opt-dot { border-color: var(--gold); background: var(--gold); }
+.opt-card.selected .opt-dot::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%); width: 7px; height: 7px;
+  border-radius: 50%; background: #0C0C0F;
+}
+.opt-text { font-size: 15px; line-height: 1.4; }
+
+/* Avatar cards */
+.avatar-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+.avatar-card {
+  background: var(--surf); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 20px 20px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+  user-select: none; min-height: 72px;
+}
+.avatar-card:active { background: var(--surf2); }
+.avatar-card.selected { border-color: var(--gold); background: var(--gold-dim); }
+.avatar-card-title { font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 600; margin-bottom: 3px; }
+.avatar-card-sub { font-size: 13px; color: var(--text2); }
+
+/* Next button */
+.btn-next {
+  background: var(--gold); color: #0C0C0F; border: none;
+  border-radius: var(--radius); padding: 17px 32px;
+  font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
+  cursor: pointer; width: 100%; transition: opacity .15s, transform .15s;
+  min-height: 56px;
+}
+.btn-next:active:not(:disabled) { opacity: .82; transform: scale(.98); }
+.btn-next:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Back link */
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text2); font-size: 14px; cursor: pointer;
+  margin-bottom: 28px; transition: color .15s; padding: 8px 0;
+}
+.back-link:active { color: var(--text); }
+
+/* Loading */
+#step-loading { text-align: center; padding: 80px 0; }
+.spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 28px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: 'Fraunces', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: var(--text2); margin-bottom: 10px; }
+.loading-sub { font-size: 13px; color: var(--text3); }
+
+/* Result */
+#step-result { max-width: 580px; }
+.result-header { margin-bottom: 32px; }
+.result-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+.result-title { font-family: 'Fraunces', Georgia, serif; font-size: clamp(1.6rem, 5.5vw, 2.4rem); font-weight: 700; line-height: 1.15; text-wrap: balance; letter-spacing: -.02em; }
+.result-nombre { color: var(--gold); }
+.diagnostico-body {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-bottom: 20px;
+}
+.diag-bloque {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  position: relative; overflow: hidden;
+}
+.diag-bloque::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--gold);
+  border-radius: 3px 0 0 3px;
+}
+.diag-num {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 6px;
+}
+.diag-titulo {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.05rem; font-weight: 600; color: var(--text);
+  margin-bottom: 10px; line-height: 1.3;
+}
+.diag-cuerpo {
+  font-size: 14px; line-height: 1.75; color: var(--text2);
+}
+.cta-box {
+  background: linear-gradient(135deg, rgba(200,169,110,.12) 0%, rgba(200,169,110,.04) 100%);
+  border: 1.5px solid var(--gold-line); border-radius: var(--radius);
+  padding: 24px 20px; text-align: center;
+}
+.cta-box-text { font-family: 'Fraunces', Georgia, serif; font-size: 1.1rem; font-weight: 600; line-height: 1.45; color: var(--text); text-wrap: balance; }
+.cta-box-text em { color: var(--gold); font-style: normal; }
+
+/* Error */
+.error-msg { background: rgba(217,95,95,.12); border: 1px solid rgba(217,95,95,.3); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 14px; color: #E88; margin-bottom: 16px; display: none; }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div id="app">
+
+  <!-- STEP 0: Compromiso -->
+  <div class="step active" id="step-0">
+    <div class="commit-wrap">
+      <div class="commit-eyebrow">Diagnóstico de barbería</div>
+      <h1 class="commit-headline">Hola,<br><em>¿cómo estás?</em></h1>
+      <p class="commit-sub">
+        Al llenar este formulario te estás comprometiendo a asistir a la clase del
+        <strong>Domingo 7/9 a las 20hs.</strong><br>¿Te comprometés?
+      </p>
+      <div class="commit-btns">
+        <button class="btn-commit-yes" onclick="setCompromiso(true)">Sí, me comprometo →</button>
+        <button class="btn-commit-no" onclick="setCompromiso(false)">No me comprometo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Contacto -->
+  <div class="step" id="step-1">
+    <div class="step-label">Tus datos</div>
+    <h2 class="q-title">Antes de comenzar, completá esta información</h2>
+    <div class="field-group">
+      <div class="field-wrap">
+        <label>Nombre completo</label>
+        <input type="text" id="inp-nombre" placeholder="Tu nombre" autocomplete="name" oninput="checkStep1()">
+      </div>
+      <div class="field-wrap">
+        <label>Número de celular</label>
+        <div class="phone-row">
+          <div class="country-select-wrap">
+            <select id="inp-pais" onchange="checkStep1()">
+              <option value="+54">🇦🇷 +54</option>
+              <option value="+55">🇧🇷 +55</option>
+              <option value="+56">🇨🇱 +56</option>
+              <option value="+57">🇨🇴 +57</option>
+              <option value="+51">🇵🇪 +51</option>
+              <option value="+598">🇺🇾 +598</option>
+              <option value="+595">🇵🇾 +595</option>
+              <option value="+591">🇧🇴 +591</option>
+              <option value="+593">🇪🇨 +593</option>
+              <option value="+58">🇻🇪 +58</option>
+              <option value="+52">🇲🇽 +52</option>
+              <option value="+502">🇬🇹 +502</option>
+              <option value="+503">🇸🇻 +503</option>
+              <option value="+504">🇭🇳 +504</option>
+              <option value="+505">🇳🇮 +505</option>
+              <option value="+506">🇨🇷 +506</option>
+              <option value="+507">🇵🇦 +507</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+34">🇪🇸 +34</option>
+            </select>
+          </div>
+          <input type="tel" id="inp-celular" placeholder="Ej: 9 11 1234-5678" autocomplete="tel" oninput="checkStep1()">
+        </div>
+      </div>
+      <div class="field-wrap">
+        <label>Usuario de Instagram</label>
+        <input type="text" id="inp-instagram" placeholder="@tuusuario" autocomplete="off" oninput="checkStep1()">
+      </div>
+    </div>
+    <button class="btn-next" id="btn-step1" onclick="goStep(2)" disabled>Continuar</button>
+  </div>
+
+  <!-- STEP 2: Avatar -->
+  <div class="step" id="step-2">
+    <div class="back-link" onclick="goStep(1)">← Volver</div>
+    <div class="step-label">Tu situación</div>
+    <h2 class="q-title">¿Cuál de estas opciones te describe mejor?</h2>
+    <div class="avatar-grid">
+      <div class="avatar-card" id="av-dueno" onclick="selectAvatar('dueno')">
+        <div class="avatar-card-title">Dueño de barbería</div>
+        <div class="avatar-card-sub">Ya tengo mi barbería funcionando</div>
+      </div>
+      <div class="avatar-card" id="av-futuro" onclick="selectAvatar('futuro')">
+        <div class="avatar-card-title">Quiero abrir mi propia barbería</div>
+        <div class="avatar-card-sub">Todavía no tengo local propio, pero quiero abrirla pronto</div>
+      </div>
+      <div class="avatar-card" id="av-segunda" onclick="selectAvatar('segunda')">
+        <div class="avatar-card-title">Quiero abrir mi segunda barbería</div>
+        <div class="avatar-card-sub">Ya tengo una y quiero expandirme</div>
+      </div>
+    </div>
+    <button class="btn-next" id="btn-step2" onclick="startQuestions()" disabled>Continuar</button>
+  </div>
+
+  <!-- STEP 3+: Preguntas -->
+  <div class="step" id="step-q">
+    <div class="back-link" onclick="qBack()">← Volver</div>
+    <div class="step-label" id="q-step-label"></div>
+    <h2 class="q-title" id="q-title"></h2>
+    <div class="options-grid" id="q-options"></div>
+    <div class="error-msg" id="q-error">Seleccioná una opción para continuar.</div>
+    <button class="btn-next" id="btn-q-next" onclick="qNext()" disabled>Continuar</button>
+  </div>
+
+  <!-- STEP: Loading -->
+  <div class="step" id="step-loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Analizando tu negocio…</div>
+    <div class="loading-sub">La IA está procesando tus respuestas</div>
+  </div>
+
+  <!-- STEP: Resultado -->
+  <div class="step" id="step-result">
+    <div class="result-header">
+      <div class="result-eyebrow">Tu diagnóstico</div>
+      <h2 class="result-title">Estos son tus cuellos de botella actuales, <span class="result-nombre" id="res-nombre"></span></h2>
+    </div>
+    <div class="diagnostico-body" id="res-diagnostico"></div>
+    <div class="cta-box">
+      <div class="cta-box-text">
+        Para entender cómo resolver estos problemas tenés que ir a la clase del
+        <em>Domingo 7/9 a las 20hs.</em>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const state = { comprometido: null, nombre: '', celular: '', instagram: '', avatar: null, respuestas: {} };
+let currentStep = 0, qIndex = 0, preguntas = [];
+const BACKEND = 'https://noble-determination-production.up.railway.app';
+
+const PREGUNTAS = {
+  dueno: [
+    { id: 'antiguedad', texto: '¿Hace cuánto tenés tu barbería?', opciones: ['Menos de 6 meses','6 meses a 1 año','1 a 3 años','Más de 3 años'] },
+    { id: 'problema_principal', texto: '¿Cuál es hoy tu principal problema?', opciones: ['Me faltan clientes','Tengo clientes, pero no vuelven lo suficiente','Tengo problemas con mi equipo','La barbería depende demasiado de mí','No tengo claro cuánto gano realmente','Tengo clientes, pero siento que estoy estancado','Otro'] },
+    { id: 'agenda', texto: '¿Cómo está actualmente tu agenda?', opciones: ['Menos del 50% ocupada','Entre 50% y 70%','Entre 70% y 90%','Más del 90%','Tengo la agenda llena, pero sigo dependiendo de mí'] },
+    { id: 'sin_mi', texto: '¿Qué pasa cuando vos no vas a la barbería?', opciones: ['La barbería funciona prácticamente igual','Funciona, pero tengo que estar pendiente','Se generan varios problemas','Prácticamente todo se frena'] },
+    { id: 'equipo_tamaño', texto: '¿Cuántas personas trabajan actualmente en tu barbería, incluyéndote?', opciones: ['Solo yo','2','3–4','5 o más'] },
+    { id: 'equipo_calidad', texto: '¿Cómo describirías a tu equipo?', opciones: ['Cada uno sabe perfectamente qué tiene que hacer','Funciona bien, pero todavía tengo que controlar bastante','Hay problemas frecuentes de organización','Cada uno trabaja bastante a su manera','No tengo equipo'] },
+    { id: 'procesos', texto: '¿Tenés procesos definidos para tareas importantes de la barbería?', opciones: ['Sí, están escritos y el equipo los sigue','Algunos están definidos, pero no todos','Los tengo en mi cabeza','Cada uno hace las cosas como sabe'] },
+    { id: 'numeros', texto: '¿Sabés exactamente cuánto dinero te queda de ganancia después de pagar todos los gastos?', opciones: ['Sí, lo sé todos los meses','Tengo una idea aproximada','No, solamente sé cuánto facturo','No controlo mis números'] },
+    { id: 'meta_12m', texto: '¿Qué es lo que más te gustaría conseguir en los próximos 12 meses?', opciones: ['Llenar mi agenda','Ganar más con la barbería','Tener un equipo sólido','Dejar de estar presente todo el tiempo','Abrir una segunda barbería','Tener más libertad'] }
+  ],
+  futuro: [
+    { id: 'situacion_actual', texto: '¿En qué situación estás actualmente?', opciones: ['Trabajo para otra barbería','Trabajo desde mi casa','Trabajo a domicilio','Alquilo una silla','Otra'] },
+    { id: 'decision', texto: '¿Qué tan decidido estás a abrir tu propia barbería?', opciones: ['Ya estoy buscando local','Quiero abrirla dentro de pocos meses','Quiero abrirla este año','Es algo que quiero hacer, pero todavía no tengo fecha'] },
+    { id: 'freno', texto: '¿Qué es lo que más te frena hoy para abrir?', opciones: ['No tengo suficiente capital','No sé qué local elegir','No sé cuánto necesito invertir','No sé cómo conseguir clientes','Me da miedo que no funcione','No sé cómo organizar el negocio','No sé cómo conseguir/armar un equipo','Otro'] },
+    { id: 'clientes_semana', texto: '¿Cuántos clientes atendés aproximadamente por semana?', opciones: ['Menos de 10','10–20','20–40','40–60','Más de 60'] },
+    { id: 'primeros_clientes', texto: 'Si mañana tuvieras tu propio local, ¿de dónde vendrían tus primeros clientes?', opciones: ['Principalmente de mi clientela actual','Redes sociales/contenido','Recomendaciones','Publicidad','No tengo una base clara de clientes'] },
+    { id: 'capital', texto: '¿Tenés ahorrado el dinero necesario para comenzar?', opciones: ['Sí, tengo todo','Tengo una parte importante','Tengo poco','Todavía no tengo capital'] },
+    { id: 'presupuesto', texto: '¿Tenés definido cuánto necesitás invertir para abrir?', opciones: ['Sí, tengo un presupuesto claro','Tengo una estimación','No, todavía no lo sé'] },
+    { id: 'claridad_negocio', texto: '¿Qué tan claro tenés cómo funcionaría tu barbería?', opciones: ['Tengo definido el concepto, precios y forma de trabajar','Tengo una idea bastante clara','Tengo algunas ideas, pero no sé cómo estructurarlo','Todavía no lo tengo definido'] },
+    { id: 'meta_apertura', texto: '¿Qué sería lo que más te gustaría conseguir al abrir tu barbería?', opciones: ['Ganar más dinero','Tener mi propio negocio','Tener más clientes','Formar un equipo','Dejar de trabajar para otros','Tener más libertad'] }
+  ],
+  segunda: [
+    { id: 'antiguedad_primera', texto: '¿Hace cuánto tenés tu primera barbería?', opciones: ['Menos de 1 año','1–2 años','2–5 años','Más de 5 años'] },
+    { id: 'motivo_segunda', texto: '¿Por qué querés abrir una segunda barbería?', opciones: ['Quiero aumentar mis ganancias','Quiero expandir la marca','La primera barbería ya llegó a su techo','Encontré una buena oportunidad','Quiero tener más libertad','Quiero dejar de depender de la primera','Otro'] },
+    { id: 'problema_primera', texto: '¿Cuál es actualmente el principal problema de tu primera barbería?', opciones: ['Falta de clientes','Falta de retención','Problemas con el equipo','Depende demasiado de mí','No tengo claros los números','Problemas de organización/procesos','No tengo grandes problemas actualmente'] },
+    { id: 'ausencia_semana', texto: '¿Qué pasa si te ausentás durante una semana?', opciones: ['Funciona igual sin mí','Funciona, pero tengo que supervisar','Aparecen varios problemas','Prácticamente no podría ausentarme'] },
+    { id: 'dependencia_operativa', texto: '¿Cuánto de la operación diaria sigue dependiendo de vos?', opciones: ['Muy poco','Algunas tareas importantes','La mayoría de las decisiones','Prácticamente todo'] },
+    { id: 'sucesor', texto: '¿Tenés una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?', opciones: ['Sí, totalmente','Tengo alguien, pero todavía necesita preparación','No','Yo seguiría manejando ambas'] },
+    { id: 'numeros_separados', texto: '¿Tenés separados los números de tu primera barbería?', opciones: ['Sí, sé exactamente cuánto factura, gasta y gana','Tengo una idea aproximada','No, mezclo varios números','No los controlo'] },
+    { id: 'procesos_escritos', texto: '¿Tenés procesos escritos que permitan que otra persona gestione la barbería?', opciones: ['Sí','Algunos','No, los tengo en mi cabeza','No tenemos procesos definidos'] },
+    { id: 'agenda_primera', texto: '¿Cómo está actualmente la agenda de tu primera barbería?', opciones: ['Menos del 50% ocupada','50–70%','70–90%','Más del 90%'] },
+    { id: 'preparacion_autonomia', texto: '¿Qué tan preparado sentís que está tu negocio para funcionar sin vos?', opciones: ['Totalmente preparado','Bastante preparado','Poco preparado','Nada preparado'] }
+  ]
+};
+
+function showStep(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); el.style.animation='none'; el.offsetHeight; el.style.animation=''; }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateProgress();
+}
+function updateProgress() {
+  const total = 3 + (preguntas.length || 9);
+  const id = document.querySelector('.step.active')?.id;
+  let done = id==='step-0'?0:id==='step-1'?1:id==='step-2'?2:id==='step-q'?3+qIndex:total;
+  document.getElementById('progress-bar').style.width = Math.min(100, Math.round(done/total*100)) + '%';
+}
+function setCompromiso(val) { state.comprometido = val; goStep(1); }
+function goStep(n) { showStep('step-' + n); currentStep = n; }
+function checkStep1() {
+  const ok = document.getElementById('inp-nombre').value.trim() &&
+             document.getElementById('inp-celular').value.trim() &&
+             document.getElementById('inp-instagram').value.trim();
+  document.getElementById('btn-step1').disabled = !ok;
+}
+function selectAvatar(av) {
+  state.avatar = av;
+  document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('av-' + av).classList.add('selected');
+  document.getElementById('btn-step2').disabled = false;
+}
+function startQuestions() {
+  const pais = document.getElementById('inp-pais').value;
+  const tel  = document.getElementById('inp-celular').value.trim().replace(/\D/g,'');
+  state.nombre    = document.getElementById('inp-nombre').value.trim();
+  state.celular   = pais + tel;
+  state.instagram = document.getElementById('inp-instagram').value.trim();
+  state.respuestas = {};
+  preguntas = PREGUNTAS[state.avatar];
+  qIndex = 0;
+  renderQuestion();
+  showStep('step-q');
+}
+function renderQuestion() {
+  const q = preguntas[qIndex];
+  document.getElementById('q-step-label').textContent = `Pregunta ${qIndex + 1} de ${preguntas.length}`;
+  document.getElementById('q-title').textContent = q.texto;
+  document.getElementById('btn-q-next').disabled = true;
+  document.getElementById('q-error').style.display = 'none';
+  const c = document.getElementById('q-options');
+  c.innerHTML = q.opciones.map(op =>
+    `<div class="opt-card" onclick="selectOpt(this,'${op.replace(/'/g,"\\'")}')"><div class="opt-dot"></div><div class="opt-text">${op}</div></div>`
+  ).join('');
+  const prev = state.respuestas[q.texto];
+  if (prev) c.querySelectorAll('.opt-card').forEach(card => {
+    if (card.querySelector('.opt-text').textContent === prev) {
+      card.classList.add('selected');
+      document.getElementById('btn-q-next').disabled = false;
+    }
+  });
+  updateProgress();
+}
+function selectOpt(el, val) {
+  document.querySelectorAll('#q-options .opt-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.respuestas[preguntas[qIndex].texto] = val;
+  document.getElementById('btn-q-next').disabled = false;
+}
+function qBack() {
+  if (qIndex === 0) { showStep('step-2'); currentStep = 2; }
+  else { qIndex--; renderQuestion(); }
+}
+async function qNext() {
+  if (!state.respuestas[preguntas[qIndex].texto]) { document.getElementById('q-error').style.display = 'block'; return; }
+  qIndex++;
+  if (qIndex < preguntas.length) renderQuestion();
+  else await submitForm();
+}
+async function submitForm() {
+  showStep('step-loading');
+
+  // Generar diagnóstico localmente (sin backend)
+  const diagnostico = generarDiagnostico(state.avatar, state.respuestas);
+
+  // Guardar en backend en segundo plano (no bloquea si falla)
+  fetch(`${BACKEND}/diagnostico/barbero`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nombre: state.nombre, celular: state.celular,
+      instagram: state.instagram.replace(/^@/,''),
+      comprometido: state.comprometido, avatar: state.avatar,
+      respuestas: state.respuestas, diagnostico
+    })
+  }).catch(() => {}); // silencioso si el backend está caído
+
+  // Mostrar resultado inmediatamente
+  setTimeout(() => showResult(diagnostico), 1800); // simula procesamiento
+}
+
+// ── Diagnóstico por reglas ────────────────────────────────────────
+function generarDiagnostico(avatar, r) {
+  const bloques = [];
+
+  if (avatar === 'dueno') {
+    // Cuello 1: Clientes / Agenda
+    const agenda = r['¿Cómo está actualmente tu agenda?'] || '';
+    const problema = r['¿Cuál es hoy tu principal problema?'] || '';
+    if (agenda.includes('50%') || agenda.includes('Menos')) {
+      bloques.push(`**Falta de demanda constante**\nTu agenda está por debajo del 70% de ocupación, lo que indica que el flujo de clientes nuevos no es suficiente o la retención es baja. Sin una entrada consistente de turnos, cualquier mes puede ser impredecible y eso impacta directo en tus ingresos.`);
+    } else if (problema.includes('no vuelven')) {
+      bloques.push(`**Baja retención de clientes**\nTenés clientes que vienen una vez pero no vuelven con frecuencia. Esto suele pasar cuando no hay un sistema activo de seguimiento ni una razón clara para que el cliente prefiera tu barbería sobre otra. El costo de atraer clientes nuevos siempre es mayor que retener los que ya tenés.`);
+    } else {
+      bloques.push(`**Estancamiento en el crecimiento**\nTu barbería funciona pero no está escalando. Tenés clientes, pero la facturación no crece. Esto normalmente indica que llegaste a un techo con el modelo actual y que necesitás un cambio estructural para pasar al siguiente nivel.`);
+    }
+
+    // Cuello 2: Dependencia operativa
+    const sinMi = r['¿Qué pasa cuando vos no vas a la barbería?'] || '';
+    const equipo = r['¿Cómo describirías a tu equipo?'] || '';
+    if (sinMi.includes('frena') || sinMi.includes('problemas')) {
+      bloques.push(`**Dependencia total de tu presencia**\nSi vos no estás, la barbería no funciona. Esto significa que el negocio depende de vos como operario, no como dueño. Mientras eso no cambie, no podés tomarte vacaciones, no podés escalar y cualquier problema de salud o imprevisto paraliza todo.`);
+    } else if (equipo.includes('controlar') || equipo.includes('organización')) {
+      bloques.push(`**Equipo sin autonomía real**\nTu equipo funciona pero necesitás supervisarlo constantemente. Eso consume tu tiempo y energía en tareas operativas en lugar de decisiones estratégicas. Un equipo que no puede funcionar solo es un cuello de botella directo para el crecimiento.`);
+    } else {
+      bloques.push(`**Falta de sistemas que sostengan la operación**\nAunque tu equipo funciona, la barbería aún depende de decisiones tuyas para operar bien. Sin procesos claros y documentados, cada persona hace las cosas a su manera y eso genera inconsistencias en el servicio.`);
+    }
+
+    // Cuello 3: Números
+    const numeros = r['¿Sabés exactamente cuánto dinero te queda de ganancia después de pagar todos los gastos?'] || '';
+    const procesos = r['¿Tenés procesos definidos para tareas importantes de la barbería?'] || '';
+    if (numeros.includes('No') || numeros.includes('aproximada')) {
+      bloques.push(`**Sin control financiero claro**\nNo sabés con exactitud cuánto ganás después de gastos. Eso significa que estás tomando decisiones (contratar, invertir, bajar precios) sin información real. Muchas barberías que cierran no lo hacen por falta de clientes, sino porque el dueño nunca supo exactamente si estaba ganando o perdiendo.`);
+    } else if (procesos.includes('cabeza') || procesos.includes('como sabe')) {
+      bloques.push(`**Procesos que solo existen en tu cabeza**\nLas formas de trabajar importantes de la barbería no están documentadas. Si mañana entra alguien nuevo al equipo, no tiene cómo aprender cómo se hacen las cosas. Eso hace que cada persona improvise y que la calidad sea inconsistente.`);
+    } else {
+      bloques.push(`**Falta de métricas para tomar decisiones**\nSabés cuánto facturás pero no tenés claridad sobre tus márgenes reales, qué servicios son más rentables o qué días y horarios generan más ingresos. Sin esa información, es imposible optimizar el negocio.`);
+    }
+
+  } else if (avatar === 'futuro') {
+    // Cuello 1: Capital y preparación financiera
+    const capital = r['¿Tenés ahorrado el dinero necesario para comenzar?'] || '';
+    const presupuesto = r['¿Tenés definido cuánto necesitás invertir para abrir?'] || '';
+    if (capital.includes('Todavía no') || capital.includes('poco')) {
+      bloques.push(`**Capital insuficiente para abrir**\nNo tenés el dinero necesario para abrir todavía. Abrir una barbería sin capital suficiente es uno de los errores más comunes — los primeros meses casi siempre generan menos de lo esperado y los gastos fijos siguen igual. Sin un colchón, el negocio cierra antes de arrancar.`);
+    } else if (presupuesto.includes('No')) {
+      bloques.push(`**Sin presupuesto definido**\nTenés dinero pero no sabés exactamente cuánto necesitás invertir. Eso es riesgoso porque es muy fácil subestimar los costos reales de apertura: obra, equipamiento, primeros meses de alquiler, habilitaciones, marketing inicial. Sin un número claro, no podés saber si lo que tenés alcanza.`);
+    } else {
+      bloques.push(`**Falta de estructura financiera para el primer año**\nTenés capital para abrir, pero ¿tenés calculado cuánto necesitás facturar para cubrir tus gastos fijos desde el primer mes? La mayoría de las barberías nuevas tarda 3 a 6 meses en estabilizarse. Necesitás ese colchón planificado.`);
+    }
+
+    // Cuello 2: Base de clientes
+    const clientes = r['Si mañana tuvieras tu propio local, ¿de dónde vendrían tus primeros clientes?'] || '';
+    const cantClientes = r['¿Cuántos clientes atendés aproximadamente por semana?'] || '';
+    if (clientes.includes('No tengo') || cantClientes.includes('Menos de 10')) {
+      bloques.push(`**Sin base de clientes propia**\nNo tenés una cartera de clientes que te siga si abrís tu propio local. El primer mes de una barbería nueva sin clientes propios es muy difícil — dependés completamente de conseguir clientes nuevos desde cero, lo que puede tardar meses y consumir todo tu capital.`);
+    } else {
+      bloques.push(`**Incertidumbre sobre cuántos clientes te seguirán**\nTenés clientes actuales pero no sabés con certeza cuántos te seguirían a tu propio local. Antes de abrir, necesitás validar ese número real. Una forma concreta: contale a tus mejores clientes que estás por abrir y fijate quiénes confirman que irían.`);
+    }
+
+    // Cuello 3: Claridad del modelo de negocio
+    const claridad = r['¿Qué tan claro tenés cómo funcionaría tu barbería?'] || '';
+    const freno = r['¿Qué es lo que más te frena hoy para abrir?'] || '';
+    if (claridad.includes('no sé') || claridad.includes('Todavía')) {
+      bloques.push(`**Modelo de negocio sin definir**\nNo tenés claro cómo funcionaría tu barbería: qué servicios ofrecés, a qué precios, cuántos clientes necesitás por día para cubrir gastos. Sin eso definido, estás construyendo sobre arena. El modelo de negocio es lo primero que necesitás resolver antes de buscar local.`);
+    } else if (freno.includes('miedo') || freno.includes('organizar')) {
+      bloques.push(`**Falta de plan de acción concreto**\nSabés lo que querés pero no tenés un plan paso a paso de cómo llegar. El miedo a abrir suele venir de no tener claridad en los próximos pasos. Cuando el camino está definido, el miedo se transforma en acción.`);
+    } else {
+      bloques.push(`**Falta de conocimiento sobre la gestión del negocio**\nSabés cortar el pelo, pero gestionar una barbería es un trabajo diferente: manejo de equipo, control de costos, marketing, agenda, cobros. Esa brecha entre el oficio y el negocio es lo que lleva a muchas barberías a cerrar en el primer año.`);
+    }
+
+  } else { // segunda
+    // Cuello 1: La primera barbería no está lista para escalar
+    const sinMi = r['¿Qué pasa si te ausentás durante una semana?'] || '';
+    const dependencia = r['¿Cuánto de la operación diaria sigue dependiendo de vos?'] || '';
+    if (sinMi.includes('ausentarme') || sinMi.includes('varios problemas') || dependencia.includes('todo') || dependencia.includes('mayoría')) {
+      bloques.push(`**La primera barbería todavía depende demasiado de vos**\nSi te ausentás una semana, la primera barbería tiene problemas. Eso significa que todavía no está lista para funcionar sola. Abrir una segunda mientras esto pasa es multiplicar el caos: vas a tener que estar en dos lugares a la vez y ninguno va a funcionar bien.`);
+    } else {
+      bloques.push(`**Riesgo de desatender la primera barbería**\nCuando abras la segunda, tu atención va a estar dividida. Incluso si la primera funciona bien ahora, el cambio de foco puede generar problemas que antes no existían. Necesitás un sistema claro que mantenga la primera sin tu supervisión constante.`);
+    }
+
+    // Cuello 2: Líder para la primera
+    const sucesor = r['¿Tenés una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?'] || '';
+    if (sucesor.includes('No') || sucesor.includes('manejando ambas')) {
+      bloques.push(`**No tenés quién gestione la primera barbería**\nNo tenés una persona preparada para hacerse cargo cuando te vayas a la segunda. Sin eso, la apertura de la segunda es inviable. Formar a ese líder lleva tiempo — no es algo que se resuelve en semanas. Este es probablemente el cuello de botella más crítico que tenés hoy.`);
+    } else if (sucesor.includes('todavía necesita')) {
+      bloques.push(`**Tu sucesor aún no está listo**\nTenés a alguien en mente pero todavía necesita preparación. El riesgo es querer apurar ese proceso para poder avanzar con la segunda barbería. Un líder que no está listo puede generar más problemas que no tener a nadie — porque da la ilusión de que todo está cubierto.`);
+    } else {
+      bloques.push(`**Proceso de transición sin documentar**\nTenés a alguien para la primera, pero ¿tiene todo documentado para gestionar sin vos? Los procesos, las métricas que tiene que controlar, cómo manejar situaciones difíciles con el equipo. Sin eso escrito, cada decisión va a seguir pasando por vos.`);
+    }
+
+    // Cuello 3: Números y procesos
+    const numeros = r['¿Tenés separados los números de tu primera barbería?'] || '';
+    const procesos = r['¿Tenés procesos escritos que permitan que otra persona gestione la barbería?'] || '';
+    const agenda = r['¿Cómo está actualmente la agenda de tu primera barbería?'] || '';
+    if (numeros.includes('No') || numeros.includes('mezclo')) {
+      bloques.push(`**Sin control financiero separado**\nNo tenés los números de la primera barbería claros e independientes. Eso significa que no sabés si realmente es rentable o en qué margen operás. Antes de abrir una segunda, necesitás saber exactamente qué genera la primera — de lo contrario vas a multiplicar un modelo que quizás no sea tan rentable como creés.`);
+    } else if (procesos.includes('No') || procesos.includes('cabeza')) {
+      bloques.push(`**Sin procesos documentados**\nLos procesos clave de la barbería están en tu cabeza o no existen formalmente. Sin un manual de operación, la persona que quede a cargo no va a saber cómo hacer las cosas a tu nivel. Eso genera inconsistencias en el servicio y problemas de gestión que te van a llegar igual aunque no estés presente.`);
+    } else if (agenda.includes('50') || agenda.includes('Menos')) {
+      bloques.push(`**La primera barbería no llegó a su techo**\nLa agenda de tu primera barbería todavía no está llena. Eso significa que todavía hay margen de crecimiento donde estás. Antes de abrir una segunda, vale la pena preguntarse: ¿por qué no está al 90%+ la primera? Resolver eso primero es más rentable y menos riesgoso que abrir una segunda.`);
+    } else {
+      bloques.push(`**Riesgo financiero de la segunda apertura**\nAbrir una segunda barbería requiere capital que va a dejar de estar disponible para la primera. Si hay un mes difícil en ambas al mismo tiempo, necesitás capacidad financiera para sostener las dos. ¿Tenés ese colchón calculado?`);
+    }
+  }
+
+  return bloques.join('\n\n');
+}
+function showResult(raw) {
+  document.getElementById('res-nombre').textContent = state.nombre.split(' ')[0];
+  // Renderizar bloques separados por doble salto de línea
+  const bloques = raw.split(/\n\n+/);
+  const html = bloques.map((bloque, i) => {
+    const partes = bloque.split('\n');
+    const titulo = partes[0].replace(/\*\*(.+?)\*\*/g, '$1');
+    const cuerpo = partes.slice(1).join(' ').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return `<div class="diag-bloque">
+      <div class="diag-num">Cuello de botella ${i+1}</div>
+      <div class="diag-titulo">${titulo}</div>
+      ${cuerpo ? `<div class="diag-cuerpo">${cuerpo}</div>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('res-diagnostico').innerHTML = html;
+  showStep('step-result');
+}
+</script>
+</body>
+</html>

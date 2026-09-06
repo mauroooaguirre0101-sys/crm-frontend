@@ -204,6 +204,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <button class="tab-btn" id="tab-discord" onclick="switchTab('discord')">🎮 Discord</button>
   <button class="tab-btn" id="tab-tareas" onclick="switchTab('tareas')">Tareas Holding</button>
   <button class="tab-btn" id="tab-integraciones" onclick="switchTab('integraciones')">🔌 Integraciones</button>
+  <button class="tab-btn" id="tab-equipo" onclick="switchTab('equipo')">👥 Equipo Holding</button>
 </div>
 
 <div id="section-dashboard">
@@ -488,7 +489,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div style="font-size:17px;font-weight:700;color:var(--text)">🔌 Integraciones — Agendamiento por negocio</div>
       <div style="font-size:12px;color:var(--text3);margin-top:3px">Cada negocio conecta su proveedor de agenda. Los leads se crean automáticamente al agendar.</div>
     </div>
-    <button onclick="reloadIntegraciones()" style="font-size:11px;background:none;border:1px solid var(--line);color:var(--text3);cursor:pointer;padding:5px 12px;border-radius:8px">↻ Actualizar</button>
+    <button onclick="reloadIntegraciones();reloadMetaConnections()" style="font-size:11px;background:none;border:1px solid var(--line);color:var(--text3);cursor:pointer;padding:5px 12px;border-radius:8px">↻ Actualizar</button>
   </div>
 
   <!-- Per-negocio connection cards -->
@@ -502,6 +503,301 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       2. Hacé click en <strong style="color:var(--text2)">Conectar</strong> en la tarjeta del negocio y autorizá la app.<br>
       3. El webhook se crea automáticamente — cada cita agendada crea una llamada en ese negocio.<br>
       4. Callbacks: Calendly → <code style="font-size:10.5px;color:var(--text2)" id="cal-callback-url"></code> &nbsp;|&nbsp; GHL → <code style="font-size:10.5px;color:var(--text2)" id="ghl-callback-url"></code>
+    </div>
+  </div>
+
+  <!-- ── Redes Sociales — Instagram Business ── -->
+  <div style="margin-top:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text)">📸 Redes Sociales — Instagram Business</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Conectá la cuenta de Instagram Business de cada negocio para consultar métricas desde la Graph API.</div>
+      </div>
+    </div>
+    <div id="meta-connections-grid" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
+  </div>
+</div>
+
+<!-- ── Equipo Holding ── -->
+<div id="section-equipo" style="display:none;padding:24px;max-width:1100px;margin:0 auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:17px;font-weight:700;color:var(--text)">👥 Equipo Holding</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:3px">Gestión de miembros, reportes semanales y rendimiento del equipo</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="_equipoOpenFormularios()" style="font-size:11px;background:none;border:1px solid var(--line-strong);color:var(--text2);cursor:pointer;padding:6px 14px;border-radius:8px;font-family:inherit;font-weight:600">📋 Formularios</button>
+      <button onclick="_equipoOpenReporteIA()" style="font-size:11px;background:rgba(160,120,220,.12);border:1px solid rgba(160,120,220,.3);color:#c084fc;cursor:pointer;padding:6px 14px;border-radius:8px;font-family:inherit;font-weight:700">✨ Reporte IA</button>
+      <button onclick="_equipoOpenNuevoMiembro()" style="font-size:12px;background:rgba(224,181,74,.12);border:1px solid var(--gold-border);color:var(--gold);cursor:pointer;padding:6px 16px;border-radius:8px;font-family:inherit;font-weight:700">+ Nuevo Miembro</button>
+    </div>
+  </div>
+  <div id="equipo-filtro-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px"></div>
+  <div id="equipo-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px"></div>
+</div>
+
+<!-- Modal: Nuevo/Editar Miembro -->
+<div id="modal-miembro" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;max-width:480px;margin:40px auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700" id="modal-miembro-title">Nuevo Miembro</div>
+      <button onclick="document.getElementById('modal-miembro').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <input type="hidden" id="mm-id">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Foto de Perfil</div>
+        <input type="file" id="mm-foto-input" accept="image/*" style="display:none" onchange="_cropOnFileSelected(this)">
+        <div style="display:flex;align-items:flex-start;gap:14px">
+          <div onclick="document.getElementById('mm-foto-input').click()" style="width:80px;height:80px;border-radius:50%;background:var(--surface-3);border:2px dashed var(--line-strong);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;position:relative" id="mm-foto-preview-wrap">
+            <img id="mm-foto-preview-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%">
+            <span id="mm-foto-icon">📷</span>
+          </div>
+          <div style="flex:1">
+            <button onclick="document.getElementById('mm-foto-input').click()" style="font-size:11px;background:none;border:1px solid var(--line-strong);color:var(--text2);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;margin-bottom:8px">Cargar imagen</button>
+            <div id="mm-crop-area" style="display:none;margin-top:4px">
+              <canvas id="mm-crop-canvas" width="180" height="180" style="border-radius:50%;cursor:move;display:block;border:2px solid var(--gold-border)" onmousedown="_cropMouseDown(event)" onmousemove="_cropMouseMove(event)" onmouseup="_cropMouseUp()" onmouseleave="_cropMouseUp()" onwheel="_cropWheel(event)"></canvas>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+                <span style="font-size:10px;color:var(--text3)">Zoom</span>
+                <input type="range" id="mm-crop-zoom" min="10" max="300" value="100" oninput="_cropZoom(this.value)" style="flex:1;accent-color:var(--gold)">
+                <button onclick="_cropConfirmar()" style="font-size:11px;background:rgba(224,181,74,.15);border:1px solid var(--gold-border);color:var(--gold);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700">✓ Usar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="mm-foto">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Nombre *</div>
+        <input id="mm-nombre" type="text" placeholder="Nombre completo" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Email del usuario CRM</div>
+        <input id="mm-email" type="email" placeholder="email@ejemplo.com" oninput="_mmBuscarUsuario(this.value)" autocomplete="off" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none">
+        <div id="mm-email-match" style="display:none;margin-top:6px;background:var(--surface-3);border:1px solid var(--line-strong);border-radius:8px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:8px">
+          <div style="font-size:12px">
+            <span style="color:var(--text3)">Coincide con </span>
+            <span id="mm-email-match-label" style="font-weight:700;color:var(--text)"></span>
+          </div>
+          <button onclick="_mmConfirmarEmail()" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;flex-shrink:0">Confirmar ✓</button>
+        </div>
+        <div id="mm-email-no-match" style="display:none;margin-top:6px;font-size:11px;color:var(--text3)">Sin coincidencias en el CRM</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Áreas</div>
+          <div id="mm-areas-checks" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Rol</div>
+          <input id="mm-rol" type="text" placeholder="Ej: Closer" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Salario / Comisión</div>
+        <input id="mm-salario" type="text" placeholder="Ej: $500 + 5% comisión" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Tareas y Responsabilidades</div>
+        <textarea id="mm-tareas" rows="3" placeholder="Describí las tareas principales..." style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:vertical"></textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Negocios Asignados</div>
+        <div id="mm-clientes-checks" style="display:flex;flex-wrap:wrap;gap:7px;min-height:34px"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end">
+      <button onclick="document.getElementById('modal-miembro').style.display='none'" style="background:none;border:1px solid var(--line);color:var(--text3);padding:8px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Cancelar</button>
+      <button onclick="_equipoGuardarMiembro()" style="background:rgba(224,181,74,.15);border:1px solid var(--gold-border);color:var(--gold);padding:8px 22px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Formularios -->
+<div id="modal-formularios" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;max-width:700px;margin:40px auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700">📋 Formularios del Equipo</div>
+      <button onclick="document.getElementById('modal-formularios').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div id="formularios-list"></div>
+    <button onclick="_equipoNuevoFormulario()" style="margin-top:16px;width:100%;background:rgba(224,181,74,.08);border:1px dashed var(--gold-border);color:var(--gold);padding:10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">+ Nuevo Formulario</button>
+  </div>
+</div>
+
+<!-- Modal: Editor de Formulario -->
+<div id="modal-form-editor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;max-width:680px;margin:30px auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700" id="form-editor-title">Nuevo Formulario</div>
+      <button onclick="document.getElementById('modal-form-editor').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <input type="hidden" id="fe-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Nombre del Formulario</div>
+        <input id="fe-nombre" type="text" placeholder="Ej: Daily Setters" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Tipo</div>
+        <select id="fe-tipo" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;color-scheme:dark">
+          <option value="semanal">📅 Semanal (Viernes)</option>
+          <option value="daily">⚡ Daily (Lun–Jue)</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Negocio</div>
+        <select id="fe-cliente-id" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;color-scheme:dark">
+          <option value="">— General (todos) —</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Miembros Asignados</div>
+      <div id="fe-miembros-checks" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Preguntas</div>
+      <div id="fe-preguntas-list"></div>
+      <button onclick="_feAddPregunta()" style="margin-top:10px;width:100%;background:rgba(255,255,255,.03);border:1px dashed var(--line-strong);color:var(--text3);padding:9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">+ Agregar Pregunta</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="document.getElementById('modal-form-editor').style.display='none'" style="background:none;border:1px solid var(--line);color:var(--text3);padding:8px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Cancelar</button>
+      <button onclick="_feGuardarFormulario()" style="background:rgba(224,181,74,.15);border:1px solid var(--gold-border);color:var(--gold);padding:8px 22px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">Guardar Formulario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Panel: Perfil del Miembro -->
+<div id="panel-miembro" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;max-width:620px;margin:30px auto;padding:28px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <img id="panel-foto" src="" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--surface-2);border:2px solid var(--line-strong)">
+        <div>
+          <div id="panel-nombre" style="font-size:18px;font-weight:800;color:var(--text)"></div>
+          <div id="panel-rol" style="font-size:13px;font-weight:600;color:var(--text2);margin-top:3px"></div>
+          <div id="panel-area" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px"></div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('panel-miembro').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:var(--surface-2);border-radius:10px;padding:14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Salario / Comisión</div>
+        <div id="panel-salario" style="font-size:13px;color:var(--text)">—</div>
+      </div>
+      <div style="background:var(--surface-2);border-radius:10px;padding:14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Link Formulario</div>
+        <button id="panel-copy-link" onclick="_panelCopyLink()" style="font-size:11px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:var(--blue);padding:4px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600">📋 Copiar Link</button>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Tareas y Responsabilidades</div>
+      <div id="panel-tareas" style="font-size:13px;color:var(--text2);line-height:1.6;white-space:pre-wrap">—</div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:700">Reportes Semanales</div>
+        <select id="panel-mes-select" onchange="_panelLoadRespuestas()" style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;padding:5px 10px;color:var(--text);font-size:11px;font-family:inherit;outline:none;color-scheme:dark"></select>
+      </div>
+      <div id="panel-semanas-btns" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"></div>
+      <div id="panel-reporte-contenido"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reporte IA Global -->
+<div id="modal-reporte-ia" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;max-width:720px;margin:30px auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
+      <div>
+        <div style="font-size:15px;font-weight:800">✨ Reporte IA</div>
+        <div id="ia-negocio-label" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <button onclick="document.getElementById('modal-reporte-ia').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+
+    <!-- Selectors row -->
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Negocio</div>
+        <select id="ia-negocio" onchange="_iaOnNegocioChange()" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;color-scheme:dark"></select>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Tipo</div>
+        <select id="ia-tipo" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;color-scheme:dark">
+          <option value="semanal">Semanal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Mes</div>
+        <select id="ia-mes" style="width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;color-scheme:dark"></select>
+      </div>
+    </div>
+
+    <!-- Metric cards (shown after generation) -->
+    <div id="ia-metrics" style="display:none;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <div style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:12px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Facturación</div>
+        <div id="ia-m-fac" style="font-size:22px;font-weight:800;color:var(--gold)">—</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:12px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Cash Collected</div>
+        <div id="ia-m-cash" style="font-size:22px;font-weight:800;color:#4ade80">—</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:12px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Agendas</div>
+        <div id="ia-m-ag" style="font-size:22px;font-weight:800;color:#60a5fa">—</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:12px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px">Cierres</div>
+        <div id="ia-m-ci" style="font-size:22px;font-weight:800;color:#c084fc">—</div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="ia-progress" style="display:none;background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div id="ia-pct" style="font-size:11px;font-weight:700;color:#c084fc;min-width:32px">0%</div>
+        <div style="flex:1;background:var(--surface-3);border-radius:4px;height:5px">
+          <div id="ia-bar" style="background:#c084fc;height:5px;border-radius:4px;width:0%;transition:width .4s"></div>
+        </div>
+      </div>
+      <div id="ia-status" style="font-size:11px;color:var(--text3)">Iniciando análisis...</div>
+    </div>
+
+    <!-- AI text result -->
+    <div id="ia-resultado" style="display:none;background:var(--surface-2);border-radius:10px;padding:20px;font-size:13px;color:var(--text2);line-height:1.85;white-space:pre-wrap;max-height:440px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--line)"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="ia-pdf-btn" onclick="_iaExportarPDF()" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">📄 Exportar PDF</button>
+      <button onclick="_iaGenerarReporte()" style="background:rgba(160,120,220,.15);border:1px solid rgba(160,120,220,.35);color:#c084fc;padding:8px 22px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">✨ Generar Reporte</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Eliminar Cliente -->
+<div id="modal-eliminar-cliente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:700;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid rgba(239,68,68,.35);border-radius:16px;max-width:440px;width:100%;padding:28px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🗑️</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#ef4444">Eliminar Cliente</div>
+        <div id="del-cliente-label" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="font-size:12px;color:#ef4444;font-weight:700;margin-bottom:6px">⚠️ Esta acción es irreversible</div>
+      <div id="del-cliente-counts" style="font-size:12px;color:var(--text2);line-height:1.7"></div>
+    </div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Escribí <span style="color:#ef4444;font-family:monospace">ELIMINAR</span> para confirmar</div>
+      <input id="del-confirm-input" type="text" placeholder="ELIMINAR" autocomplete="off" style="width:100%;background:var(--surface-2);border:1.5px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'Courier New',monospace;font-weight:700;outline:none;letter-spacing:.5px" oninput="_delInputCheck(this)">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="_cerrarModalEliminar()" style="flex:1;background:none;border:1px solid var(--line);color:var(--text3);padding:10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">Cancelar</button>
+      <button id="del-confirm-btn" onclick="_ejecutarEliminarCliente()" disabled style="flex:1;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#ef4444;padding:10px;border-radius:8px;cursor:not-allowed;font-family:inherit;font-size:13px;font-weight:700;opacity:.5;transition:opacity .15s">Eliminar definitivamente</button>
     </div>
   </div>
 </div>
@@ -591,6 +887,9 @@ async function init(){
 }
 
 /* ── Client toggles ── */
+const OWNER_EMAIL = 'maurooo.aguirre0101@gmail.com';
+function _isOwner(){ return (localStorage.getItem('userEmail')||'') === OWNER_EMAIL; }
+
 function renderClientToggles(){
   const el=document.getElementById('client-toggles');
   el.style.display='flex';el.style.gap='8px';el.style.flexWrap='wrap';
@@ -598,8 +897,11 @@ function renderClientToggles(){
     allClients.map((cid,i)=>{
       const col=CLIENT_COLORS[i%CLIENT_COLORS.length];
       const on=activeClients.has(cid);
-      return `<div class="ctoggle ${on?'':'off'}" style="border-color:${col};color:${col}" onclick="toggleClient('${cid}',this)">
-        <div class="ctoggle-dot" style="background:${col}"></div>${clientLabel(cid)}
+      const delBtn = _isOwner()
+        ? `<span onclick="event.stopPropagation();_confirmarEliminarCliente('${cid}')" title="Eliminar cliente" style="margin-left:6px;opacity:.55;font-size:11px;cursor:pointer;line-height:1" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='.55'">✕</span>`
+        : '';
+      return `<div class="ctoggle ${on?'':'off'}" style="border-color:${col};color:${col};display:flex;align-items:center" onclick="toggleClient('${cid}',this)">
+        <div class="ctoggle-dot" style="background:${col}"></div>${clientLabel(cid)}${delBtn}
       </div>`;
     }).join('');
 }
@@ -1026,7 +1328,7 @@ async function deleteGasto(id){
 let _activeTab = 'dashboard';
 function switchTab(tab){
   _activeTab = tab;
-  ['dashboard','finanzas','exito','discord','tareas','integraciones'].forEach(t=>{
+  ['dashboard','finanzas','exito','discord','tareas','integraciones','equipo'].forEach(t=>{
     const s=document.getElementById('section-'+t);
     if(s) s.style.display=t===tab?'':'none';
   });
@@ -1037,7 +1339,8 @@ function switchTab(tab){
   if(tab==='dashboard') loadMTDChart();
   if(tab==='exito') reloadExito();
   if(tab==='discord') reloadDiscordCfg();
-  if(tab==='integraciones') reloadIntegraciones();
+  if(tab==='integraciones') { reloadIntegraciones(); reloadMetaConnections(); }
+  if(tab==='equipo') _equipoLoad();
 }
 
 // ── Kanban ──
@@ -1048,7 +1351,35 @@ const COLUMNAS=[
   {id:'terminado',  label:'Terminado',   color:'#5cb87a'},
 ];
 const AREAS=['Marketing','Ventas','Productos','Sistemas','Otro'];
-const AREA_COLORS={Marketing:'#9b74d4',Ventas:'#6090d4',Productos:'#5bbbd4',Sistemas:'#e0a848',Otro:'#5a607a'};
+const AREA_COLORS={
+  'Marketing':              '#3b82f6', // azul
+  'Ventas':                 '#22c55e', // verde
+  'Sistemas y Operaciones': '#f97316', // naranja
+  'Producto':               '#a855f7', // violeta
+};
+const AREAS_LIST = ['Marketing','Ventas','Sistemas y Operaciones','Producto'];
+
+function _areaBadge(areaOrAreas){
+  const list = Array.isArray(areaOrAreas) ? areaOrAreas : (areaOrAreas ? [areaOrAreas] : []);
+  if(!list.length) return '';
+  return list.map(area=>{
+    const col=AREA_COLORS[area];
+    if(!col) return `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">${area}</span>`;
+    return `<span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:${col}22;border:1px solid ${col}55;color:${col};padding:3px 9px;border-radius:20px;white-space:nowrap">${area}</span>`;
+  }).join(' ');
+}
+
+function _mmRenderAreasChecks(selected){
+  const el=document.getElementById('mm-areas-checks');
+  const sel=Array.isArray(selected)?selected:(selected?[selected]:[]);
+  el.innerHTML=AREAS_LIST.map(area=>{
+    const col=AREA_COLORS[area]||'#94a3b8';
+    return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0">
+      <input type="checkbox" value="${area}" ${sel.includes(area)?'checked':''} style="width:15px;height:15px;accent-color:${col};cursor:pointer;flex-shrink:0">
+      <span style="font-size:12px;font-weight:600;color:${col}">${area}</span>
+    </label>`;
+  }).join('');
+}
 const PRIO_COLORS={Alta:'#d46060',Media:'#e0a848',Baja:'#6090d4'};
 
 let tareasData=[], tareasNegocio=null, _editTaskId=null, _dragSrcId=null, _holdingUsers=[], _tasksSummary=[];
@@ -1667,7 +1998,7 @@ async function saveAllTemplates(){
 // ══════════════════════════════════════════
 let _integProviders = {}; // negocio_id → { provider, connected, info }
 
-// Listen for OAuth popup postMessage (Calendly + GHL)
+// Listen for OAuth popup postMessage (Calendly + GHL + Meta)
 window.addEventListener('message', e => {
   if (!e.data || typeof e.data !== 'object') return;
   if (e.data.type === 'calendly_connected') {
@@ -1680,6 +2011,11 @@ window.addEventListener('message', e => {
     reloadIntegraciones();
   } else if (e.data.type === 'ghl_error') {
     toast('Error al conectar GoHighLevel: ' + e.data.error);
+  } else if (e.data.type === 'meta_connected') {
+    toast(`✓ Instagram Business conectado para ${clientLabel(e.data.cliente_id)}`);
+    reloadMetaConnections();
+  } else if (e.data.type === 'meta_error') {
+    toast('Error al conectar Instagram: ' + e.data.error);
   }
 });
 
@@ -1862,6 +2198,111 @@ function _tryParseHolding(str) {
   try { return JSON.parse(str); } catch { return {}; }
 }
 
+// ── Meta / Instagram Business ──────────────────────────────────────────────
+let _metaStatus = {}; // negocio_id → connection data or null
+
+async function reloadMetaConnections() {
+  if (!allClients.length) return;
+  const results = await Promise.all(allClients.map(async cid => {
+    try {
+      const r = await fetch(`${API_URL}/meta/connection-status`, {
+        headers: { ...apiH(), 'x-cliente-id': cid }
+      });
+      return { cid, data: r.ok ? await r.json() : null };
+    } catch { return { cid, data: null }; }
+  }));
+  _metaStatus = {};
+  for (const { cid, data } of results) _metaStatus[cid] = data;
+  renderMetaConnections();
+}
+
+function renderMetaConnections() {
+  const grid = document.getElementById('meta-connections-grid');
+  if (!grid) return;
+
+  grid.innerHTML = allClients.map((cid, i) => {
+    const col   = CLIENT_COLORS[i % CLIENT_COLORS.length];
+    const label = clientLabel(cid);
+    const conn  = _metaStatus[cid];
+
+    const statusBadge = conn
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(92,184,122,.12);border:1px solid rgba(92,184,122,.25);color:#5cb87a">● Conectado</span>`
+      : `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(155,160,180,.1);border:1px solid rgba(155,160,180,.2);color:var(--text3)">Sin conectar</span>`;
+
+    if (conn) {
+      const connectedAt = conn.connected_at
+        ? new Date(conn.connected_at).toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+      const expiresAt = conn.token_expires_at
+        ? new Date(conn.token_expires_at).toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+
+      return `
+        <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:4px">
+              <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(225,68,141,.1);border:1px solid rgba(225,68,141,.25);color:#e1448d;margin-right:4px">Instagram</span>
+              ${statusBadge}
+            </div>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">@${esc(conn.ig_username || '—')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">📄 ${esc(conn.fb_page_name || '—')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:14px">
+            📅 Conectado el ${connectedAt} &nbsp;·&nbsp; Token expira ${expiresAt}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="connectMeta('${cid}')"
+              style="flex:1;padding:7px;background:var(--surface-3);border:1px solid var(--line);color:var(--text2);border-radius:8px;font-size:11px;cursor:pointer">
+              ↻ Reconectar
+            </button>
+            <button onclick="disconnectMeta('${cid}')"
+              style="padding:7px 14px;background:rgba(212,96,96,.08);border:1px solid rgba(212,96,96,.2);color:var(--red);border-radius:8px;font-size:11px;cursor:pointer">
+              Desconectar
+            </button>
+          </div>
+        </div>`;
+    } else {
+      return `
+        <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${esc(label)}</span>
+            <div style="margin-left:auto">${statusBadge}</div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
+            Conectá la cuenta de Instagram Business para obtener métricas de alcance, seguidores, reels y más.
+          </div>
+          <button onclick="connectMeta('${cid}')"
+            style="width:100%;padding:9px;background:rgba(225,68,141,.1);border:1px solid rgba(225,68,141,.3);color:#e1448d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+            📸 Conectar Instagram Business
+          </button>
+        </div>`;
+    }
+  }).join('');
+}
+
+function connectMeta(clienteId) {
+  const url   = `${API_URL}/meta/connect?cliente_id=${encodeURIComponent(clienteId)}`;
+  const popup = window.open(url, 'meta_oauth', 'width=520,height=640,left=200,top=100');
+  if (!popup) { toast('Permitir popups para conectar'); return; }
+  const iv = setInterval(() => {
+    if (popup.closed) { clearInterval(iv); setTimeout(() => reloadMetaConnections(), 800); }
+  }, 800);
+}
+
+async function disconnectMeta(clienteId) {
+  if (!confirm(`¿Desconectar Instagram Business de ${clientLabel(clienteId)}?`)) return;
+  try {
+    const r = await fetch(`${API_URL}/meta/disconnect`, {
+      method: 'DELETE', headers: { ...apiH(), 'x-cliente-id': clienteId }
+    });
+    if (r.ok) { toast('Instagram desconectado'); await reloadMetaConnections(); }
+    else { const e = await r.json(); toast('Error: ' + (e.error || r.status)); }
+  } catch { toast('Error de red'); }
+}
+
 // ── Calendly connect/disconnect ──
 function connectCalendly(clienteId){
   const url   = `${API_URL}/calendly/connect?cliente_id=${encodeURIComponent(clienteId)}`;
@@ -1967,6 +2408,859 @@ async function syncGHL(clienteId) {
 }
 
 init();
+
+// ── EQUIPO HOLDING ──────────────────────────────────────────────────────────
+
+let _equipoMiembros = [];
+let _equipoFormularios = [];
+let _panelMiembroActual = null;
+let _panelSemanaActual = null;
+let _panelIATexto = '';
+
+const API_HOLDING = API_URL;
+const MESES_NOM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function _getHeaders(){
+  return { 'Content-Type':'application/json', 'x-cliente-id': getCid(), 'x-user-email': getUserEmail() };
+}
+function getCid(){ return localStorage.getItem('holdingClienteId') || localStorage.getItem('clienteSeleccionado') || ''; }
+function getUserEmail(){
+  try{ const u=JSON.parse(localStorage.getItem('holdingUser')||'{}'); return u.email||localStorage.getItem('userEmail')||''; }catch{ return ''; }
+}
+
+function _semanaDelMes(date){
+  const d = date || new Date();
+  return Math.min(4, Math.ceil(d.getDate() / 7));
+}
+
+async function _equipoLoad(){
+  try{
+    const [rM, rF] = await Promise.all([
+      fetch(API_HOLDING+'/holding/miembros', {headers:_getHeaders()}),
+      fetch(API_HOLDING+'/holding/formularios', {headers:_getHeaders()})
+    ]);
+    if(rM.ok) _equipoMiembros = await rM.json();
+    if(rF.ok) _equipoFormularios = await rF.json();
+    await _equipoRender();
+  } catch(e){ console.error('equipo load error', e); }
+}
+
+let _equipoFiltroNegocio = '';
+
+function _equipoRenderFiltro(){
+  const bar = document.getElementById('equipo-filtro-bar');
+  if(!bar) return;
+  const clientesConMiembros = [...new Set(_equipoMiembros.flatMap(m=>m.clientes_ids||[]).filter(Boolean))];
+  if(!clientesConMiembros.length){ bar.innerHTML=''; return; }
+  const pill = (cid, label, active) =>
+    `<button onclick="_equipoFiltrarNegocio('${cid}')" style="font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .15s;${active?'background:rgba(224,181,74,.18);border:1.5px solid var(--gold-border);color:var(--gold)':'background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text3)'}">${label}</button>`;
+  bar.innerHTML = pill('', 'Todos', !_equipoFiltroNegocio) +
+    clientesConMiembros.map(cid => pill(cid, clientLabel(cid), _equipoFiltroNegocio===cid)).join('');
+}
+
+function _equipoFiltrarNegocio(cid){
+  _equipoFiltroNegocio = cid;
+  _equipoRenderFiltro();
+  _equipoRenderGrid();
+}
+
+async function _equipoRender(){
+  const grid = document.getElementById('equipo-grid');
+  if(!grid) return;
+  _equipoRenderFiltro();
+  if(!_equipoMiembros.length){
+    grid.innerHTML='<div style="grid-column:1/-1;padding:60px;text-align:center;color:var(--text3)">Sin miembros. Hacé click en "+ Nuevo Miembro" para empezar.</div>';
+    return;
+  }
+  const now = new Date();
+  const mes = now.getMonth(), anio = now.getFullYear();
+  const rR = await fetch(`${API_HOLDING}/holding/respuestas?mes=${mes}&anio=${anio}`, {headers:_getHeaders()});
+  const respuestas = rR.ok ? await rR.json() : [];
+  window._equipoRespuestasCache = respuestas;
+  _equipoRenderGrid();
+}
+
+function _equipoRenderGrid(){
+  const grid = document.getElementById('equipo-grid');
+  if(!grid) return;
+  const respuestas = window._equipoRespuestasCache || [];
+
+  // Only count responses belonging to forms that still exist
+  const formIds = new Set(_equipoFormularios.map(f => f.id));
+
+  // Apply negocio filter
+  const miembros = _equipoFiltroNegocio
+    ? _equipoMiembros.filter(m=>(m.clientes_ids||[]).includes(_equipoFiltroNegocio))
+    : _equipoMiembros;
+
+  if(!miembros.length){
+    grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text3)">Sin miembros en este negocio.</div>';
+    return;
+  }
+
+  grid.innerHTML = miembros.map(m => {
+    const reps = formIds.size > 0
+      ? respuestas.filter(r => r.miembro_id === m.id && formIds.has(r.formulario_id))
+      : [];
+    const semanasOk = new Set(reps.map(r => r.semana));
+    const semanasHtml = [1,2,3,4].map(s => {
+      const ok = semanasOk.has(s);
+      return `<div style="width:36px;height:36px;border-radius:8px;border:1.5px solid ${ok?'var(--green)':'var(--line-strong)'};background:${ok?'rgba(74,222,128,.12)':'transparent'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;color:${ok?'var(--green)':'var(--text3)'}" onclick="event.stopPropagation();_panelAbrirSemana('${m.id}',${s})" title="Semana ${s}">${ok?'✓':s}</div>`;
+    }).join('');
+    const fotoHtml = m.foto_url
+      ? `<img src="${m.foto_url}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--line-strong);flex-shrink:0" onerror="this.style.display='none'">`
+      : `<div style="width:52px;height:52px;border-radius:50%;background:var(--surface-3);border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--text3);flex-shrink:0">${(m.nombre||'?')[0].toUpperCase()}</div>`;
+    return `<div onclick="_equipoAbrirPerfil('${m.id}')" style="background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;padding:18px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--line-strong)'">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        ${fotoHtml}
+        <div style="min-width:0;flex:1">
+          <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.nombre}</div>
+          ${m.rol?`<div style="font-size:11px;color:var(--text3);margin-top:2px;margin-bottom:4px">${m.rol}</div>`:'<div style="margin-bottom:4px"></div>'}
+          ${_areaBadge(m.areas||m.area)}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button onclick="event.stopPropagation();_equipoOpenEditarMiembro('${m.id}')" style="background:none;border:1px solid var(--line);border-radius:6px;color:var(--text3);padding:3px 7px;cursor:pointer;font-size:12px" title="Editar">✎</button>
+          <button onclick="event.stopPropagation();_equipoEliminarMiembro('${m.id}')" style="background:none;border:1px solid rgba(239,68,68,.3);border-radius:6px;color:#ef4444;padding:3px 7px;cursor:pointer;font-size:12px" title="Eliminar">✕</button>
+        </div>
+      </div>
+      ${(m.clientes_ids||[]).length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${(m.clientes_ids||[]).map(cid=>`<span style="font-size:10px;font-weight:700;background:rgba(224,181,74,.1);border:1px solid var(--gold-border);color:var(--gold);padding:2px 8px;border-radius:12px">${clientLabel(cid)}</span>`).join('')}</div>` : ''}
+      <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">SEMANAS</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">${semanasHtml}</div>
+      <div style="font-size:11px;color:var(--text3)">${semanasOk.size} completado${semanasOk.size!==1?'s':''} este mes</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Photo Cropper ─────────────────────────────────────────────────────────
+let _cropImgEl=null, _cropOffX=0, _cropOffY=0, _cropScl=1;
+let _cropDragging=false, _cropLastX=0, _cropLastY=0;
+const CROP_SIZE=180;
+
+function _cropOnFileSelected(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      _cropImgEl=img;
+      _cropScl=Math.max(CROP_SIZE/img.width, CROP_SIZE/img.height);
+      _cropOffX=(CROP_SIZE-img.width*_cropScl)/2;
+      _cropOffY=(CROP_SIZE-img.height*_cropScl)/2;
+      document.getElementById('mm-crop-zoom').value=100;
+      document.getElementById('mm-crop-area').style.display='block';
+      _cropDraw();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function _cropDraw(){
+  if(!_cropImgEl) return;
+  const canvas=document.getElementById('mm-crop-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,CROP_SIZE,CROP_SIZE);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CROP_SIZE/2,CROP_SIZE/2,CROP_SIZE/2,0,Math.PI*2); ctx.clip();
+  ctx.drawImage(_cropImgEl,_cropOffX,_cropOffY,_cropImgEl.width*_cropScl,_cropImgEl.height*_cropScl);
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(CROP_SIZE/2,CROP_SIZE/2,CROP_SIZE/2,0,Math.PI*2);
+  ctx.strokeStyle='rgba(224,181,74,.7)'; ctx.lineWidth=2; ctx.stroke();
+}
+function _cropMouseDown(e){ _cropDragging=true; _cropLastX=e.offsetX; _cropLastY=e.offsetY; }
+function _cropMouseMove(e){
+  if(!_cropDragging) return;
+  _cropOffX+=e.offsetX-_cropLastX; _cropOffY+=e.offsetY-_cropLastY;
+  _cropLastX=e.offsetX; _cropLastY=e.offsetY; _cropDraw();
+}
+function _cropMouseUp(){ _cropDragging=false; }
+function _cropWheel(e){ e.preventDefault(); _cropScl=Math.max(.1,_cropScl+(e.deltaY<0?.05:-.05)); document.getElementById('mm-crop-zoom').value=Math.round(_cropScl*100); _cropDraw(); }
+function _cropZoom(val){ _cropScl=val/100; _cropDraw(); }
+function _cropConfirmar(){
+  const canvas=document.getElementById('mm-crop-canvas');
+  const data=canvas.toDataURL('image/jpeg',.88);
+  document.getElementById('mm-foto').value=data;
+  const img=document.getElementById('mm-foto-preview-img');
+  img.src=data; img.style.display='block';
+  document.getElementById('mm-foto-icon').style.display='none';
+  document.getElementById('mm-crop-area').style.display='none';
+}
+
+// ── Email / User match ──────────────────────────────────────────────────
+let _holdingUsersCache = [];
+let _mmEmailConfirmado = '';
+
+async function _mmEnsureUsers(){
+  if(_holdingUsersCache.length) return;
+  try{
+    const r=await fetch(`${API_HOLDING}/holding/users`,{headers:_getHeaders()});
+    if(r.ok){
+      const users=await r.json();
+      // Fetch nicknames for display
+      const rn=await fetch(`${API_HOLDING}/user-nicknames`,{headers:_getHeaders()});
+      const nicks=rn.ok?await rn.json():[];
+      const nickMap={};
+      (nicks||[]).forEach(n=>{nickMap[n.user_email]=n.nickname;});
+      _holdingUsersCache=users.map(u=>({email:u.email||u.user_email,label:(nickMap[u.email||u.user_email]||(u.email||u.user_email))}));
+    }
+  }catch{}
+}
+
+async function _mmBuscarUsuario(val){
+  const matchEl=document.getElementById('mm-email-match');
+  const noMatchEl=document.getElementById('mm-email-no-match');
+  _mmEmailConfirmado='';
+  matchEl.style.display='none'; noMatchEl.style.display='none';
+  const q=(val||'').trim().toLowerCase();
+  if(q.length<4) return;
+  await _mmEnsureUsers();
+  const found=_holdingUsersCache.find(u=>u.email.toLowerCase()===q||u.email.toLowerCase().startsWith(q));
+  if(found){
+    document.getElementById('mm-email-match-label').textContent=`${found.label} (${found.email})`;
+    matchEl.style.display='flex';
+  } else if(q.includes('@')){
+    noMatchEl.style.display='block';
+  }
+}
+
+function _mmConfirmarEmail(){
+  const val=document.getElementById('mm-email').value.trim();
+  _mmEmailConfirmado=val;
+  const matchEl=document.getElementById('mm-email-match');
+  matchEl.style.background='rgba(74,222,128,.08)';
+  matchEl.style.borderColor='rgba(74,222,128,.4)';
+  matchEl.querySelector('button').textContent='✓ Confirmado';
+  matchEl.querySelector('button').style.background='rgba(74,222,128,.2)';
+}
+
+function _mmPopulateClientesChecks(selectedIds){
+  const el=document.getElementById('mm-clientes-checks');
+  if(!allClients.length){ el.innerHTML='<span style="font-size:12px;color:var(--text3)">Sin negocios disponibles</span>'; return; }
+  el.innerHTML=allClients.map(cid=>`
+    <label style="display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:12px;white-space:nowrap">
+      <input type="checkbox" value="${cid}" ${(selectedIds||[]).includes(cid)?'checked':''} style="accent-color:var(--gold)"> ${clientLabel(cid)}
+    </label>`).join('');
+}
+
+function _mmResetFoto(){
+  const img=document.getElementById('mm-foto-preview-img');
+  img.src=''; img.style.display='none';
+  document.getElementById('mm-foto-icon').style.display='';
+  document.getElementById('mm-crop-area').style.display='none';
+  document.getElementById('mm-foto-input').value='';
+  _cropImgEl=null;
+}
+
+function _mmResetEmail(){
+  document.getElementById('mm-email').value='';
+  document.getElementById('mm-email-match').style.display='none';
+  document.getElementById('mm-email-no-match').style.display='none';
+  _mmEmailConfirmado='';
+}
+
+function _equipoOpenNuevoMiembro(){
+  document.getElementById('mm-id').value='';
+  document.getElementById('mm-foto').value='';
+  document.getElementById('mm-nombre').value='';
+  document.getElementById('mm-rol').value='';
+  _mmRenderAreasChecks([]);
+  document.getElementById('mm-salario').value='';
+  document.getElementById('mm-tareas').value='';
+  _mmResetFoto();
+  _mmResetEmail();
+  _mmPopulateClientesChecks([]);
+  document.getElementById('modal-miembro-title').textContent='Nuevo Miembro';
+  document.getElementById('modal-miembro').style.display='block';
+}
+
+function _equipoOpenEditarMiembro(id){
+  const m = _equipoMiembros.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById('mm-id').value=m.id;
+  document.getElementById('mm-foto').value=m.foto_url||'';
+  document.getElementById('mm-nombre').value=m.nombre||'';
+  document.getElementById('mm-rol').value=m.rol||'';
+  _mmRenderAreasChecks(m.areas||( m.area?[m.area]:[] ));
+  document.getElementById('mm-salario').value=m.salario||'';
+  document.getElementById('mm-tareas').value=m.tareas||'';
+  _mmResetFoto();
+  if(m.foto_url){ const img=document.getElementById('mm-foto-preview-img'); img.src=m.foto_url; img.style.display='block'; document.getElementById('mm-foto-icon').style.display='none'; }
+  _mmResetEmail();
+  if(m.email){
+    document.getElementById('mm-email').value=m.email;
+    _mmEmailConfirmado=m.email;
+    // Show confirmed state directly
+    const matchEl=document.getElementById('mm-email-match');
+    document.getElementById('mm-email-match-label').textContent=m.email;
+    matchEl.style.display='flex';
+    matchEl.style.background='rgba(74,222,128,.08)';
+    matchEl.style.borderColor='rgba(74,222,128,.4)';
+    matchEl.querySelector('button').textContent='✓ Confirmado';
+  }
+  _mmPopulateClientesChecks(m.clientes_ids||[]);
+  document.getElementById('modal-miembro-title').textContent='Editar Miembro';
+  document.getElementById('modal-miembro').style.display='block';
+}
+
+async function _equipoGuardarMiembro(){
+  const id = document.getElementById('mm-id').value;
+  const body = {
+    nombre: document.getElementById('mm-nombre').value.trim(),
+    areas: [...document.querySelectorAll('#mm-areas-checks input[type=checkbox]:checked')].map(cb=>cb.value),
+    rol: document.getElementById('mm-rol').value.trim(),
+    foto_url: document.getElementById('mm-foto').value.trim(),
+    salario: document.getElementById('mm-salario').value.trim(),
+    tareas: document.getElementById('mm-tareas').value.trim(),
+    clientes_ids: [...document.querySelectorAll('#mm-clientes-checks input[type=checkbox]:checked')].map(cb=>cb.value),
+    email: _mmEmailConfirmado || document.getElementById('mm-email').value.trim()
+  };
+  if(!body.nombre) return;
+  const url = id ? `${API_HOLDING}/holding/miembros/${id}` : `${API_HOLDING}/holding/miembros`;
+  const method = id ? 'PATCH' : 'POST';
+  const r = await fetch(url, {method, headers:_getHeaders(), body:JSON.stringify(body)});
+  if(r.ok){
+    document.getElementById('modal-miembro').style.display='none';
+    await _equipoLoad();
+  }
+}
+
+async function _equipoOpenFormularios(){
+  await _equipoLoadFormularios();
+  document.getElementById('modal-formularios').style.display='block';
+}
+
+async function _equipoLoadFormularios(){
+  const r = await fetch(API_HOLDING+'/holding/formularios', {headers:_getHeaders()});
+  if(r.ok) _equipoFormularios = await r.json();
+  const list = document.getElementById('formularios-list');
+  if(!list) return;
+  if(!_equipoFormularios.length){
+    list.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Sin formularios. Creá uno nuevo.</div>';
+    return;
+  }
+  list.innerHTML = _equipoFormularios.map(f => {
+    const asignados = (f.miembros_ids||[]).map(mid=>{ const m=_equipoMiembros.find(x=>x.id===mid); return m?m.nombre:'?'; }).join(', ');
+    return `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div>
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:700">${f.nombre}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;${f.tipo==='daily'?'background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.3);color:#fb923c':'background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:#60a5fa'}">${f.tipo==='daily'?'⚡ Daily':'📅 Semanal'}</span>
+          ${f.cliente_id?`<span style="font-size:10px;font-weight:600;color:var(--gold);background:rgba(224,181,74,.1);border:1px solid var(--gold-border);border-radius:12px;padding:2px 8px">${clientLabel(f.cliente_id)}</span>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">${(f.preguntas||[]).length} preguntas · ${asignados||'Sin asignar'}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="_equipoEditarFormulario('${f.id}')" style="background:none;border:1px solid var(--line);color:var(--text2);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit">✎ Editar</button>
+        <button onclick="_equipoEliminarFormulario('${f.id}')" style="background:none;border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _equipoNuevoFormulario(){
+  document.getElementById('fe-id').value='';
+  document.getElementById('fe-nombre').value='';
+  document.getElementById('fe-tipo').value='semanal';
+  document.getElementById('form-editor-title').textContent='Nuevo Formulario';
+  _fePopulateClienteSelect('');
+  _feRenderMiembrosChecks([]);
+  _fePreguntas=[];
+  _feRenderPreguntas();
+  document.getElementById('modal-form-editor').style.display='block';
+}
+
+function _equipoEditarFormulario(id){
+  const f = _equipoFormularios.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('fe-id').value=f.id;
+  document.getElementById('fe-nombre').value=f.nombre||'';
+  document.getElementById('fe-tipo').value=f.tipo||'semanal';
+  document.getElementById('form-editor-title').textContent='Editar Formulario';
+  _fePopulateClienteSelect(f.cliente_id||'');
+  _feRenderMiembrosChecks(f.miembros_ids||[]);
+  _fePreguntas = JSON.parse(JSON.stringify(f.preguntas||[]));
+  _feRenderPreguntas();
+  document.getElementById('modal-form-editor').style.display='block';
+}
+
+async function _equipoEliminarMiembro(id){
+  const m = _equipoMiembros.find(x=>x.id===id);
+  if(!m) return;
+  if(!confirm(`¿Eliminar a ${m.nombre}? Sus respuestas también se borrarán.`)) return;
+  const r = await fetch(`${API_HOLDING}/holding/miembros/${id}`, {method:'DELETE', headers:_getHeaders()});
+  if(r.ok) await _equipoLoad();
+}
+
+async function _equipoEliminarFormulario(id){
+  if(!confirm('¿Eliminar este formulario?')) return;
+  await fetch(`${API_HOLDING}/holding/formularios/${id}`, {method:'DELETE', headers:_getHeaders()});
+  await _equipoLoadFormularios();
+}
+
+function _feRenderMiembrosChecks(selected){
+  const el = document.getElementById('fe-miembros-checks');
+  if(!el) return;
+  el.innerHTML = _equipoMiembros.map(m =>
+    `<label style="display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:12px">
+      <input type="checkbox" value="${m.id}" ${selected.includes(m.id)?'checked':''} style="accent-color:var(--gold)"> ${m.nombre}
+    </label>`
+  ).join('');
+}
+
+let _fePreguntas = [];
+function _feAddPregunta(){
+  const id = 'q' + Date.now();
+  _fePreguntas.push({ id, tipo:'radio', texto:'', opciones:['Opción 1','Opción 2'], otros:false, obligatoria:false });
+  _feRenderPreguntas();
+}
+
+function _feRenderPreguntas(){
+  const el = document.getElementById('fe-preguntas-list');
+  if(!el) return;
+  el.innerHTML = _fePreguntas.map((q, idx) => `
+    <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:10px;font-weight:700;color:var(--text3)">#${idx+1}</span>
+        <input value="${q.texto.replace(/"/g,'&quot;')}" oninput="_feUpdateQ('${q.id}','texto',this.value)" placeholder="Texto de la pregunta..." style="flex:1;background:var(--surface-3);border:1px solid var(--line);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none">
+        <select onchange="_feUpdateQ('${q.id}','tipo',this.value)" style="background:var(--surface-3);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--text);font-size:11px;font-family:inherit;outline:none">
+          <option value="radio" ${q.tipo==='radio'?'selected':''}>Opción única</option>
+          <option value="checkbox" ${q.tipo==='checkbox'?'selected':''}>Múltiple</option>
+          <option value="textarea" ${q.tipo==='textarea'?'selected':''}>Texto libre</option>
+          <option value="number" ${q.tipo==='number'?'selected':''}>Número</option>
+        </select>
+        <button onclick="_feDeleteQ('${q.id}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;line-height:1">×</button>
+      </div>
+      ${q.tipo!=='textarea'&&q.tipo!=='number'?`
+        <div style="margin-bottom:8px">
+          ${(q.opciones||[]).map((op,oi)=>`
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+              <span style="color:var(--text3);font-size:11px">${oi+1}.</span>
+              <input value="${op.replace(/"/g,'&quot;')}" oninput="_feUpdateOpcion('${q.id}',${oi},this.value)" style="flex:1;background:var(--surface-3);border:1px solid var(--line);border-radius:5px;padding:4px 8px;color:var(--text);font-size:12px;font-family:inherit;outline:none">
+              <button onclick="_feDeleteOpcion('${q.id}',${oi})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px">×</button>
+            </div>`).join('')}
+          <button onclick="_feAddOpcion('${q.id}')" style="background:none;border:1px dashed var(--line);color:var(--text3);padding:3px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:inherit;margin-top:2px">+ Opción</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer">
+          <input type="checkbox" ${q.otros?'checked':''} onchange="_feUpdateQ('${q.id}','otros',this.checked)" style="accent-color:var(--gold)"> Incluir opción "Otros"
+        </label>`:''}
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;margin-top:6px">
+        <input type="checkbox" ${q.obligatoria?'checked':''} onchange="_feUpdateQ('${q.id}','obligatoria',this.checked)" style="accent-color:var(--gold)"> Obligatoria
+      </label>
+    </div>`).join('');
+}
+
+function _feUpdateQ(id, key, val){
+  const q = _fePreguntas.find(x=>x.id===id);
+  if(q){ q[key]=val; if(key==='tipo') _feRenderPreguntas(); }
+}
+function _feUpdateOpcion(id, idx, val){
+  const q = _fePreguntas.find(x=>x.id===id);
+  if(q&&q.opciones) q.opciones[idx]=val;
+}
+function _feAddOpcion(id){
+  const q = _fePreguntas.find(x=>x.id===id);
+  if(q){ q.opciones.push('Nueva opción'); _feRenderPreguntas(); }
+}
+function _feDeleteOpcion(id, idx){
+  const q = _fePreguntas.find(x=>x.id===id);
+  if(q&&q.opciones.length>1){ q.opciones.splice(idx,1); _feRenderPreguntas(); }
+}
+function _feDeleteQ(id){
+  _fePreguntas = _fePreguntas.filter(x=>x.id!==id);
+  _feRenderPreguntas();
+}
+
+function _fePopulateClienteSelect(selectedId){
+  const sel=document.getElementById('fe-cliente-id');
+  sel.innerHTML='<option value="">— General (todos) —</option>'+
+    allClients.map(cid=>`<option value="${cid}" ${cid===selectedId?'selected':''}>${clientLabel(cid)}</option>`).join('');
+}
+
+async function _feGuardarFormulario(){
+  const id = document.getElementById('fe-id').value;
+  const nombre = document.getElementById('fe-nombre').value.trim();
+  if(!nombre) return;
+  const checks = document.querySelectorAll('#fe-miembros-checks input[type=checkbox]:checked');
+  const miembros_ids = Array.from(checks).map(c=>c.value);
+  const cliente_id = document.getElementById('fe-cliente-id').value;
+  const tipo = document.getElementById('fe-tipo').value;
+  const body = { nombre, preguntas: _fePreguntas, miembros_ids, cliente_id, tipo };
+  const url = id ? `${API_HOLDING}/holding/formularios/${id}` : `${API_HOLDING}/holding/formularios`;
+  const r = await fetch(url, {method: id?'PATCH':'POST', headers:_getHeaders(), body:JSON.stringify(body)});
+  if(r.ok){
+    document.getElementById('modal-form-editor').style.display='none';
+    await _equipoLoadFormularios();
+  }
+}
+
+async function _equipoAbrirPerfil(id){
+  const m = _equipoMiembros.find(x=>x.id===id);
+  if(!m) return;
+  _panelMiembroActual = m;
+  _panelSemanaActual = null;
+  _panelIATexto = '';
+
+  const foto = document.getElementById('panel-foto');
+  foto.src = m.foto_url || '';
+  foto.style.display = m.foto_url ? '' : 'none';
+  document.getElementById('panel-nombre').textContent = m.nombre;
+  document.getElementById('panel-rol').textContent = m.rol || '—';
+  document.getElementById('panel-area').innerHTML = _areaBadge(m.areas||m.area);
+  document.getElementById('panel-salario').textContent = m.salario || '—';
+  document.getElementById('panel-tareas').textContent = m.tareas || '—';
+  document.getElementById('panel-reporte-contenido').innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Seleccioná una semana para ver el reporte</div>';
+
+  // Build month selector (last 6 months)
+  const sel = document.getElementById('panel-mes-select');
+  sel.innerHTML='';
+  const now = new Date();
+  for(let i=0;i<6;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const opt = document.createElement('option');
+    opt.value=`${d.getMonth()}_${d.getFullYear()}`;
+    opt.textContent=`${MESES_NOM[d.getMonth()]} ${d.getFullYear()}`;
+    sel.appendChild(opt);
+  }
+
+  document.getElementById('panel-miembro').style.display='block';
+  await _panelLoadRespuestas();
+}
+
+async function _panelLoadRespuestas(){
+  if(!_panelMiembroActual) return;
+  const sel = document.getElementById('panel-mes-select');
+  const [mes, anio] = sel.value.split('_').map(Number);
+  const r = await fetch(`${API_HOLDING}/holding/respuestas?miembro_id=${_panelMiembroActual.id}&mes=${mes}&anio=${anio}`, {headers:_getHeaders()});
+  const respuestas = r.ok ? await r.json() : [];
+  const semanasOk = new Set(respuestas.map(x=>x.semana));
+
+  const btns = document.getElementById('panel-semanas-btns');
+  btns.innerHTML = [1,2,3,4].map(s => {
+    const ok = semanasOk.has(s);
+    const activo = _panelSemanaActual === s;
+    return `<button onclick="_panelVerSemana(${s})" style="padding:8px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid ${activo?'var(--gold)':ok?'var(--green)':'var(--line-strong)'};background:${activo?'rgba(224,181,74,.15)':ok?'rgba(74,222,128,.08)':'transparent'};color:${activo?'var(--gold)':ok?'var(--green)':'var(--text3)'}">
+      ${ok?'✓ ':''}Semana ${s}
+    </button>`;
+  }).join('');
+
+  // If a semana was selected, refresh its content
+  if(_panelSemanaActual){
+    const rep = respuestas.find(x=>x.semana===_panelSemanaActual);
+    _panelMostrarReporte(rep);
+  }
+}
+
+async function _panelAbrirSemana(miembroId, semana){
+  const m = _equipoMiembros.find(x=>x.id===miembroId);
+  if(m) await _equipoAbrirPerfil(m.id);
+  _panelVerSemana(semana);
+}
+
+async function _panelVerSemana(semana){
+  _panelSemanaActual = semana;
+  const sel = document.getElementById('panel-mes-select');
+  const [mes, anio] = sel.value.split('_').map(Number);
+  const r = await fetch(`${API_HOLDING}/holding/respuestas?miembro_id=${_panelMiembroActual.id}&mes=${mes}&anio=${anio}`, {headers:_getHeaders()});
+  const respuestas = r.ok ? await r.json() : [];
+  const rep = respuestas.find(x=>x.semana===semana);
+  await _panelLoadRespuestas();
+  _panelMostrarReporte(rep);
+}
+
+function _panelMostrarReporte(rep){
+  const el = document.getElementById('panel-reporte-contenido');
+  if(!rep){
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px;background:var(--surface-2);border-radius:10px">Sin reporte para esta semana</div>';
+    return;
+  }
+  // Find form to get question texts
+  const form = _equipoFormularios.find(f=>(f.miembros_ids||[]).includes(_panelMiembroActual.id));
+  const preguntas = form?.preguntas || [];
+  const resp = rep.respuestas || {};
+
+  if(!preguntas.length){
+    el.innerHTML=`<div style="background:var(--surface-2);border-radius:10px;padding:16px;font-size:12px;color:var(--text2)"><pre style="white-space:pre-wrap;font-family:inherit">${JSON.stringify(resp,null,2)}</pre></div>`;
+    return;
+  }
+
+  el.innerHTML = preguntas.map(q => {
+    const val = resp[q.id];
+    if(val===undefined||val===null||val==='') return '';
+    const valDisplay = Array.isArray(val) ? val.join(', ') : String(val);
+    const otrosVal = resp[q.id+'_otros'];
+    return `<div style="margin-bottom:14px;padding:12px;background:var(--surface-2);border-radius:8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">${q.texto}</div>
+      <div style="font-size:13px;color:var(--text);font-weight:600">${valDisplay}</div>
+      ${otrosVal?`<div style="font-size:12px;color:var(--text3);margin-top:4px">Otros: ${otrosVal}</div>`:''}
+    </div>`;
+  }).filter(Boolean).join('');
+}
+
+function _panelCopyLink(){
+  if(!_panelMiembroActual) return;
+  const base = window.location.href.replace('holding_dashboard.html','').replace(/\/$/, '');
+  const link = `${base}/formulario_equipo.html?miembro_id=${_panelMiembroActual.id}`;
+  navigator.clipboard.writeText(link).then(()=>{ const btn=document.getElementById('panel-copy-link'); btn.textContent='✓ Copiado!'; setTimeout(()=>{btn.textContent='📋 Copiar Link'},2000); });
+}
+
+async function _panelGenerarIA(){
+  const sel = document.getElementById('panel-mes-select');
+  const [mes, anio] = sel.value.split('_').map(Number);
+  const tipo = document.getElementById('panel-ia-tipo').value;
+  const facturacion = document.getElementById('panel-ia-fac').value;
+  const cash_collected = document.getElementById('panel-ia-cash').value;
+
+  const prog = document.getElementById('panel-ia-progress');
+  const bar = document.getElementById('panel-ia-bar');
+  const pct = document.getElementById('panel-ia-pct');
+  const status = document.getElementById('panel-ia-status');
+  const resultado = document.getElementById('panel-ia-resultado');
+  const pdfBtn = document.getElementById('panel-pdf-btn');
+
+  prog.style.display='block';
+  resultado.style.display='none';
+  pdfBtn.style.display='none';
+  bar.style.width='0%'; pct.textContent='0%';
+
+  // Simulate progress while waiting for AI
+  const steps = [
+    {pct:15,msg:'Recopilando datos del equipo...'},
+    {pct:35,msg:'Analizando respuestas semanales...'},
+    {pct:55,msg:'Identificando métricas de rendimiento...'},
+    {pct:75,msg:'Generando conclusiones con IA...'},
+    {pct:90,msg:'Redactando pasos de acción...'},
+  ];
+  let si = 0;
+  const interval = setInterval(()=>{
+    if(si < steps.length){ bar.style.width=steps[si].pct+'%'; pct.textContent=steps[si].pct+'%'; status.textContent=steps[si].msg; si++; }
+  }, 700);
+
+  try{
+    const r = await fetch(`${API_HOLDING}/holding/reporte-ia`, {
+      method:'POST', headers:_getHeaders(),
+      body:JSON.stringify({tipo, mes, anio, facturacion, cash_collected})
+    });
+    clearInterval(interval);
+    bar.style.width='100%'; pct.textContent='100%'; status.textContent='Reporte generado.';
+    if(r.ok){
+      const data = await r.json();
+      _panelIATexto = data.reporte || '';
+      resultado.textContent = _panelIATexto;
+      resultado.style.display='block';
+      pdfBtn.style.display='block';
+    } else {
+      resultado.textContent='Error al generar el reporte.';
+      resultado.style.display='block';
+    }
+  } catch(e){
+    clearInterval(interval);
+    bar.style.width='100%'; pct.textContent='—'; status.textContent='Error de red.';
+  }
+}
+
+function _panelExportarPDF(){
+  if(!_panelIATexto) return;
+  const m = _panelMiembroActual;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte - ${m?m.nombre:''}</title>
+  <style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#111;line-height:1.6}h1{font-size:20px}pre{white-space:pre-wrap;font-family:inherit}</style>
+  </head><body><h1>Reporte IA — ${m?m.nombre:''}</h1><pre>${_panelIATexto}</pre></body></html>`);
+  win.document.close();
+  win.print();
+}
+
+// ── Reporte IA Global ─────────────────────────────────────────────────────
+let _iaTextoGlobal = '';
+
+function _iaOnNegocioChange(){
+  const cid=document.getElementById('ia-negocio').value;
+  document.getElementById('ia-negocio-label').textContent=cid?clientLabel(cid):'';
+}
+
+function _equipoOpenReporteIA(){
+  // Populate mes selector
+  const selMes = document.getElementById('ia-mes');
+  selMes.innerHTML='';
+  const now = new Date();
+  for(let i=0;i<6;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const opt=document.createElement('option');
+    opt.value=`${d.getMonth()}_${d.getFullYear()}`;
+    opt.textContent=`${MESES_NOM[d.getMonth()]} ${d.getFullYear()}`;
+    selMes.appendChild(opt);
+  }
+  // Populate negocio selector — only clients that have at least one team member
+  const clientesConMiembros=[...new Set(_equipoMiembros.flatMap(m=>m.clientes_ids||[]).filter(Boolean))];
+  const opciones = clientesConMiembros.length ? clientesConMiembros : allClients;
+  const selNeg = document.getElementById('ia-negocio');
+  selNeg.innerHTML=opciones.map(cid=>`<option value="${cid}">${clientLabel(cid)}</option>`).join('');
+  document.getElementById('ia-negocio-label').textContent=opciones[0]?clientLabel(opciones[0]):'';
+
+  document.getElementById('ia-resultado').style.display='none';
+  document.getElementById('ia-metrics').style.display='none';
+  document.getElementById('ia-pdf-btn').style.display='none';
+  document.getElementById('ia-progress').style.display='none';
+  _iaTextoGlobal='';
+  document.getElementById('modal-reporte-ia').style.display='block';
+}
+
+let _iaMetricasActuales = null;
+
+async function _iaGenerarReporte(){
+  const tipo=document.getElementById('ia-tipo').value;
+  const [mes,anio]=document.getElementById('ia-mes').value.split('_').map(Number);
+  const clienteId=document.getElementById('ia-negocio').value;
+  if(!clienteId){ alert('Seleccioná un negocio primero.'); return; }
+
+  const prog=document.getElementById('ia-progress');
+  const bar=document.getElementById('ia-bar');
+  const pct=document.getElementById('ia-pct');
+  const status=document.getElementById('ia-status');
+  const resultado=document.getElementById('ia-resultado');
+  const pdfBtn=document.getElementById('ia-pdf-btn');
+  const metricsEl=document.getElementById('ia-metrics');
+
+  prog.style.display='block'; resultado.style.display='none'; pdfBtn.style.display='none'; metricsEl.style.display='none';
+  bar.style.width='0%'; pct.textContent='0%';
+
+  const steps=[
+    {pct:12,msg:'Obteniendo métricas del negocio...'},
+    {pct:30,msg:'Analizando reportes del equipo...'},
+    {pct:50,msg:'Evaluando facturación y cierres...'},
+    {pct:70,msg:'Identificando oportunidades de mejora...'},
+    {pct:85,msg:'Generando análisis con IA...'},
+    {pct:93,msg:'Redactando recomendaciones...'},
+  ];
+  let si=0;
+  const interval=setInterval(()=>{
+    if(si<steps.length){ bar.style.width=steps[si].pct+'%'; pct.textContent=steps[si].pct+'%'; status.textContent=steps[si].msg; si++; }
+  }, 750);
+
+  try{
+    // Fetch real CRM metrics for this client
+    let metrics={facturacion:0,cash_collected:0,leads_total:0,agendas:0,cierres:0};
+    try{
+      const mr=await fetch(`${API_HOLDING}/holding-metrics?cliente_id=${clienteId}&mes=${mes}&anio=${anio}`,{headers:_getHeaders()});
+      if(mr.ok) metrics=await mr.json();
+    }catch{}
+    _iaMetricasActuales=metrics;
+
+    const negocioData={cliente_id:clienteId,label:clientLabel(clienteId),...metrics};
+    const r=await fetch(`${API_HOLDING}/holding/reporte-ia`,{
+      method:'POST',headers:_getHeaders(),
+      body:JSON.stringify({tipo,mes,anio,negocios:[negocioData]})
+    });
+    clearInterval(interval);
+    bar.style.width='100%'; pct.textContent='100%'; status.textContent='Reporte generado.';
+    if(r.ok){
+      const data=await r.json();
+      _iaTextoGlobal=data.reporte||'';
+
+      // Show metric cards
+      const fmt=v=>v>=1000?'$'+Math.round(v/1000)+'K':'$'+Math.round(v);
+      document.getElementById('ia-m-fac').textContent=fmt(metrics.facturacion);
+      document.getElementById('ia-m-cash').textContent=fmt(metrics.cash_collected);
+      document.getElementById('ia-m-ag').textContent=metrics.agendas??'—';
+      document.getElementById('ia-m-ci').textContent=metrics.cierres??'—';
+      metricsEl.style.display='grid';
+
+      resultado.textContent=_iaTextoGlobal;
+      resultado.style.display='block';
+      pdfBtn.style.display='block';
+    } else {
+      resultado.textContent='Error al generar el reporte.'; resultado.style.display='block';
+    }
+  } catch(e){
+    clearInterval(interval);
+    bar.style.width='100%'; pct.textContent='—'; status.textContent='Error de red.';
+  }
+}
+
+// ── Eliminar Cliente ──────────────────────────────────────────────────────
+let _delClienteId = '';
+
+async function _confirmarEliminarCliente(cid){
+  _delClienteId = cid;
+  document.getElementById('del-cliente-label').textContent = clientLabel(cid) + ' (' + cid + ')';
+  document.getElementById('del-confirm-input').value = '';
+  document.getElementById('del-confirm-btn').disabled = true;
+  document.getElementById('del-confirm-btn').style.opacity = '.5';
+  document.getElementById('del-confirm-btn').style.cursor = 'not-allowed';
+  document.getElementById('del-cliente-counts').textContent = 'Calculando registros...';
+  document.getElementById('modal-eliminar-cliente').style.display = 'flex';
+
+  // Fetch counts
+  try{
+    const r = await fetch(`${API_URL}/holding/delete-cliente-counts?cliente_id=${cid}`, {headers: apiH()});
+    if(r.ok){
+      const d = await r.json();
+      document.getElementById('del-cliente-counts').innerHTML =
+        `Se eliminarán permanentemente:<br>· <b>${d.leads}</b> leads<br>· <b>${d.llamadas}</b> llamadas<br>· <b>${d.ingresos}</b> ingresos`;
+    }
+  }catch{ document.getElementById('del-cliente-counts').textContent = 'No se pudieron calcular los registros.'; }
+}
+
+function _delInputCheck(input){
+  const ok = input.value === 'ELIMINAR';
+  const btn = document.getElementById('del-confirm-btn');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.5';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function _cerrarModalEliminar(){
+  document.getElementById('modal-eliminar-cliente').style.display = 'none';
+  _delClienteId = '';
+}
+
+async function _ejecutarEliminarCliente(){
+  if(!_delClienteId) return;
+  if(document.getElementById('del-confirm-input').value !== 'ELIMINAR') return;
+  const btn = document.getElementById('del-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Eliminando...';
+  try{
+    const r = await fetch(`${API_URL}/holding/delete-cliente`, {
+      method:'DELETE', headers: apiH(),
+      body: JSON.stringify({ cliente_id: _delClienteId, confirmacion: 'ELIMINAR' })
+    });
+    if(r.ok){
+      _cerrarModalEliminar();
+      allClients = allClients.filter(c => c !== _delClienteId);
+      activeClients.delete(_delClienteId);
+      renderClientToggles();
+      reloadMetrics();
+    } else {
+      const e = await r.json();
+      alert('Error: ' + (e.error || 'No se pudo eliminar'));
+      btn.disabled = false; btn.textContent = 'Eliminar definitivamente';
+    }
+  }catch{
+    alert('Error de red.');
+    btn.disabled = false; btn.textContent = 'Eliminar definitivamente';
+  }
+}
+
+function _iaExportarPDF(){
+  if(!_iaTextoGlobal) return;
+  const cid=document.getElementById('ia-negocio').value;
+  const negLabel=clientLabel(cid);
+  const fmt=v=>v>=1000?'$'+Math.round(v/1000)+'K':'$'+Math.round(v);
+  const m=_iaMetricasActuales||{};
+  const metricsHtml=`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0">
+      ${[['Facturación',fmt(m.facturacion||0),'#b45309'],['Cash Collected',fmt(m.cash_collected||0),'#16a34a'],['Agendas',m.agendas??'—','#2563eb'],['Cierres',m.cierres??'—','#7c3aed']].map(([l,v,c])=>`
+      <div style="border:1px solid #ddd;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#666;margin-bottom:6px">${l}</div>
+        <div style="font-size:24px;font-weight:800;color:${c}">${v}</div>
+      </div>`).join('')}
+    </div>`;
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte IA — ${negLabel}</title>
+  <style>body{font-family:sans-serif;max-width:820px;margin:40px auto;padding:0 24px;color:#111;line-height:1.7}h1{font-size:22px;margin-bottom:4px}h2{font-size:13px;color:#666;font-weight:400;margin-bottom:0}pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin-top:8px}</style>
+  </head><body><h1>Reporte IA — ${negLabel}</h1><h2>${document.getElementById('ia-mes').options[document.getElementById('ia-mes').selectedIndex]?.text||''}</h2>${metricsHtml}<pre>${_iaTextoGlobal}</pre></body></html>`);
+  win.document.close(); win.print();
+}
+
+
 </script>
 </body>
 </html>

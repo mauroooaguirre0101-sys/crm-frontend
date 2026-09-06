@@ -356,28 +356,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </div>
 
   <div id="view-tendencias" class="view">
-    <div class="view-hdr"><div class="view-title">Tendencias <span class="week-badge" id="tend-period-badge">—</span></div></div>
-
-    <!-- Áreas donde piden ayuda -->
-    <div class="panel" style="margin-bottom:20px">
-      <div class="panel-title">Áreas donde más piden ayuda</div>
-      <div id="tend-ayuda-stats" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:18px"></div>
-      <div style="position:relative;height:230px"><canvas id="chart-ayuda"></canvas></div>
+    <div class="view-hdr">
+      <div class="view-title">Tendencias <span class="week-badge" id="tend-period-badge">—</span></div>
+      <button class="btn btn-ghost btn-sm" id="tend-edit-btn" style="display:none" onclick="openTendenciasEditor()">✎ Editar formulario</button>
     </div>
 
-    <!-- Estado + Implementación -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-      <div class="panel">
-        <div class="panel-title">¿Cómo se sienten?</div>
-        <div id="tend-estado-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px"></div>
-        <div style="position:relative;height:160px"><canvas id="chart-estado"></canvas></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">¿Implementaron lo trabajado?</div>
-        <div id="tend-impl-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px"></div>
-        <div style="position:relative;height:160px"><canvas id="chart-impl"></canvas></div>
-      </div>
-    </div>
+    <!-- Dynamic question panels (driven by reporte_semanal form template) -->
+    <div id="tend-question-panels"></div>
 
     <!-- Actividad en el tiempo -->
     <div class="panel">
@@ -1024,7 +1009,16 @@ async function saveEmail(alumnoId){
 }
 
 /* ── Tendencias view ── */
-let _chartAyuda=null,_chartEstado=null,_chartImpl=null,_chartActivity=null;
+let _tendCharts={},_chartActivity=null;
+let _tendFormQuestions=[];
+window._tendRepsCache={};
+
+function _getUserRoleLocal(){
+  try{const c=JSON.parse(localStorage.getItem('clientes')||'[]'),s=localStorage.getItem('clienteSeleccionado');const f=c.find(x=>x.cliente_id===s);return f?.role||f?.rol||'setter';}catch{return'setter';}
+}
+function openTendenciasEditor(){
+  toast('Editá las preguntas del reporte desde CRM → Configuración → Formularios');
+}
 
 function getAlumnoName(r){
   const a=alumnos.find(a=>a.id===r.alumno_id);
@@ -1137,104 +1131,91 @@ function makeTooltipWithNames(repsPerBucket,unit){
   };
 }
 
+const _TEND_PALETTE=['#6090d4','#e0b54a','#5cb87a','#9b74d4','#e0a848','#d46060','#5bbbd4','#b8b0a8'];
+// Maps old legacy field values to current option text for backward compat
+const _ESTADO_NORM={'muy_bien':'Muy bien 🔥','bien':'Bien ✅','regular':'Regular 😐','dificil':'Difícil ⚠️'};
+const _IMPL_NORM={'todas':'Sí, todas ✅','algunas':'Algunas 🔸','ninguna':'Ninguna ❌','primera_vez':'Es mi primera vez 🌱'};
+// Legacy field names for each question id
+const _Q_LEGACY={q1:{field:'estado',norm:_ESTADO_NORM},q7:{field:'implementacion',norm:_IMPL_NORM},q6:{field:'ayuda'}};
+
+function _tendGetVal(r,q){
+  // Primary: use respuestas JSONB
+  if(r.respuestas&&r.respuestas[q.id]!==undefined)return r.respuestas[q.id];
+  // Fallback: legacy fields
+  const leg=_Q_LEGACY[q.id];
+  if(!leg)return undefined;
+  const v=r[leg.field];
+  if(q.tipo==='checkbox')return Array.isArray(v)?v:undefined;
+  return leg.norm&&leg.norm[v]?leg.norm[v]:v;
+}
+
 function renderTendenciasView(){
   const w=filteredReports();
   const total=w.length||1;
 
-  /* — Ayuda — */
-  const aKeys=['ventas','marketing','operaciones','finanzas','equipo','producto','mindset'];
-  const aShort=['Ventas','Marketing','Operaciones','Finanzas','Equipo','Producto','Mindset'];
-  const aCols=['#6090d4','#e0b54a','#5cb87a','#9b74d4','#e0a848','#d46060','#5bbbd4'];
-  const aReps=aKeys.map(k=>w.filter(r=>Array.isArray(r.ayuda)&&r.ayuda.includes(k)));
-  const aCnt=aReps.map(r=>r.length);
-  const aPct=aCnt.map(c=>Math.round(c/total*100));
+  /* — Dynamic question panels — */
+  Object.values(_tendCharts).forEach(c=>{try{c.destroy();}catch{}});
+  _tendCharts={};
+  window._tendRepsCache={};
 
-  document.getElementById('tend-ayuda-stats').innerHTML=aKeys.map((_,i)=>
-    `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer" onclick="openTendModal('${aShort[i]}','${aCnt[i]} reporte${aCnt[i]!==1?'s':''}',_aRepsCache[${i}])">
-      <div style="font-size:22px;font-weight:800;color:${aCols[i]};line-height:1.1">${aPct[i]}%</div>
-      <div style="font-size:8.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-top:5px">${aShort[i]}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${aCnt[i]} de ${w.length}</div>
-    </div>`
-  ).join('');
-  window._aRepsCache=aReps;
+  const container=document.getElementById('tend-question-panels');
+  container.innerHTML='';
 
-  if(_chartAyuda)_chartAyuda.destroy();
-  _chartAyuda=new Chart(document.getElementById('chart-ayuda'),{
-    data:{labels:aShort,datasets:[
-      {type:'bar',data:aPct,backgroundColor:aCols.map(c=>c+'55'),borderColor:aCols,borderWidth:2,borderRadius:6,label:'%'},
-      {type:'line',data:aPct,borderColor:'rgba(255,255,255,0.25)',borderWidth:2,pointBackgroundColor:aCols,pointBorderColor:aCols,pointRadius:6,pointHoverRadius:8,tension:0.35,fill:false,label:''}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      onClick:makeCategoryClick(aReps,aShort),
-      plugins:{legend:{display:false},tooltip:makeTooltipWithNames(aReps,'reportes')},
-      scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:11}}},
-        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10},callback:v=>v+'%',stepSize:10},min:0,max:100}
-      }
-    }
-  });
+  if(!_tendFormQuestions.length){
+    container.innerHTML='<div class="panel" style="margin-bottom:20px;padding:30px 20px;text-align:center;color:var(--text3);font-size:13px">Cargando preguntas del formulario…</div>';
+  }
 
-  /* — Estado — */
-  const eKeys=['muy_bien','bien','regular','dificil'];
-  const eShort=['Muy bien','Bien','Regular','Difícil'];
-  const eCols=['#5cb87a','#6090d4','#e0a848','#d46060'];
-  const eReps=eKeys.map(k=>w.filter(r=>r.estado===k));
-  const eCnt=eReps.map(r=>r.length);
-  const ePct=eCnt.map(c=>Math.round(c/total*100));
+  _tendFormQuestions.forEach((q,qi)=>{
+    const opts=q.opciones||[];
+    if(!opts.length)return;
+    const isCheckbox=q.tipo==='checkbox';
+    const cols=opts.map((_,i)=>_TEND_PALETTE[i%_TEND_PALETTE.length]);
+    const repsPerOpt=opts.map(opt=>w.filter(r=>{
+      const val=_tendGetVal(r,q);
+      if(isCheckbox)return Array.isArray(val)&&val.includes(opt);
+      return val===opt;
+    }));
+    const counts=repsPerOpt.map(r=>r.length);
+    const pcts=counts.map(c=>Math.round(c/total*100));
+    const gridCols=Math.min(opts.length,5);
+    const chartId='tend-chart-q'+qi;
 
-  document.getElementById('tend-estado-stats').innerHTML=eKeys.map((_,i)=>
-    `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer" onclick="openTendModal('${eShort[i]}','${eCnt[i]} alumno${eCnt[i]!==1?'s':''}',_eRepsCache[${i}])">
-      <div style="font-size:17px;font-weight:800;color:${eCols[i]};line-height:1.1">${ePct[i]}%</div>
-      <div style="font-size:8px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:4px">${eShort[i]}</div>
-    </div>`
-  ).join('');
-  window._eRepsCache=eReps;
+    repsPerOpt.forEach((reps,i)=>{window._tendRepsCache['q'+qi+'_'+i]=reps;});
 
-  if(_chartEstado)_chartEstado.destroy();
-  _chartEstado=new Chart(document.getElementById('chart-estado'),{
-    data:{labels:eShort,datasets:[
-      {type:'bar',data:ePct,backgroundColor:eCols.map(c=>c+'55'),borderColor:eCols,borderWidth:2,borderRadius:6,label:'%'},
-      {type:'line',data:ePct,borderColor:'rgba(255,255,255,0.2)',borderWidth:2,pointBackgroundColor:eCols,pointBorderColor:eCols,pointRadius:5,tension:0.35,fill:false,label:''}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      onClick:makeCategoryClick(eReps,eShort),
-      plugins:{legend:{display:false},tooltip:makeTooltipWithNames(eReps,'')},
-      scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10}}},
-        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:9},callback:v=>v+'%',stepSize:10},min:0,max:100}
-      }
-    }
-  });
+    const panel=document.createElement('div');
+    panel.className='panel';
+    panel.style.marginBottom='20px';
+    const statsH=opts.map((opt,i)=>{
+      const safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const label=opt.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer"
+        onclick="openTendModal('${safeOpt}','${counts[i]} reporte${counts[i]!==1?'s':''}',window._tendRepsCache['q${qi}_${i}'])">
+        <div style="font-size:18px;font-weight:800;color:${cols[i]};line-height:1.1">${pcts[i]}%</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:4px;line-height:1.3">${label}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${counts[i]} de ${w.length}</div>
+      </div>`;
+    }).join('');
+    panel.innerHTML=`<div class="panel-title">${q.titulo}</div>
+      <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:6px;margin-bottom:14px">${statsH}</div>
+      <div style="position:relative;height:${opts.length>4?200:160}px"><canvas id="${chartId}"></canvas></div>`;
+    container.appendChild(panel);
 
-  /* — Implementación — */
-  const iKeys=['todas','algunas','ninguna','primera_vez'];
-  const iShort=['Todas','Algunas','Ninguna','1ra vez'];
-  const iCols=['#5cb87a','#e0b54a','#d46060','#6090d4'];
-  const iReps=iKeys.map(k=>w.filter(r=>r.implementacion===k));
-  const iCnt=iReps.map(r=>r.length);
-  const iPct=iCnt.map(c=>Math.round(c/total*100));
-
-  document.getElementById('tend-impl-stats').innerHTML=iKeys.map((_,i)=>
-    `<div style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer" onclick="openTendModal('${iShort[i]}','${iCnt[i]} alumno${iCnt[i]!==1?'s':''}',_iRepsCache[${i}])">
-      <div style="font-size:17px;font-weight:800;color:${iCols[i]};line-height:1.1">${iPct[i]}%</div>
-      <div style="font-size:8px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:4px">${iShort[i]}</div>
-    </div>`
-  ).join('');
-  window._iRepsCache=iReps;
-
-  if(_chartImpl)_chartImpl.destroy();
-  _chartImpl=new Chart(document.getElementById('chart-impl'),{
-    data:{labels:iShort,datasets:[
-      {type:'bar',data:iPct,backgroundColor:iCols.map(c=>c+'55'),borderColor:iCols,borderWidth:2,borderRadius:6,label:'%'},
-      {type:'line',data:iPct,borderColor:'rgba(255,255,255,0.2)',borderWidth:2,pointBackgroundColor:iCols,pointBorderColor:iCols,pointRadius:5,tension:0.35,fill:false,label:''}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      onClick:makeCategoryClick(iReps,iShort),
-      plugins:{legend:{display:false},tooltip:makeTooltipWithNames(iReps,'')},
-      scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10}}},
-        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:9},callback:v=>v+'%',stepSize:10},min:0,max:100}
-      }
+    const el=document.getElementById(chartId);
+    if(el){
+      _tendCharts[qi]=new Chart(el,{
+        data:{labels:opts,datasets:[
+          {type:'bar',data:pcts,backgroundColor:cols.map(c=>c+'55'),borderColor:cols,borderWidth:2,borderRadius:6,label:'%'},
+          {type:'line',data:pcts,borderColor:'rgba(255,255,255,0.2)',borderWidth:2,pointBackgroundColor:cols,pointBorderColor:cols,pointRadius:5,tension:0.35,fill:false,label:''}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          onClick:makeCategoryClick(repsPerOpt,opts),
+          plugins:{legend:{display:false},tooltip:makeTooltipWithNames(repsPerOpt,isCheckbox?'reportes':'')},
+          scales:{
+            x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:10}}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#9ba0b4',font:{size:9},callback:v=>v+'%',stepSize:10},min:0,max:100}
+          }
+        }
+      });
     }
   });
 
@@ -1658,7 +1639,7 @@ function toast(msg){
 
 async function load(){
   const cid=localStorage.getItem('clienteSeleccionado')||'';
-  const[r1,r2,r3,r4,r5,r6,r7]=await Promise.all([
+  const[r1,r2,r3,r4,r5,r6,r7,r8]=await Promise.all([
     fetch(API_URL+'/alumnos',{headers:apiH()}),
     fetch(API_URL+'/reportes',{headers:apiH()}),
     fetch(API_URL+'/sesiones',{headers:apiH()}),
@@ -1666,6 +1647,7 @@ async function load(){
     fetch(API_URL+'/reportes/edit-requests',{headers:apiH()}),
     fetch(API_URL+'/ideas',{headers:apiH()}),
     fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(cid)+'&tipo=onboarding'),
+    fetch(API_URL+'/form-template?cliente_id='+encodeURIComponent(cid)+'&tipo=reporte_semanal'),
   ]);
   alumnos=r1.ok?await r1.json():[];
   reportes=r2.ok?await r2.json():[];
@@ -1674,6 +1656,10 @@ async function load(){
   editRequests=r5.ok?await r5.json():[];
   ideas=r6.ok?await r6.json():[];
   if(r7.ok){const t=await r7.json();_formsQCache.onboarding=(t.questions||[]);}
+  if(r8.ok){const t=await r8.json();_tendFormQuestions=(t.questions||[]).filter(q=>q.tipo==='radio'||q.tipo==='checkbox');}
+  const _role=_getUserRoleLocal();
+  const _eb=document.getElementById('tend-edit-btn');
+  if(_eb)_eb.style.display=_role==='admin'?'':'none';
   renderAll();
   const cv=document.querySelector('.nav-item.active[data-view]');
   if(cv&&cv.dataset.view!=='semana'){

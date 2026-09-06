@@ -368,14 +368,13 @@ function nav(id,el){
     if(_leadsPageInterval)    {clearInterval(_leadsPageInterval);_leadsPageInterval=null;}
   }
   const renders={dash:renderDash,acc:renderSOPS,found:renderFound,cont:renderCont,
-    ang:renderAng,ref:renderRef,leads:renderLeads,funnel:renderFunnelMetricas,calls:renderCallsPage,
-    clients:renderClients,fin:renderFin,ig:renderIG,formatos:renderFormatos,lab:renderLab,forms:renderForms,tasks:renderTasks,reports:renderReports,ideas:renderCrmIdeas};
+    ang:renderAng,leads:renderLeads,funnel:renderFunnelMetricas,calls:renderCallsPage,
+    clients:renderClients,fin:renderFin,formatos:renderFormatos,forms:renderForms,tasks:renderTasks,reports:renderReports,ideas:renderCrmIdeas,diag:renderDiag};
   // Re-fetch server data on navigation so changes by other users are always visible
   const refetch={
     cont:fetchContenido, found:fetchFundaciones, ang:fetchAngulos,
-    ref:fetchReferentes, ig:fetchIG,
     clients:()=>{const sel=document.getElementById('clients-mes-select');if(sel)sel.value=String(new Date().getMonth());return Promise.all([fetchClients(),fetchCuotas()]).then(_seedMissingCuotas);}, fin:()=>{fetchIngresos();fetchEgresos();},
-    formatos:fetchFormatos, lab:fetchLaboratorio,
+    formatos:fetchFormatos,
     ideas:fetchCrmIdeas,
   };
   if(id==='equipo'){
@@ -467,7 +466,20 @@ function tipoContBadge(s){
 }
 
 // ========== GLOBAL FILTER SYSTEM ==========
-let _gf = {period:'mes', mes:'', dateFrom:'', dateTo:''};
+let _gf = {period:'', mes:String(new Date().getMonth()), dateFrom:'', dateTo:'', _mesYear:null};
+let _dashInitPending = 0;
+
+// Busca el año más reciente en los datos cargados que tenga registros para el mes m
+function _findMostRecentYearForMonth(m){
+  const now=new Date();
+  let maxY=-1;
+  (S.ing||[]).concat(S.gas||[]).forEach(x=>{
+    const d=_parseDate(x.fecha);
+    if(d&&!isNaN(d)&&d.getMonth()===m&&d.getFullYear()>maxY) maxY=d.getFullYear();
+  });
+  if(maxY>0) return maxY;
+  return m<=now.getMonth()?now.getFullYear():now.getFullYear()-1;
+}
 
 // Parse YYYY-MM-DD as LOCAL midnight (not UTC) to avoid timezone offset bugs
 function _parseDate(s){
@@ -487,6 +499,7 @@ function _gfSetDateRange(from, to){
   _gf.dateFrom = from||''; _gf.dateTo = to||'';
   if(from||to){ _gf.period=''; _gf.mes=''; }
   _gfSyncTabs(); _gfRenderCurrent();
+  if(document.querySelector('#page-leads.active')){leadsCurrentPage=1;fetchLeadsPage(1);}
 }
 function _gfInRange(dateStr){
   if(!dateStr) return _gf.period==='año' && _gf.mes==='' && !_gf.dateFrom && !_gf.dateTo;
@@ -503,14 +516,13 @@ function _gfInRange(dateStr){
   }
   if(_gf.mes!==''){
     const m=parseInt(_gf.mes,10);
-    // Match any year so data from previous years still shows if month matches current selection
-    // Only filter current calendar year to avoid cross-year confusion
-    return d.getMonth()===m && d.getFullYear()===now.getFullYear();
+    const yr=_gf._mesYear!=null?_gf._mesYear:_findMostRecentYearForMonth(m);
+    return d.getMonth()===m && d.getFullYear()===yr;
   }
   switch(_gf.period){
     case 'dia':    return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();
-    case 'semana': {const w=new Date(now);w.setDate(now.getDate()-7);w.setHours(0,0,0,0);return d>=w;}
-    case 'mes':    {const c=new Date(now);c.setDate(now.getDate()-30);c.setHours(0,0,0,0);return d>=c;}
+    case 'semana': {const dow=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1));mon.setHours(0,0,0,0);return d>=mon;}
+    case 'mes':    return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     case 'año':    {const c=new Date(now);c.setFullYear(now.getFullYear()-1);c.setHours(0,0,0,0);return d>=c;}
     default: return true;
   }
@@ -520,14 +532,16 @@ function _gfPrevInRange(dateStr){
   const d=_parseDate(dateStr), now=new Date();
   if(!d||isNaN(d)) return false;
   if(_gf.mes!==''){
-    let pm=parseInt(_gf.mes,10)-1, py=now.getFullYear();
+    const m=parseInt(_gf.mes,10);
+    const yr=_gf._mesYear!=null?_gf._mesYear:_findMostRecentYearForMonth(m);
+    let pm=m-1, py=yr;
     if(pm<0){pm=11;py--;}
     return d.getMonth()===pm && d.getFullYear()===py;
   }
   switch(_gf.period){
     case 'dia':    {const y=new Date(now);y.setDate(now.getDate()-1);return d.getFullYear()===y.getFullYear()&&d.getMonth()===y.getMonth()&&d.getDate()===y.getDate();}
-    case 'semana': {const s=new Date(now),e=new Date(now);s.setDate(now.getDate()-14);s.setHours(0,0,0,0);e.setDate(now.getDate()-7);e.setHours(0,0,0,0);return d>=s&&d<e;}
-    case 'mes':    {const s=new Date(now),e=new Date(now);s.setDate(now.getDate()-60);s.setHours(0,0,0,0);e.setDate(now.getDate()-30);e.setHours(0,0,0,0);return d>=s&&d<e;}
+    case 'semana': {const dow=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1));mon.setHours(0,0,0,0);const prevMon=new Date(mon);prevMon.setDate(mon.getDate()-7);const prevSun=new Date(mon);prevSun.setDate(mon.getDate()-1);prevSun.setHours(23,59,59,999);return d>=prevMon&&d<=prevSun;}
+    case 'mes':    {const pm=now.getMonth()===0?11:now.getMonth()-1,py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();return d.getMonth()===pm&&d.getFullYear()===py;}
     case 'año':    {const s=new Date(now),e=new Date(now);s.setFullYear(now.getFullYear()-2);s.setHours(0,0,0,0);e.setFullYear(now.getFullYear()-1);e.setHours(0,0,0,0);return d>=s&&d<e;}
     default: return false;
   }
@@ -544,8 +558,24 @@ function _gfSet(period){
 }
 function _gfSetMes(m){
   _gf.mes=m; _gf.dateFrom=''; _gf.dateTo='';
-  if(m!=='') _gf.period=''; else _gf.period='mes';
-  _gfSyncTabs(); _gfRenderCurrent();
+  if(m!==''){
+    _gf.period='';
+    _gf._mesYear=_findMostRecentYearForMonth(parseInt(m,10));
+  } else {
+    _gf.period='mes';
+    _gf._mesYear=null;
+  }
+  _gfSyncTabs();
+  // Muestra "Cargando datos..." un frame antes de renderizar
+  const dm=document.getElementById('dash-metrics');
+  const dm2=document.getElementById('dash-metrics2');
+  const ds=document.getElementById('dash-savings');
+  if(document.querySelector('#page-dash.active')){
+    if(dm) dm.innerHTML='<div style="color:rgba(255,255,255,0.2);padding:10px 0;font-size:13px;letter-spacing:.04em">Cargando datos...</div>';
+    if(dm2) dm2.innerHTML='';
+    if(ds) ds.innerHTML='';
+  }
+  requestAnimationFrame(()=>_gfRenderCurrent());
 }
 function _gfSyncTabs(){
   ['dash-tabs','leads-filter-tabs','calls-filter-tabs','fin-filter-tabs'].forEach(gid=>{
@@ -565,7 +595,7 @@ function _gfRenderCurrent(){
   const active=document.querySelector('.page.active');
   if(!active) return;
   const id=active.id.replace('page-','');
-  const map={dash:renderDash,leads:()=>_applyLeadsFilter(),calls:()=>_applyCallsFilter(),fin:renderFin,ig:renderIG};
+  const map={dash:renderDash,leads:()=>_applyLeadsFilter(),calls:()=>_applyCallsFilter(),fin:renderFin};
   if(map[id]) map[id]();
 }
 // Shim para contenido (su propio filtro independiente)
@@ -583,6 +613,17 @@ function setDashFilter(f,el){ _gfSet(f); }
 function setFinFilter(f,el){ _gfSet(f); }
 
 function renderDash(){
+  if(_dashInitPending>0){
+    const dm=document.getElementById('dash-metrics');
+    const dm2=document.getElementById('dash-metrics2');
+    const ds=document.getElementById('dash-savings');
+    if(dm) dm.innerHTML='<div style="color:rgba(255,255,255,0.2);padding:10px 0;font-size:13px;letter-spacing:.04em">Cargando datos...</div>';
+    if(dm2) dm2.innerHTML='';
+    if(ds) ds.innerHTML='';
+    return;
+  }
+  // Recalcula el año objetivo con los datos ya cargados
+  if(_gf.mes!=='') _gf._mesYear=_findMostRecentYearForMonth(parseInt(_gf.mes,10));
   const ing=S.ing.filter(x=>_gfInRange(x.fecha));
   const gas=S.gas.filter(x=>_gfInRange(x.fecha));
   const ingP=S.ing.filter(x=>_gfPrevInRange(x.fecha));
@@ -729,6 +770,7 @@ function renderDash(){
   const _leadsAgP = leadsP.filter(l=>l.estado==='Agendado').length;
 
   const portCard = (label, val, delta='', colorCls='') => {
+    delta = delta || '';
     const isUp = delta.startsWith('+');
     const isDown = delta.startsWith('-');
     const dCls = isUp ? 'up' : isDown ? 'down' : 'neutral';
@@ -2075,36 +2117,6 @@ async function _hideAutoAng(name){
   renderAng();
 }
 
-// ========== REFERENTES ==========
-function renderRef(){
-  document.getElementById('ref-table').innerHTML=S.refs.map((x,i)=>`
-    <tr>
-      <td><div style="display:flex;align-items:center">${avatarChip(x.nombre)}<span style="color:var(--text)">${x.nombre}</span></div></td>
-      <td>${x.nicho||'—'}</td>
-      <td>${x.seg?fmt(+x.seg):'—'}</td>
-      <td><span class="trunc" title="${x.rec}">${x.rec||'—'}</span></td>
-      <td>
-        ${x.link?`<a href="${x.link.startsWith('http')?x.link:'https://instagram.com/'+x.link}" target="_blank" class="roadmap-link">Ver perfil</a>`:'—'}
-        <button class="btn-icon" onclick="delRef('${x.id}')" style="margin-left:4px">×</button>
-      </td>
-    </tr>`).join('')||'<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:20px">Sin referentes</td></tr>';
-}
-async function saveRef(){
-  const item={id:uid(),nombre:v('r-nombre'),link:v('r-link'),seg:v('r-seg'),nicho:v('r-nicho'),rec:v('r-rec')};
-  try{
-    const res=await apiFetch(`${API_URL}/referentes`,{method:'POST',body:JSON.stringify(item)});
-    if(!res.ok) throw new Error();
-    const saved=await res.json();
-    S.refs.unshift(saved);
-    closeModal('modal-ref');renderRef();toast('Referente guardado ✓');
-  }catch(e){S.refs.unshift(item);save('refs');closeModal('modal-ref');renderRef();toast('Referente guardado ✓');}
-}
-async function delRef(id){
-  if(!confirm('¿Eliminar?'))return;
-  try{const r=await apiFetch(`${API_URL}/referentes/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
-  S.refs=S.refs.filter(x=>x.id!==id);renderRef();
-}
-
 // ========== MÉTRICAS ==========
 function renderMet(){
   const totalLeads=S.mets.reduce((a,x)=>a+(+x.leads||0),0);
@@ -2186,7 +2198,7 @@ async function fetchIngresos(){
     save('ing');
     if(document.getElementById('page-fin')?.classList.contains('active')) renderFin();
   }catch(e){console.error('[fetchIngresos]',e);}
-  finally{ renderDash(); }
+  finally{ if(_dashInitPending>0)_dashInitPending--; renderDash(); }
 }
 async function fetchEgresos(){
   try{
@@ -2197,7 +2209,7 @@ async function fetchEgresos(){
     save('gas');
     if(document.getElementById('page-fin')?.classList.contains('active')) renderFin();
   }catch(e){console.error('[fetchEgresos]',e);}
-  finally{ renderDash(); }
+  finally{ if(_dashInitPending>0)_dashInitPending--; renderDash(); }
 }
 async function fetchCuotas(){
   try{
@@ -2269,6 +2281,7 @@ let leadsMes       = '';
 let leadsBusqueda       = '';
 let _leadsEstadoFiltro  = '';
 let _leadsEtiquetaFiltro = '';
+let _leadsMultiCtaFiltro = false;
 let _leadsVistaFiltro   = 'todos';
 let _leadsSortBy        = null;
 let _leadsSortDir       = 'desc';
@@ -2589,11 +2602,18 @@ function _filtrarLeads(){
   else if(_leadsVistaFiltro==='perdidos') r=r.filter(l=>_esPerdidoEfectivo(l));
   if(_leadsEstadoFiltro) r=r.filter(l=>l.estado===_leadsEstadoFiltro);
   if(_leadsEtiquetaFiltro) r=r.filter(l=>_getEtiquetas(l).includes(_leadsEtiquetaFiltro));
+  if(_leadsMultiCtaFiltro) r=r.filter(l=>_getEtiquetas(l).length>1);
   return r;
 }
 
 function toggleEtiquetaFiltro(et){
   _leadsEtiquetaFiltro = _leadsEtiquetaFiltro===et ? '' : et;
+  leadsCurrentPage=1;
+  _applyLeadsFilter();
+  fetchLeadsPage(1);
+}
+function toggleMultiCtaFiltro(){
+  _leadsMultiCtaFiltro = !_leadsMultiCtaFiltro;
   leadsCurrentPage=1;
   _applyLeadsFilter();
   fetchLeadsPage(1);
@@ -2736,13 +2756,15 @@ function _applyLeadsFilter(){
     const prevAg       = prev.filter(l=>l.estado==='Agendado').length;
     const prevPerd     = prev.filter(_esPerdidoEfectivo).length;
     const prevCal      = prev.filter(l=>l.calificado===true).length;
+    const multiCta = filtrados.filter(l=>_getEtiquetas(l).length>1).length;
     metricsEl.style.justifyContent='center';
     metricsEl.innerHTML =
       metCard('Total',          total,          '', _delta(total,prevTot))+
       metCard('Agendados',      agendados,      '', _delta(agendados,prevAg))+
       metCard('Calificados',    calificados,    'green', _delta(calificados,prevCal))+
       metCard('Descalificados', descalificados, 'red', '')+
-      metCard('Perdidos',       perdidos,       'red', _delta(perdidos,prevPerd));
+      metCard('Perdidos',       perdidos,       'red', _delta(perdidos,prevPerd))+
+      `<div class="metric-card" onclick="toggleMultiCtaFiltro()" style="cursor:pointer${_leadsMultiCtaFiltro?';outline:2px solid var(--accent,#f59e0b);border-radius:8px':''}" title="${_leadsMultiCtaFiltro?'Clic para quitar filtro':'Clic para ver leads con más de 1 CTA'}"><div class="metric-label">Respondieron +1 CTA${_leadsMultiCtaFiltro?' <span style=\'font-size:10px\'>✕ filtro activo</span>':''}</div><div class="metric-value ${multiCta>0?'yellow':''}">${multiCta}</div></div>`;
   }
 
   const _sinSegNuevo=l=>!_getEtiquetas(l).some(e=>e.trim().toLowerCase()==='seguidor nuevo');
@@ -3107,8 +3129,12 @@ function _leadsFilterParams(){
   if(_leadsEstadoFiltro)    p.set('estado',  _leadsEstadoFiltro);
   if(leadsBusqueda.trim())  p.set('search',  leadsBusqueda.trim());
   if(_leadsVistaFiltro && _leadsVistaFiltro !== 'todos') p.set('vista', _leadsVistaFiltro);
-  if(_gf.mes !== '')        p.set('mes',     _gf.mes);
-  else if(_gf.period)       p.set('period',  _gf.period);
+  if(_gf.dateFrom)          p.set('date_from', _gf.dateFrom);
+  if(_gf.dateTo)            p.set('date_to',   _gf.dateTo);
+  if(!_gf.dateFrom&&!_gf.dateTo){
+    if(_gf.mes !== '')      p.set('mes',     _gf.mes);
+    else if(_gf.period)     p.set('period',  _gf.period);
+  }
   if(_leadsSortBy)          { p.set('sort_by', _leadsSortBy); p.set('sort_dir', _leadsSortDir); }
   if(_leadsEtiquetaFiltro)  p.set('etiqueta_filter', _leadsEtiquetaFiltro);
   return p;
@@ -4241,18 +4267,25 @@ function importData(inp){
 let currentUser     = null;
 let currentUserRole = 'setter';
 let callsCache      = window.callsCache = [];
+let _callsSortDir   = 'desc';
+function _callsToggleSort(){
+  _callsSortDir = _callsSortDir === 'desc' ? 'asc' : 'desc';
+  const icon = document.getElementById('calls-sort-icon');
+  if(icon) icon.textContent = _callsSortDir === 'desc' ? '↓' : '↑';
+  _applyCallsFilter();
+}
 
 const ROLE_PAGES = {
-  admin:  ['dash','acc','found','cont','ang','ref','leads','calls','clients','fin','ig','equipo'],
+  admin:  ['dash','acc','found','cont','ang','leads','calls','clients','fin','equipo'],
   closer: ['dash','acc','leads','calls'],
   setter: ['dash','acc','leads','calls'],
 };
 const ROLE_ALLOWED = {
-  admin:          ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','fin','ig','formatos','lab','equipo','forms'],
+  admin:          ['dash','acc','found','cont','ang','leads','funnel','calls','clients','fin','formatos','equipo','forms'],
   closer:         ['dash','acc','leads','funnel','calls'],
   setter:         ['dash','acc','leads','funnel','calls'],
-  content:        ['acc','found','cont','ang','ref','ig','formatos','lab'],
-  closer_content: ['dash','acc','found','cont','ang','ref','leads','funnel','calls','clients','ig','formatos','lab','forms'],
+  content:        ['acc','found','cont','ang','formatos'],
+  closer_content: ['dash','acc','found','cont','ang','leads','funnel','calls','clients','formatos','forms'],
 };
 
 const TASKS_ALLOWED_EMAILS = [
@@ -4292,7 +4325,7 @@ function _displayName(cid,role){
   return `${cid}${roleStr}`;
 }
 
-function editClienteAlias(){
+async function editClienteAlias(){
   const cid=_getClienteSeleccionado();
   if(!cid) return;
   const actual=_getAliases()[cid]||'';
@@ -4300,6 +4333,12 @@ function editClienteAlias(){
   if(nuevo===null) return;
   _saveAlias(cid,nuevo.trim());
   renderClienteSelector();
+  try{
+    await apiFetch(`${API_URL}/client-aliases`,{
+      method:'POST',
+      body:JSON.stringify({cliente_id:cid,alias:nuevo.trim()}),
+    });
+  }catch(e){console.warn('[editClienteAlias]',e.message);}
 }
 
 const _eyeOpen=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -4508,7 +4547,7 @@ document.addEventListener('click',e=>{
 
 function applyRolePermissions(){
   const allowed = ROLE_ALLOWED[currentUserRole]||[];
-  const allPages= ['dash','acc','found','cont','ang','ref','met','leads','funnel','calls','clients','fin','ig','formatos','lab','equipo','forms'];
+  const allPages= ['dash','acc','found','cont','ang','met','leads','funnel','calls','clients','fin','formatos','equipo','forms'];
 
   allPages.forEach(pid=>{
     const navEl=document.getElementById('nav-'+pid);
@@ -4546,6 +4585,11 @@ function applyRolePermissions(){
     const email=(localStorage.getItem('userEmail')||'').toLowerCase();
     const tasksVisible=TASKS_ALLOWED_EMAILS.includes(email);
     tasksSection.style.display=tasksVisible?'':'none';
+  }
+  const diagSection=document.getElementById('nav-diag-section');
+  if(diagSection){
+    const _esCliente6 = (localStorage.getItem('clienteSeleccionado')||'') === 'cliente_6';
+    diagSection.style.display=(currentUserRole==='admin' && _esCliente6)?'':'none';
   }
 
   const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0',closer_content:'#7B8FD4'};
@@ -4626,15 +4670,6 @@ async function fetchAngulos(){
     S.angulos=data.filter(x=>!x.hidden);
   }catch(e){console.warn('[fetchAngulos]',e);}
 }
-async function fetchReferentes(){
-  try{
-    const res=await apiFetch(`${API_URL}/referentes`);
-    if(!res.ok) return;
-    const data=await res.json();
-    if(!Array.isArray(data)) return;
-    S.refs=data;
-  }catch(e){console.warn('[fetchReferentes]',e);}
-}
 async function fetchMetricasCloud(){
   try{
     const res=await apiFetch(`${API_URL}/metricas`);
@@ -4644,58 +4679,23 @@ async function fetchMetricasCloud(){
     S.mets=data;
   }catch(e){console.warn('[fetchMetricasCloud]',e);}
 }
-async function fetchIG(){
-  try{
-    const [cRes,rRes,carsRes]=await Promise.all([
-      apiFetch(`${API_URL}/ig/cuenta`),
-      apiFetch(`${API_URL}/ig/reels`),
-      apiFetch(`${API_URL}/ig/carruseles`)
-    ]);
-    if(cRes.ok){
-      const cuenta=await cRes.json();
-      const hasCuenta=Object.keys(cuenta||{}).some(k=>cuenta[k]);
-      if(!hasCuenta&&(_igData.account||_igData.followers)){
-        await apiFetch(`${API_URL}/ig/cuenta`,{method:'PUT',body:JSON.stringify({account:_igData.account,followers:_igData.followers,followersGrowth:_igData.followersGrowth,watchTime:_igData.watchTime})}).catch(()=>{});
-      } else if(hasCuenta){
-        Object.assign(_igData,cuenta);
-      }
-    }
-    if(rRes.ok){
-      const reels=await rRes.json();
-      if(reels.length===0&&_igData.reels.length>0){
-        for(const r of _igData.reels) await apiFetch(`${API_URL}/ig/reels`,{method:'POST',body:JSON.stringify(r)}).catch(()=>{});
-        _igData.reels=[];_saveIG();
-        return fetchIG();
-      }
-      if(reels.length>0) _igData.reels=reels;
-    }
-    if(carsRes.ok){
-      const cars=await carsRes.json();
-      if(cars.length===0&&_igData.carruseles.length>0){
-        for(const c of _igData.carruseles) await apiFetch(`${API_URL}/ig/carruseles`,{method:'POST',body:JSON.stringify(c)}).catch(()=>{});
-        _igData.carruseles=[];_saveIG();
-        return fetchIG();
-      }
-      if(cars.length>0) _igData.carruseles=cars;
-    }
-  }catch(e){console.warn('[fetchIG]',e);}
-}
 
 let _crmStarted = false;
 
 function _startCRM(){
   if(_crmStarted) return;
   _crmStarted=true;
+  // Reset filter to current calendar month on each CRM entry
+  _gf={period:'',mes:String(new Date().getMonth()),dateFrom:'',dateTo:''};
   // Clear all data before fetching so no stale localStorage from another client is ever shown
   S.found={};S.content=[];S.hists=[];S.comps=[];S.mets=[];
   S.clients=[];S.ing=[];S.gas=[];S.angulos=[];S.refs=[];
   S.cuotas=[];S.sops=[];
   leadsCache.splice(0);
-  _igData=ld(_getIgKey(),_igDefaults);
-  if(!Array.isArray(_igData.reels)) _igData.reels=[];
-  if(!Array.isArray(_igData.carruseles)) _igData.carruseles=[];
   initCurrencyUI();
   _applySidebarPin();
+  _gfSyncTabs();
+  _dashInitPending = 2;
   renderDash();
   fetchLeads();
   fetchCalls();
@@ -4707,9 +4707,7 @@ function _startCRM(){
   fetchFundaciones();
   fetchContenido();
   fetchAngulos();
-  fetchReferentes();
   fetchMetricasCloud();
-  fetchIG();
 }
 
 function enterCRM(){
@@ -4773,6 +4771,19 @@ async function initApp(user){
   applyRolePermissions();
   _initTeam();
   checkHoldingNotifications(user.email);
+
+  // Sync aliases from server into localStorage
+  try{
+    const r=await apiFetch(`${API_URL}/client-aliases`);
+    if(r.ok){
+      const list=await r.json();
+      if(Array.isArray(list)&&list.length){
+        const a=_getAliases();
+        list.forEach(({cliente_id,alias})=>{if(cliente_id&&alias)a[cliente_id]=alias;});
+        localStorage.setItem(_ALIASES_KEY,JSON.stringify(a));
+      }
+    }
+  }catch{}
 
   renderClienteSelector();
 
@@ -4851,6 +4862,7 @@ const CALL_TO_LEAD_ESTADO = {
 
 let callsFilter = 'mes';
 let callsMes    = '';
+let _callsEstadoFilter = '';
 
 function filtrarCallsPorTiempo(calls, filtro){
   const now = new Date();
@@ -4876,12 +4888,17 @@ function onCallsBusquedaInput(){
   callsBusqueda=(document.getElementById('calls-busqueda')?.value||'').trim().toLowerCase();
   _applyCallsFilter();
 }
+function onCallsEstadoChange(){
+  _callsEstadoFilter=(document.getElementById('calls-estado-select')?.value||'');
+  _applyCallsFilter();
+}
 function _filtrarCalls(){
   let r=callsCache.filter(c=>_gfInRange(c.created_at));
   if(callsBusqueda) r=r.filter(c=>
     (c.nombre||'').toLowerCase().includes(callsBusqueda)||
     (c.instagram||'').toLowerCase().includes(callsBusqueda)
   );
+  if(_callsEstadoFilter) r=r.filter(c=>(c.estado||'')===_callsEstadoFilter);
   return r;
 }
 function setCallsFilter(filtro,el){ _gfSet(filtro); }
@@ -4898,6 +4915,7 @@ async function _applyCallsFilter(){
   const lbl=document.getElementById('calls-filter-label');
   if(lbl){
     const parts=_gf.mes!==''?[['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+_gf.mes]]:[LABEL[_gf.period]||''];
+    if(_callsEstadoFilter) parts.push(_callsEstadoFilter);
     lbl.textContent=parts.filter(Boolean).join(' · ');
   }
 
@@ -4905,7 +4923,14 @@ async function _applyCallsFilter(){
   const reagendas=filtradas.filter(c=>(c.estado||'').toLowerCase()==='re agenda').length;
 
   // Tabla: render inmediato con datos locales, sin esperar API
-  _renderCallsTable(filtradas);
+  const _callsSorted = [...filtradas].sort((a, b) => {
+    const da = new Date(a.fecha_llamada || a.fecha_realizada || a.created_at);
+    const db = new Date(b.fecha_llamada || b.fecha_realizada || b.created_at);
+    return _callsSortDir === 'desc' ? db - da : da - db;
+  });
+  const icon = document.getElementById('calls-sort-icon');
+  if(icon) icon.textContent = _callsSortDir === 'desc' ? '↓' : '↑';
+  _renderCallsTable(_callsSorted);
 
   // Cards: intentar desde API, fallback a cálculo local
   const metricsEl=document.getElementById('calls-metrics');
@@ -4985,10 +5010,12 @@ async function fetchCalls(){
 }
 function renderCallsPage(){
   const isC2 = getCid() === 'cliente_2';
+  const isC4 = getCid() === 'cliente_4';
+  const showGhl = isC2 || isC4;
   const thCloser = document.getElementById('calls-th-closer');
-  if(thCloser) thCloser.style.display = isC2 ? '' : 'none';
+  if(thCloser) thCloser.style.display = showGhl ? '' : 'none';
   const ghlFields = document.getElementById('pc-ghl-fields');
-  if(ghlFields) ghlFields.style.display = isC2 ? 'block' : 'none';
+  if(ghlFields) ghlFields.style.display = showGhl ? 'block' : 'none';
   _applyCallsFilter();
   fetchCalls();
 }
@@ -5050,6 +5077,48 @@ function _getCalendlyFormText(r){
   return '';
 }
 
+function abrirImportCalendly(){
+  // Set default range: last 30 days
+  const hoy=new Date();
+  const hace30=new Date(hoy); hace30.setDate(hoy.getDate()-30);
+  const fmt=d=>d.toISOString().slice(0,10);
+  const desdeEl=document.getElementById('import-cal-desde');
+  const hastaEl=document.getElementById('import-cal-hasta');
+  if(desdeEl) desdeEl.value=fmt(hace30);
+  if(hastaEl) hastaEl.value=fmt(hoy);
+  const res=document.getElementById('import-cal-result');
+  if(res) res.textContent='';
+  const btn=document.getElementById('import-cal-btn');
+  if(btn){btn.disabled=false;btn.textContent='Importar';}
+  document.getElementById('modal-import-calendly').classList.add('open');
+}
+async function importarLlamadasCalendly(){
+  const desde=(document.getElementById('import-cal-desde')?.value||'').trim();
+  const hasta=(document.getElementById('import-cal-hasta')?.value||'').trim();
+  if(!desde||!hasta){toast('✗ Seleccioná ambas fechas');return;}
+  if(desde>hasta){toast('✗ La fecha "desde" debe ser anterior a "hasta"');return;}
+  const btn=document.getElementById('import-cal-btn');
+  const res=document.getElementById('import-cal-result');
+  if(btn){btn.disabled=true;btn.textContent='Importando…';}
+  if(res) res.textContent='Consultando Calendly…';
+  try{
+    const r=await apiFetch(`${API_URL}/calendly/import-past`,{
+      method:'POST',
+      body:JSON.stringify({desde,hasta}),
+    });
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Error desconocido');
+    const msg=`✓ Importadas: ${data.imported} · Duplicadas (omitidas): ${data.skipped} · Errores: ${data.errors}`;
+    if(res) res.textContent=msg;
+    toast(msg);
+    if(data.imported>0) setTimeout(()=>{ closeModal('modal-import-calendly'); loadData(); },1500);
+  }catch(e){
+    if(res) res.textContent=`✗ ${e.message}`;
+    toast(`✗ ${e.message}`);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Importar';}
+  }
+}
 function verCalendlyForm(callId){
   const call=callsCache.find(c=>c.id===callId);
   if(!call) return;
@@ -5169,6 +5238,8 @@ function _renderCallsTable(rows){
     console.log('closer',r.closer,'calendar_id',r.calendar_id,'preguntas_calificacion',r.preguntas_calificacion);
 
     const isC2 = getCid() === 'cliente_2';
+    const isC4 = getCid() === 'cliente_4';
+    const showGhl = isC2 || isC4;
     const leadOrigen=leadsCache.find(l=>(l.instagram||'').toLowerCase()===ig);
     const origenVal=r.origen||leadOrigen?.origen||'';
 
@@ -5177,14 +5248,18 @@ function _renderCallsTable(rows){
 
     const rowBg=(estado==='No asistió'||estado==='Cancelada')?'background:rgba(200,60,60,0.1);':'';
     return `<tr onclick="abrirEditCall('${r.id}')" style="cursor:pointer;${rowBg}" title="Click para editar" class="${avatarIdeal?'avatar-ideal-si':''}">
+      ${r.fecha_realizada
+        ? `<td style="font-size:11px;color:var(--text2);white-space:nowrap" title="Fecha en que se realizó la llamada">📞 ${formatearFecha(r.fecha_realizada)}</td>`
+        : `<td style="font-size:11px;color:var(--text3);white-space:nowrap" title="Fecha de registro en el CRM">${formatearFecha(r.created_at)}</td>`
+      }
       <td style="color:var(--text3);font-size:10px;text-align:center">${idx+1}</td>
       <td style="color:var(--text);font-weight:600">${r.nombre||'—'}${callNum}</td>
       <td><a href="https://instagram.com/${ig}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">@${r.instagram||'—'}</a></td>
       <td style="font-size:12px;color:var(--text2)">${r.whatsapp||'—'}</td>
-      <td>${origenBadge(origenVal)}</td>
-      ${isC2?`<td style="font-size:12px;color:var(--text2)">${closerText}</td>`:''}
-      <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${estadoBadge}</td>
+      ${showGhl?`<td style="font-size:12px;color:var(--text2)">${closerText}</td>`:''}
+      <td>${origenBadge(origenVal)}</td>
+      <td onclick="event.stopPropagation()">${infoPrevia}</td>
       <td>${motivoText}</td>
       <td style="text-align:center">${(()=>{
         if(!isPostCall) return '<span style="color:var(--text3)">—</span>';
@@ -5198,12 +5273,13 @@ function _renderCallsTable(rows){
       <td>${isPostCall?`<span class="badge ${r.responde?'bgr':'bgy'}">${r.responde?'Sí':'No'}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
       <td onclick="event.stopPropagation()">${linkCell}</td>
       <td onclick="event.stopPropagation()">${grabacionCell}</td>
+      <td onclick="event.stopPropagation()">${(()=>{
+        const rp=_reportsList.find(x=>x.call_id===r.id);
+        if(rp) return `<button class="btn btn-outline" style="font-size:10px;padding:3px 8px;border-color:rgba(80,220,150,0.5);color:rgba(80,220,150,0.95)" onclick="openPdfModal('${rp.id}');event.stopPropagation()">Ver</button>`;
+        return `<button style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text3);font-size:10px;padding:3px 8px;cursor:pointer" onclick="abrirAsignarReporte('${r.id}','${(r.nombre||'').replace(/'/g,"\\'")}');event.stopPropagation()">Asignar</button>`;
+      })()}</td>
       <td onclick="event.stopPropagation()">${reporteCloserCell}</td>
       <td onclick="event.stopPropagation()">${reporteCalendlyCell}</td>
-      ${r.fecha_realizada
-        ? `<td style="font-size:11px;color:var(--text2);white-space:nowrap" title="Fecha en que se realizó la llamada">📞 ${formatearFecha(r.fecha_realizada)}</td>`
-        : `<td style="font-size:11px;color:var(--text3);white-space:nowrap" title="Fecha de registro en el CRM">${formatearFecha(r.created_at)}</td>`
-      }
       <td onclick="event.stopPropagation()">
         <button class="btn-icon" onclick="deleteCall('${r.id}')" style="color:var(--red)" title="Eliminar">×</button>
       </td>
@@ -5309,11 +5385,13 @@ async function savePreCall(){
   const pendingLead=_pendingReporteLeadId?leadsCache.find(l=>l.id===_pendingReporteLeadId):leadsCache.find(l=>(l.instagram||'').toLowerCase()===instagram.toLowerCase());
   const rawFechaPC=(document.getElementById('pc-fecha-llamada')?.value||'').trim();
   const _pc_isC2 = getCid() === 'cliente_2';
+  const _pc_isC4 = getCid() === 'cliente_4';
+  const _pc_isGhl = _pc_isC2 || _pc_isC4;
   const agendado_por=(document.getElementById('pc-agendado-por')?.value||'').trim()||undefined;
-  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||(_pc_isC2?'GHL':''),
+  const data={nombre,instagram,whatsapp,info_previa,origen:pendingLead?.origen||(_pc_isGhl?'GHL':''),
     fecha_llamada:rawFechaPC?new Date(rawFechaPC).toISOString():null,
     ...(agendado_por && { agendado_por }),
-    ...(_pc_isC2 && {
+    ...(_pc_isGhl && {
       closer:       (document.getElementById('pc-closer')?.value||'').trim()||undefined,
       calendar_name:(document.getElementById('pc-calendar-name')?.value||'').trim()||undefined,
       email:        (document.getElementById('pc-email')?.value||'').trim()||undefined,
@@ -5382,8 +5460,9 @@ function abrirEditCall(id){
   document.getElementById('ec-grabacion').value=r.link_grabacion||'';
 
   const _isC2 = getCid() === 'cliente_2';
+  const _isC4 = getCid() === 'cliente_4';
   const closerWrap = document.getElementById('ec-closer-wrap');
-  if(closerWrap) closerWrap.style.display = _isC2 ? 'block' : 'none';
+  if(closerWrap) closerWrap.style.display = (_isC2 || _isC4) ? 'block' : 'none';
   const ecCloser = document.getElementById('ec-closer');
   if(ecCloser) ecCloser.value = r.closer || '';
 
@@ -5404,9 +5483,18 @@ function abrirEditCall(id){
   } else {
     document.getElementById('ec-avatar-no').checked=true;
   }
+  const razonEl=document.getElementById('ec-avatar-razon');
+  if(razonEl) razonEl.value=rJSON.avatar_ideal_razon||'';
 
   onEditCallEstadoChange();
+  onAvatarChange();
   document.getElementById('modal-edit-call').classList.add('open');
+}
+function onAvatarChange(){
+  const esNo=document.getElementById('ec-avatar-no')?.checked;
+  const wrap=document.getElementById('ec-avatar-razon-wrap');
+  if(wrap) wrap.style.display=esNo?'block':'none';
+  if(!esNo){const t=document.getElementById('ec-avatar-razon');if(t)t.value='';}
 }
 function onEditCallEstadoChange(){
   const estado=document.getElementById('ec-estado')?.value||'';
@@ -5441,13 +5529,15 @@ async function saveEditCall(){
   if(estado==='Seña'&&!montoSenaRaw){toast('✗ El monto de la seña es obligatorio');return;}
   const monto_sena=montoSenaRaw?parseFloat(montoSenaRaw):null;
   const _ec_isC2 = getCid() === 'cliente_2';
-  const closer=_ec_isC2?(document.getElementById('ec-closer')?.value||'').trim():undefined;
+  const _ec_isC4 = getCid() === 'cliente_4';
+  const closer=(_ec_isC2||_ec_isC4)?(document.getElementById('ec-closer')?.value||'').trim():undefined;
   const link=(document.getElementById('ec-link')?.value||'').trim();
   if(link&&!link.startsWith('http')){toast('✗ El link debe empezar con http');return;}
   const grabacion=(document.getElementById('ec-grabacion')?.value||'').trim();
   if(grabacion&&!grabacion.startsWith('http')){toast('✗ El link de grabación debe empezar con http');return;}
 
   const avatar_ideal=document.getElementById('ec-avatar-si')?.checked?'Si':'No';
+  const avatar_ideal_razon=avatar_ideal==='No'?(document.getElementById('ec-avatar-razon')?.value||'').trim():'';
   const reporte=JSON.stringify({
     atraccion:   (document.getElementById('ec-atraccion')?.value||'').trim(),
     contenido:   (document.getElementById('ec-contenido')?.value||'').trim(),
@@ -5456,6 +5546,7 @@ async function saveEditCall(){
     objecion:    (document.getElementById('ec-objecion')?.value||'').trim(),
     perfil:      (document.getElementById('ec-perfil')?.value||'').trim(),
     avatar_ideal,
+    ...(avatar_ideal_razon && {avatar_ideal_razon}),
     aporte_marketing:(document.getElementById('ec-aporte')?.value||'').trim(),
   });
 
@@ -5593,14 +5684,15 @@ function verReporteGHL(callId){
 }
 
 const REPORTE_LABELS={
-  atraccion:       '¿Qué fue lo que más le llamó la atención/atrajo de la oferta?',
-  contenido:       '¿Qué mencionó el lead que podemos usar para contenido?',
-  motivacion:      '¿Qué lo motivó a estar en la llamada?',
-  dolor:           '¿Cuál es el dolor más fuerte que tenía?',
-  objecion:        '¿Qué objeción apareció?',
-  perfil:          '¿Qué tipo de perfil tiene el lead?',
-  avatar_ideal:    '¿Este lead representa al avatar ideal?',
-  aporte_marketing:'¿Qué puedo aportar para marketing desde la llamada?',
+  atraccion:          '¿Qué fue lo que más le llamó la atención/atrajo de la oferta?',
+  contenido:          '¿Qué mencionó el lead que podemos usar para contenido?',
+  motivacion:         '¿Qué lo motivó a estar en la llamada?',
+  dolor:              '¿Cuál es el dolor más fuerte que tenía?',
+  objecion:           '¿Qué objeción apareció?',
+  perfil:             '¿Qué tipo de perfil tiene el lead?',
+  avatar_ideal:       '¿Este lead representa al avatar ideal?',
+  avatar_ideal_razon: '¿Por qué no representa al avatar ideal?',
+  aporte_marketing:   '¿Qué puedo aportar para marketing desde la llamada?',
 };
 function verReporteCall(id){
   const call=callsCache.find(c=>c.id===id);
@@ -5687,8 +5779,9 @@ function guardarReporteAgenda(){
 
 async function openAddCallModal(){
   const isC2 = getCid() === 'cliente_2';
+  const isC4 = getCid() === 'cliente_4';
   const ghlFields = document.getElementById('pc-ghl-fields');
-  if(ghlFields) ghlFields.style.display = isC2 ? 'block' : 'none';
+  if(ghlFields) ghlFields.style.display = (isC2 || isC4) ? 'block' : 'none';
   _resetPcModal();
   await _loadEquipoMembers();
   _populateAgendadoPorSelect();
@@ -5836,15 +5929,6 @@ function _cierreUpdatePrograma(meses){
   if(!meses){el.textContent='—';return;}
   const sal=new Date(); sal.setMonth(sal.getMonth()+parseInt(meses));
   el.textContent=sal.toLocaleDateString('es-AR');
-}
-function _tryIGPreview(url){
-  const prev=document.getElementById('igr-url-preview');
-  if(!prev) return;
-  const match=(url||'').match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/);
-  if(!match){prev.style.display='none';prev.innerHTML='';return;}
-  const code=match[2];
-  prev.style.display='block';
-  prev.innerHTML=`<iframe src="https://www.instagram.com/p/${code}/embed/" width="320" height="380" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;border-radius:8px;max-width:100%;background:var(--bg2)"></iframe><div style="font-size:10px;color:var(--text3);margin-top:4px">Vista previa (requiere perfil público y conexión)</div>`;
 }
 function _previewComprobanteImg(input){
   const file=input.files[0];
@@ -6172,7 +6256,7 @@ async function _confirmarSenaCierre(){
   if(callIdToClose){
     const callInCache = (callsCache||[]).find(c=>c.id===callIdToClose);
     if(callInCache){ callInCache.estado='Cierre'; }
-    apiFetch(`${API_URL}/calls/${callIdToClose}`,{method:'PATCH',body:JSON.stringify({estado:'Cierre'})})
+    apiFetch(`${API_URL}/call/${callIdToClose}`,{method:'PATCH',body:JSON.stringify({estado:'Cierre'})})
       .catch(e=>console.warn('[_confirmarSenaCierre] call estado:',e.message));
   }
 
@@ -6268,340 +6352,6 @@ async function _pollTeam(){
   }catch{}
 }
 
-// ========== INSTAGRAM MODULE ==========
-function _getIgKey(){return'crm_ig_'+getCid();}
-const _igDefaults={
-  account:'@tucuenta',followers:0,followersGrowth:0,watchTime:0,reels:[],carruseles:[]
-};
-let _igData=ld(_getIgKey(),_igDefaults);
-if(!Array.isArray(_igData.reels)) _igData.reels=[];
-if(!Array.isArray(_igData.carruseles)) _igData.carruseles=[];
-function _saveIG(){sv(_getIgKey(),_igData);}
-
-let _igSelectedReel=null;
-
-let _igSelectedCarrusel=null;
-
-function renderIG(){
-  const ig=_igData;
-  const reels=ig.reels||[];
-  const cars=ig.carruseles||[];
-  const n=reels.length, nc=cars.length;
-  const avg=(arr,key)=>arr.length?Math.round(arr.reduce((a,r)=>a+(+r[key]||0),0)/arr.length):0;
-  const avgEng=arr=>arr.length?+(arr.reduce((a,r)=>{
-    const v=+r.views||0; return v>0?a+((+r.likes||0)+(+r.comments||0)+(+r.saves||0))/v*100:a;
-  },0)/arr.length).toFixed(1):0;
-  const totalFollowersReels=reels.reduce((a,r)=>a+(+r.followersFromReel||0),0);
-  const totalFollowersCars=cars.reduce((a,c)=>a+(+c.followersFromCarrusel||0),0);
-  const totalFollowers=(ig.followers||0)+totalFollowersReels+totalFollowersCars;
-  const fmtK=v=>v>=1000?(v/1000).toFixed(1)+'K':String(v);
-  const metricsEl=document.getElementById('ig-metrics');
-  if(!metricsEl) return;
-  metricsEl.innerHTML=`
-    <div class="ig-stat-card" style="cursor:pointer" onclick="openModal('modal-ig-cuenta')" title="Editar datos de cuenta">
-      <div class="ig-stat-label">Seguidores totales <span style="font-size:8px;opacity:.4">✎</span></div>
-      <div class="ig-stat-value">${totalFollowers?fmt(totalFollowers):'—'}</div>
-      <div class="ig-stat-sub" style="color:#5cb87a">${ig.followersGrowth?'+'+ig.followersGrowth+'% este mes':'Ingresar datos →'}</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Views prom. reels</div>
-      <div class="ig-stat-value">${n?fmtK(avg(reels,'views')):'—'}</div>
-      <div class="ig-stat-sub">por reel · ${n} reels</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Eng. prom. reels</div>
-      <div class="ig-stat-value">${n?avgEng(reels)+'%':'—'}</div>
-      <div class="ig-stat-sub">likes+coment+guard / views</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Seguidores de reels</div>
-      <div class="ig-stat-value">${totalFollowersReels?fmtK(totalFollowersReels):'—'}</div>
-      <div class="ig-stat-sub">total acumulado</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Prom. seg. por reel</div>
-      <div class="ig-stat-value">${n?fmtK(Math.round(totalFollowersReels/n)):'—'}</div>
-      <div class="ig-stat-sub">promedio por pieza</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Views prom. carruseles</div>
-      <div class="ig-stat-value">${nc?fmtK(avg(cars,'views')):'—'}</div>
-      <div class="ig-stat-sub">por carrusel · ${nc} carruseles</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Eng. prom. carruseles</div>
-      <div class="ig-stat-value">${nc?avgEng(cars)+'%':'—'}</div>
-      <div class="ig-stat-sub">likes+coment+guard / views</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Seguidores de carruseles</div>
-      <div class="ig-stat-value">${totalFollowersCars?fmtK(totalFollowersCars):'—'}</div>
-      <div class="ig-stat-sub">total acumulado</div>
-    </div>
-    <div class="ig-stat-card">
-      <div class="ig-stat-label">Prom. seg. por carrusel</div>
-      <div class="ig-stat-value">${nc?fmtK(Math.round(totalFollowersCars/nc)):'—'}</div>
-      <div class="ig-stat-sub">promedio por pieza</div>
-    </div>
-    <div class="ig-stat-card" style="cursor:pointer" onclick="openModal('modal-ig-cuenta')" title="Editar Watch Time">
-      <div class="ig-stat-label">Watch Time prom <span style="font-size:8px;opacity:.4">✎</span></div>
-      <div class="ig-stat-value">${ig.watchTime?ig.watchTime+'s':'—'}</div>
-      <div class="ig-stat-sub">desde Instagram Insights</div>
-    </div>`;
-
-  _igSelectedReel=null;
-  _igSelectedCarrusel=null;
-  _renderIGReels();
-  _renderIGCarruseles();
-}
-
-function _renderIGReels(){
-  const grid=document.getElementById('ig-reels-grid');
-  if(!grid) return;
-  const detail=document.getElementById('ig-reel-detail');
-  if(detail) detail.style.display='none';
-  const fmtK=n=>n>=1000?(n/1000).toFixed(1)+'K':String(n);
-  if(!_igData.reels.length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px">Sin reels cargados. Usá "+ Agregar reel" para registrar uno.</div>';
-    return;
-  }
-  grid.innerHTML=_igData.reels.map(r=>{
-    const igMatch=r.url?(r.url.match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/)):null;
-    const thumb=igMatch
-      ?`<iframe src="https://www.instagram.com/p/${igMatch[2]}/embed/" style="position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none" scrolling="no" frameborder="0" allowtransparency="true"></iframe>`
-      :`<div class="ig-reel-play">▶</div>`;
-    return `
-    <div class="ig-reel-card" onclick="_abrirIGReel('${r.id}')">
-      <div class="ig-reel-thumb">
-        ${thumb}
-        <div class="ig-reel-views">${fmtK(r.views)} views</div>
-      </div>
-      <div class="ig-reel-info">
-        <div class="ig-reel-title" title="${r.title}">${r.title}</div>
-        ${r.url?`<div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px"><a href="${r.url}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue)">Ver en Instagram ↗</a></div>`:''}
-        <div class="ig-reel-stats">
-          <div class="ig-reel-stat">❤ <span>${fmtK(r.likes)}</span></div>
-          <div class="ig-reel-stat">💬 <span>${r.comments}</span></div>
-          <div class="ig-reel-stat" title="Comentarios únicos">👤 <span>${r.comentariosUnicos??Math.round((r.comments||0)/2)}</span></div>
-          <div class="ig-reel-stat">🔖 <span>${fmtK(r.saves)}</span></div>
-          <div class="ig-reel-stat">📤 <span>${r.shares}</span></div>
-        </div>
-        <div style="margin-top:6px;text-align:right">
-          <button class="btn-icon" onclick="deleteIGReel('${r.id}',event)" style="color:var(--red)" title="Eliminar reel">×</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function _abrirIGReel(id){
-  const r=_igData.reels.find(x=>x.id===id);
-  if(!r) return;
-  _igSelectedReel=r;
-  const detail=document.getElementById('ig-reel-detail');
-  if(!detail) return;
-  detail.style.display='block';
-  document.getElementById('ig-detail-title').textContent=r.title;
-  document.getElementById('ig-detail-date').textContent=r.date+(r.url?` · `:'');
-  const urlEl=document.getElementById('ig-detail-url');
-  if(urlEl){urlEl.style.display=r.url?'inline':'none';urlEl.href=r.url||'#';}
-  const retColor=r.retention>=70?'var(--green)':r.retention>=50?'var(--amber)':'var(--red)';
-  detail.querySelector('.ig-detail-stats').innerHTML=`
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.views>=1000?(r.views/1000).toFixed(1)+'K':r.views}</div><div class="ig-detail-lbl">Views</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.likes}</div><div class="ig-detail-lbl">Likes</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.comments}</div><div class="ig-detail-lbl">Comentarios</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.comentariosUnicos??Math.round((r.comments||0)/2)}</div><div class="ig-detail-lbl">Únicos</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.saves}</div><div class="ig-detail-lbl">Guardados</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.shares}</div><div class="ig-detail-lbl">Compartidos</div></div>
-    ${r.followersFromReel?`<div class="ig-detail-stat"><div class="ig-detail-val" style="color:#5cb87a">${r.followersFromReel}</div><div class="ig-detail-lbl">Seguidores</div></div>`:''}`;
-  detail.querySelector('.ig-retention-fill').style.cssText=`width:${r.retention||0}%;background:${retColor}`;
-  detail.querySelector('.ig-retention-pct').textContent=(r.retention||0)+'%';
-}
-
-function openIGReelModal(){
-  // Limpiar campos antes de abrir
-  ['igr-titulo','igr-url','igr-fecha','igr-views','igr-likes','igr-comments','igr-saves','igr-shares','igr-retention','igr-followers'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.value=el.type==='number'?'0':'';}
-  });
-  const fecha=document.getElementById('igr-fecha');
-  if(fecha) fecha.value=new Date().toISOString().slice(0,10);
-  const prev=document.getElementById('igr-url-preview');
-  if(prev){prev.style.display='none';prev.innerHTML='';}
-  openModal('modal-ig-reel');
-}
-
-async function saveIGReel(){
-  const titulo=(document.getElementById('igr-titulo')?.value||'').trim();
-  if(!titulo){toast('✗ Ingresá el título del reel');return;}
-  const comments=parseInt(document.getElementById('igr-comments')?.value)||0;
-  const reel={
-    id:'ig'+uid().slice(0,8),
-    title:titulo,
-    url:(document.getElementById('igr-url')?.value||'').trim(),
-    date:document.getElementById('igr-fecha')?.value||new Date().toISOString().slice(0,10),
-    views:parseInt(document.getElementById('igr-views')?.value)||0,
-    likes:parseInt(document.getElementById('igr-likes')?.value)||0,
-    comments,
-    comentariosUnicos:Math.round(comments/2),
-    saves:parseInt(document.getElementById('igr-saves')?.value)||0,
-    shares:parseInt(document.getElementById('igr-shares')?.value)||0,
-    retention:Math.min(100,Math.max(0,parseInt(document.getElementById('igr-retention')?.value)||0)),
-    followersFromReel:parseInt(document.getElementById('igr-followers')?.value)||0,
-  };
-  try{
-    const res=await apiFetch(`${API_URL}/ig/reels`,{method:'POST',body:JSON.stringify(reel)});
-    if(!res.ok) throw new Error();
-    const saved=await res.json();
-    _igData.reels.unshift(saved);
-  }catch(e){_igData.reels.unshift(reel);_saveIG();}
-  closeModal('modal-ig-reel');renderIG();toast('✓ Reel agregado');
-}
-
-async function deleteIGReel(id,e){
-  e.stopPropagation();
-  if(!confirm('¿Eliminar este reel?')) return;
-  try{await apiFetch(`${API_URL}/ig/reels/${id}`,{method:'DELETE'});}catch(e){}
-  _igData.reels=_igData.reels.filter(r=>r.id!==id);
-  _saveIG();
-  const detail=document.getElementById('ig-reel-detail');
-  if(detail) detail.style.display='none';
-  renderIG();toast('✓ Reel eliminado');
-}
-
-function openIGCuentaModal(){
-  const ig=_igData;
-  ['ig-c-account','ig-c-followers','ig-c-growth','ig-c-watchtime'].forEach((fid,i)=>{
-    const keys=['account','followers','followersGrowth','watchTime'];
-    const el=document.getElementById(fid);
-    if(el) el.value=ig[keys[i]]||'';
-  });
-  openModal('modal-ig-cuenta');
-}
-
-async function saveIGCuenta(){
-  _igData.account=(document.getElementById('ig-c-account')?.value||'').trim()||'@tucuenta';
-  _igData.followers=parseInt(document.getElementById('ig-c-followers')?.value)||0;
-  _igData.followersGrowth=parseFloat(document.getElementById('ig-c-growth')?.value)||0;
-  _igData.watchTime=parseFloat(document.getElementById('ig-c-watchtime')?.value)||0;
-  _saveIG();
-  try{
-    await apiFetch(`${API_URL}/ig/cuenta`,{method:'PUT',body:JSON.stringify({
-      account:_igData.account,followers:_igData.followers,
-      followersGrowth:_igData.followersGrowth,watchTime:_igData.watchTime
-    })});
-  }catch(e){}
-  closeModal('modal-ig-cuenta');renderIG();toast('✓ Métricas de cuenta actualizadas');
-}
-
-// ===== CARRUSELES =====
-function _renderIGCarruseles(){
-  const grid=document.getElementById('ig-carruseles-grid');
-  if(!grid) return;
-  const detail=document.getElementById('ig-carrusel-detail');
-  if(detail) detail.style.display='none';
-  const fmtK=n=>n>=1000?(n/1000).toFixed(1)+'K':String(n);
-  if(!_igData.carruseles.length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px">Sin carruseles cargados. Usá "+ Agregar carrusel" para registrar uno.</div>';
-    return;
-  }
-  grid.innerHTML=_igData.carruseles.map(r=>{
-    const igMatch=r.url?(r.url.match(/instagram\.com\/(p|reel)\/([A-Za-z0-9_-]+)/)):null;
-    const thumb=igMatch
-      ?`<iframe src="https://www.instagram.com/p/${igMatch[2]}/embed/" style="position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none" scrolling="no" frameborder="0" allowtransparency="true"></iframe>`
-      :`<div class="ig-reel-play">▶</div>`;
-    return `
-    <div class="ig-reel-card" onclick="_abrirIGCarrusel('${r.id}')">
-      <div class="ig-reel-thumb">
-        ${thumb}
-        <div class="ig-reel-views">${fmtK(r.views)} views</div>
-      </div>
-      <div class="ig-reel-info">
-        <div class="ig-reel-title" title="${r.title}">${r.title}</div>
-        ${r.url?`<div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px"><a href="${r.url}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue)">Ver en Instagram ↗</a></div>`:''}
-        <div class="ig-reel-stats">
-          <div class="ig-reel-stat">❤ <span>${fmtK(r.likes)}</span></div>
-          <div class="ig-reel-stat">💬 <span>${r.comments}</span></div>
-          <div class="ig-reel-stat">🔖 <span>${fmtK(r.saves)}</span></div>
-          <div class="ig-reel-stat">📤 <span>${r.shares}</span></div>
-        </div>
-        <div style="margin-top:6px;text-align:right">
-          <button class="btn-icon" onclick="deleteIGCarrusel('${r.id}',event)" style="color:var(--red)" title="Eliminar carrusel">×</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function _abrirIGCarrusel(id){
-  const r=_igData.carruseles.find(x=>x.id===id);
-  if(!r) return;
-  _igSelectedCarrusel=r;
-  const detail=document.getElementById('ig-carrusel-detail');
-  if(!detail) return;
-  detail.style.display='block';
-  document.getElementById('ig-carrusel-detail-title').textContent=r.title;
-  document.getElementById('ig-carrusel-detail-date').textContent=r.date+(r.url?' · ':'');
-  const urlEl=document.getElementById('ig-carrusel-detail-url');
-  if(urlEl){urlEl.style.display=r.url?'inline':'none';urlEl.href=r.url||'#';}
-  const retColor=r.retention>=70?'var(--green)':r.retention>=50?'var(--amber)':'var(--red)';
-  detail.querySelector('.ig-carrusel-detail-stats').innerHTML=`
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.views>=1000?(r.views/1000).toFixed(1)+'K':r.views}</div><div class="ig-detail-lbl">Views</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.likes}</div><div class="ig-detail-lbl">Likes</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.comments}</div><div class="ig-detail-lbl">Comentarios</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.saves}</div><div class="ig-detail-lbl">Guardados</div></div>
-    <div class="ig-detail-stat"><div class="ig-detail-val">${r.shares}</div><div class="ig-detail-lbl">Compartidos</div></div>
-    ${r.followersFromCarrusel?`<div class="ig-detail-stat"><div class="ig-detail-val" style="color:#5cb87a">${r.followersFromCarrusel}</div><div class="ig-detail-lbl">Seguidores</div></div>`:''}`;
-  detail.querySelector('.ig-carrusel-retention-fill').style.cssText=`width:${r.retention||0}%;background:${retColor}`;
-  detail.querySelector('.ig-carrusel-retention-pct').textContent=(r.retention||0)+'%';
-}
-
-function openIGCarruselModal(){
-  ['igc-titulo','igc-url','igc-fecha','igc-views','igc-likes','igc-comments','igc-saves','igc-shares','igc-retention','igc-followers'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.value=el.type==='number'?'0':'';}
-  });
-  const fecha=document.getElementById('igc-fecha');
-  if(fecha) fecha.value=new Date().toISOString().slice(0,10);
-  openModal('modal-ig-carrusel');
-}
-
-async function saveIGCarrusel(){
-  const titulo=(document.getElementById('igc-titulo')?.value||'').trim();
-  if(!titulo){toast('✗ Ingresá el título del carrusel');return;}
-  const comments=parseInt(document.getElementById('igc-comments')?.value)||0;
-  const car={
-    id:'igc'+Date.now().toString(36),
-    title:titulo,
-    url:(document.getElementById('igc-url')?.value||'').trim(),
-    date:document.getElementById('igc-fecha')?.value||new Date().toISOString().slice(0,10),
-    views:parseInt(document.getElementById('igc-views')?.value)||0,
-    likes:parseInt(document.getElementById('igc-likes')?.value)||0,
-    comments,
-    saves:parseInt(document.getElementById('igc-saves')?.value)||0,
-    shares:parseInt(document.getElementById('igc-shares')?.value)||0,
-    retention:Math.min(100,Math.max(0,parseInt(document.getElementById('igc-retention')?.value)||0)),
-    followersFromCarrusel:parseInt(document.getElementById('igc-followers')?.value)||0,
-  };
-  try{
-    const res=await apiFetch(`${API_URL}/ig/carruseles`,{method:'POST',body:JSON.stringify(car)});
-    if(!res.ok) throw new Error();
-    const saved=await res.json();
-    _igData.carruseles.unshift(saved);
-  }catch(e){_igData.carruseles.unshift(car);_saveIG();}
-  closeModal('modal-ig-carrusel');renderIG();toast('✓ Carrusel agregado');
-}
-
-async function deleteIGCarrusel(id,e){
-  e.stopPropagation();
-  if(!confirm('¿Eliminar este carrusel?')) return;
-  try{await apiFetch(`${API_URL}/ig/carruseles/${id}`,{method:'DELETE'});}catch(e){}
-  _igData.carruseles=_igData.carruseles.filter(r=>r.id!==id);
-  _saveIG();
-  const detail=document.getElementById('ig-carrusel-detail');
-  if(detail) detail.style.display='none';
-  renderIG();toast('✓ Carrusel eliminado');
-}
 
 // ========== EQUIPO ==========
 let _equipo = { period: 'semana', mes: '' };
@@ -7126,661 +6876,6 @@ async function deleteFormato(){
 }
 
 // ========================================
-// 🔬 LABORATORIO DE CONTENIDO
-// ========================================
-let labCache = [];
-let _labTab = 'reel';
-let _editLabId = null;
-let _histFrames = []; // base64 images for historia frames
-let _labConclusions = {}; // { reel: {text,from,to}, carrusel:…, historia:…, youtube:… }
-let labArchiveCache = [];
-
-function _getLabArchiveKey(){ return `crm_lab_archivo_${getCid()}`; }
-function _loadLabArchive(){ try{ const v=localStorage.getItem(_getLabArchiveKey()); labArchiveCache=v?JSON.parse(v):[]; }catch{ labArchiveCache=[]; } }
-function _persistLabArchive(){ try{ localStorage.setItem(_getLabArchiveKey(),JSON.stringify(labArchiveCache)); }catch{} }
-
-// ---- Formula helpers ----
-function _calcRendCTA(respuestas_cta, views_ultima){
-  if(!respuestas_cta||!views_ultima) return null;
-  const pct=respuestas_cta/views_ultima;
-  if(pct>0.07) return{pct,label:'Muy bueno',color:'#5cb87a'};
-  if(pct>0.03) return{pct,label:'Bueno',color:'#e0b54a'};
-  return{pct,label:'Malo',color:'#d46060'};
-}
-function _calcRendRetencion(duracion, retencion){
-  if(!duracion||retencion==null||retencion==='') return null;
-  const d=Number(duracion), r=Number(retencion);
-  if(!d||isNaN(r)) return null;
-  let lo,hi;
-  if(d<10){lo=40;hi=50;}
-  else if(d<=25){lo=30;hi=40;}
-  else{lo=15;hi=25;}
-  if(r>=lo&&r<=hi) return{label:'Ideal',color:'#5cb87a'};
-  if(r<lo) return{label:'Mala',color:'#d46060'};
-  return{label:'Muy buena',color:'#6090d4'};
-}
-function _calcRendCTR(ctr){
-  if(ctr==null||ctr==='') return null;
-  const c=Number(ctr); if(isNaN(c)) return null;
-  if(c>=10) return{label:'Muy bueno',color:'#5cb87a'};
-  if(c>=4)  return{label:'Bueno',color:'#e0b54a'};
-  return{label:'Malo',color:'#d46060'};
-}
-
-// ---- Live form calcs ----
-function _refreshComUnicos(){
-  const com=parseFloat(document.getElementById('lab-comentarios')?.value)||0;
-  const el=document.getElementById('lab-com-unicos-display');
-  if(el) el.textContent=Math.round(com/2);
-}
-function _refreshHistCTACalc(){
-  const wrap=document.getElementById('hist-views-rows'); if(!wrap) return;
-  const inputs=[...wrap.querySelectorAll('input[id^="lab-hist-v-"]')];
-  const lastViews=inputs.length?(parseFloat(inputs[inputs.length-1].value)||0):0;
-  const respuestas=parseFloat(document.getElementById('lab-respuestas-cta')?.value)||0;
-  const el=document.getElementById('lab-cta-calc-display'); if(!el) return;
-  const rend=_calcRendCTA(respuestas,lastViews);
-  el.innerHTML=rend?`${(rend.pct*100).toFixed(1)}% &nbsp;<span style="font-weight:700;color:${rend.color}">${rend.label}</span>`:'—';
-}
-function _refreshYTCalc(){
-  const ctr=document.getElementById('lab-ctr')?.value;
-  const ret=document.getElementById('lab-retencion')?.value;
-  const dur=document.getElementById('lab-duracion')?.value;
-  const elCTR=document.getElementById('lab-rend-ctr');
-  const elRet=document.getElementById('lab-rend-retencion');
-  if(elCTR){ const r=_calcRendCTR(ctr); elCTR.innerHTML=r?`<span style="font-weight:700;color:${r.color}">${r.label}</span>`:'—'; }
-  if(elRet){ const r=_calcRendRetencion(dur,ret); elRet.innerHTML=r?`<span style="font-weight:700;color:${r.color}">${r.label}</span>`:'—'; }
-}
-
-// ---- Archive modal / snapshot ----
-function _openArchiveModal(){
-  const input=document.getElementById('lab-archivo-nombre');
-  const dateInput=document.getElementById('lab-archivo-fecha');
-  if(input) input.value='';
-  if(dateInput) dateInput.value=new Date().toISOString().slice(0,10);
-  openModal('modal-lab-archivo');
-}
-function confirmarArchivoLab(){
-  const nombre=(document.getElementById('lab-archivo-nombre')?.value||'').trim();
-  if(!nombre){toast('Ingresá un nombre para el laboratorio');return;}
-  _loadLabArchive();
-  const snapshot={
-    id:uid(),
-    nombre,
-    fecha:document.getElementById('lab-archivo-fecha')?.value||new Date().toISOString().slice(0,10),
-    conclusiones:JSON.parse(JSON.stringify(_labConclusions)),
-    piezas:{
-      reel:     labCache.filter(x=>x.tipo==='reel'),
-      carrusel: labCache.filter(x=>x.tipo==='carrusel'),
-      historia: labCache.filter(x=>x.tipo==='historia'),
-      youtube:  labCache.filter(x=>x.tipo==='youtube'),
-    }
-  };
-  labArchiveCache.unshift(snapshot);
-  _persistLabArchive();
-  closeModal('modal-lab-archivo');
-  toast(`Laboratorio "${nombre}" archivado ✓`);
-}
-
-// ---- Archive page ----
-function renderLabArchive(){
-  _loadLabArchive();
-  const listEl=document.getElementById('lab-archive-list');
-  const detailEl=document.getElementById('lab-archive-detail');
-  if(!listEl) return;
-  if(detailEl) detailEl.style.display='none';
-  listEl.style.display='';
-  if(!labArchiveCache.length){
-    listEl.innerHTML='<div style="text-align:center;color:var(--text3);padding:60px 0;font-size:13px">No hay laboratorios archivados.<br><span style="font-size:11px">Guardá una conclusión para crear el primer archivo.</span></div>';
-    return;
-  }
-  listEl.innerHTML=labArchiveCache.map(lab=>`
-    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;margin-bottom:10px;cursor:pointer" onclick="_openSavedLab('${lab.id}')">
-      <div>
-        <div style="font-size:14px;font-weight:700;color:var(--text)">${escHtml(lab.nombre)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${lab.fecha||'—'}</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        ${['reel','carrusel','historia','youtube'].map(t=>`<span style="font-size:10px;font-weight:700;color:var(--text3)">${lab.piezas[t]?.length||0} ${t}</span>`).join('<span style="color:var(--line)">·</span>')}
-        <button onclick="event.stopPropagation();_deleteSavedLab('${lab.id}')" class="btn-icon" style="color:var(--red);margin-left:4px;font-size:16px">×</button>
-      </div>
-    </div>`).join('');
-}
-function _deleteSavedLab(id){
-  if(!confirm('¿Eliminar este laboratorio archivado?')) return;
-  labArchiveCache=labArchiveCache.filter(x=>x.id!==id);
-  _persistLabArchive();
-  renderLabArchive();
-}
-function _openSavedLab(id){
-  const lab=labArchiveCache.find(x=>x.id===id); if(!lab) return;
-  const listEl=document.getElementById('lab-archive-list');
-  const detailEl=document.getElementById('lab-archive-detail');
-  if(!detailEl||!listEl) return;
-  listEl.style.display='none';
-  detailEl.style.display='';
-  const TABS=[{key:'reel',label:'Reels'},{key:'carrusel',label:'Carruseles'},{key:'historia',label:'Historias'},{key:'youtube',label:'YouTube'}];
-  detailEl.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <button onclick="_backToLabArchive()" style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:13px;font-weight:700">← Volver</button>
-      <div>
-        <div style="font-size:18px;font-weight:800;color:var(--text)">${escHtml(lab.nombre)}</div>
-        <div style="font-size:11px;color:var(--text3)">${lab.fecha||'—'}</div>
-      </div>
-    </div>
-    ${TABS.map(({key,label})=>{
-      const piezas=lab.piezas[key]||[];
-      const conc=lab.conclusiones[key]||{};
-      return `<div style="margin-bottom:24px">
-        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gold);margin-bottom:10px">${label}</div>
-        ${piezas.length
-          ? piezas.map(p=>_renderSavedPieza(p,key)).join('')
-          : `<div style="color:var(--text3);font-size:12px;padding:10px 0">No se analizaron ${label.toLowerCase()}</div>`}
-        ${conc.text?`<div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-top:8px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Conclusión${conc.from?' · '+conc.from+(conc.to?' → '+conc.to:''):''}</div>
-          <div style="font-size:12.5px;color:var(--text);white-space:pre-wrap">${escHtml(conc.text)}</div>
-        </div>`:''}
-      </div>`;
-    }).join('')}`;
-}
-function _backToLabArchive(){
-  document.getElementById('lab-archive-detail').style.display='none';
-  document.getElementById('lab-archive-list').style.display='';
-}
-function _renderSavedPieza(p,tipo){
-  const stats=[];
-  if(tipo==='reel'||tipo==='carrusel'){
-    if(p.views!=null) stats.push(`Views: <b>${_fmt(p.views)}</b>`);
-    if(p.likes!=null) stats.push(`Likes: <b>${_fmt(p.likes)}</b>`);
-    const cu=p.com_unicos??(p.comentarios?Math.round(p.comentarios/2):null);
-    if(cu!=null) stats.push(`Coments únicos: <b>${_fmt(cu)}</b>`);
-    if(p.guardados!=null) stats.push(`Guardados: <b>${_fmt(p.guardados)}</b>`);
-  } else if(tipo==='historia'){
-    const vf=p.views_frames||[];
-    const vu=vf[vf.length-1]||0;
-    const rend=_calcRendCTA(p.respuestas_cta,vu);
-    if(p.views!=null) stats.push(`Views (1ra): <b>${_fmt(p.views)}</b>`);
-    if(rend) stats.push(`CTA: <b style="color:${rend.color}">${(rend.pct*100).toFixed(1)}% — ${rend.label}</b>`);
-  } else if(tipo==='youtube'){
-    if(p.views!=null) stats.push(`Views: <b>${_fmt(p.views)}</b>`);
-    const rCTR=_calcRendCTR(p.ctr);
-    const rRet=_calcRendRetencion(p.duracion,p.retencion);
-    if(p.ctr!=null) stats.push(`CTR: <b style="color:${rCTR?.color||'var(--text)'}">${p.ctr}%${rCTR?' — '+rCTR.label:''}</b>`);
-    if(p.retencion!=null) stats.push(`Retención: <b style="color:${rRet?.color||'var(--text)'}">${p.retencion}%${rRet?' — '+rRet.label:''}</b>`);
-  }
-  return `<div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:6px">
-    ${p.dolor?`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">${escHtml(p.dolor)}</div>`:''}
-    ${p.tipo_contenido?`<span style="font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;background:${_labTipoColor(p.tipo_contenido)}22;color:${_labTipoColor(p.tipo_contenido)}">${escHtml(p.tipo_contenido)}</span>`:''}
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:var(--text3)">${stats.join(' <span style="opacity:.4">·</span> ')}</div>
-    ${p.obs?`<div style="font-size:11px;color:var(--text2);margin-top:6px;white-space:pre-wrap">${escHtml(p.obs)}</div>`:''}
-  </div>`;
-}
-
-const LAB_TIPOS_DEFAULT = {
-  reel:     ['Educativo','Entretenimiento','Autoridad','Caso de éxito','Nutrición','Lifestyle','CTA','Venta directa'],
-  carrusel: ['Educativo','Tips','Caso de éxito','Autoridad','CTA'],
-  historia: ['Nutrición','Autoridad','Caso de éxito','Lifestyle','CTA','Venta directa'],
-  youtube:  ['Educativo','Caso de éxito','Autoridad','Tutorial','Vlog'],
-};
-
-function _getLabTiposKey(tab){ return `crm_lab_tipos_${tab}_${getCid()}`; }
-function _getLabTipos(tab){
-  try{ const v=localStorage.getItem(_getLabTiposKey(tab)); return v?JSON.parse(v):LAB_TIPOS_DEFAULT[tab]||[]; }catch{ return LAB_TIPOS_DEFAULT[tab]||[]; }
-}
-function _saveLabTipos(tab,arr){ localStorage.setItem(_getLabTiposKey(tab),JSON.stringify(arr)); }
-
-function _getLabConcKey(){ return `crm_lab_conc_${getCid()}`; }
-function _loadLabConclusions(){
-  try{ const v=localStorage.getItem(_getLabConcKey()); _labConclusions=v?JSON.parse(v):{}; }catch{ _labConclusions={}; }
-}
-function saveLabConclusion(){
-  const tab=_labTab;
-  _labConclusions[tab]={
-    text: document.getElementById('lab-conclusion-text')?.value||'',
-    from: document.getElementById('lab-conc-from')?.value||'',
-    to:   document.getElementById('lab-conc-to')?.value||'',
-  };
-  localStorage.setItem(_getLabConcKey(),JSON.stringify(_labConclusions));
-  toast('Conclusión guardada ✓');
-  _openArchiveModal();
-}
-function clearLabConclusion(){
-  const txtEl=document.getElementById('lab-conclusion-text');
-  const fromEl=document.getElementById('lab-conc-from');
-  const toEl=document.getElementById('lab-conc-to');
-  if(txtEl) txtEl.value='';
-  if(fromEl) fromEl.value='';
-  if(toEl) toEl.value='';
-  _labConclusions[_labTab]={text:'',from:'',to:''};
-  localStorage.setItem(_getLabConcKey(),JSON.stringify(_labConclusions));
-  toast('Observaciones limpiadas ✓');
-}
-
-async function fetchLaboratorio(){
-  try{
-    const res = await apiFetch(`${API_URL}/laboratorio`);
-    if(!res.ok) return;
-    const data = await res.json();
-    if(Array.isArray(data)) labCache = data;
-    _loadLabConclusions();
-  }catch(e){ console.warn('[fetchLaboratorio]',e); }
-}
-
-function switchLabTab(tab){
-  _labTab = tab;
-  document.querySelectorAll('.lab-tab').forEach(b=>b.classList.remove('active'));
-  const btn=document.getElementById('lab-tab-'+tab); if(btn)btn.classList.add('active');
-  const isArchivos = tab==='archivos';
-  const conclusionEl=document.getElementById('lab-conclusion-wrap');
-  const gridEl=document.getElementById('lab-grid');
-  const controlsEl=document.getElementById('lab-analysis-controls');
-  const archiveWrap=document.getElementById('lab-archive-wrap');
-  if(conclusionEl) conclusionEl.style.display=isArchivos?'none':'';
-  if(gridEl)       gridEl.style.display=isArchivos?'none':'';
-  if(controlsEl)   controlsEl.style.display=isArchivos?'none':'';
-  if(archiveWrap)  archiveWrap.style.display=isArchivos?'':'none';
-  if(isArchivos){ renderLabArchive(); return; }
-  _updateLabTipoFilter();
-  _updateLabConclusion();
-  renderLabGrid();
-}
-
-function _updateLabTipoFilter(){
-  const sel=document.getElementById('lab-tipo-filter'); if(!sel) return;
-  const tipos=_getLabTipos(_labTab);
-  sel.innerHTML='<option value="">Todos los tipos</option>'+tipos.map(t=>`<option>${escHtml(t)}</option>`).join('');
-}
-
-function _updateLabConclusion(){
-  const c=_labConclusions[_labTab]||{};
-  const txt=document.getElementById('lab-conclusion-text');
-  const from=document.getElementById('lab-conc-from');
-  const to=document.getElementById('lab-conc-to');
-  if(txt) txt.value=c.text||'';
-  if(from) from.value=c.from||'';
-  if(to) to.value=c.to||'';
-}
-
-function renderLab(){
-  _loadLabConclusions();
-  _updateLabTipoFilter();
-  _updateLabConclusion();
-  renderLabGrid();
-}
-
-function renderLabGrid(){
-  const grid=document.getElementById('lab-grid'); if(!grid) return;
-  const tipoFiltro=document.getElementById('lab-tipo-filter')?.value||'';
-  let items=labCache.filter(x=>x.tipo===_labTab);
-  if(tipoFiltro) items=items.filter(x=>(x.tipo_contenido||'')=== tipoFiltro);
-  if(!items.length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:48px 0;font-size:13px">Sin registros. Agregá el primero.</div>';
-    return;
-  }
-  grid.innerHTML = items.map(item=>{
-    const code=_igCode(item.url||'');
-    const tipoColor = _labTipoColor(item.tipo_contenido);
-    let thumbHtml='';
-    if(_labTab==='historia'){
-      const frames=item.frames||[];
-      thumbHtml=frames.length
-        ? `<div style="display:flex;gap:3px;padding:8px;overflow:hidden;height:100%;align-items:center">${frames.slice(0,3).map(f=>`<img src="${f}" style="width:60px;height:100%;object-fit:cover;border-radius:4px;flex-shrink:0">`).join('')}</div>`
-        : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:11px">Sin imágenes</div>`;
-    } else if(code){
-      thumbHtml=`<iframe src="https://www.instagram.com/p/${code}/embed/" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`;
-    } else if(item.url&&_labTab==='youtube'){
-      const ytCode=(item.url||'').match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-      thumbHtml=ytCode?`<iframe src="https://www.youtube.com/embed/${ytCode[1]}" frameborder="0" allowfullscreen></iframe>`
-        :`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:11px">YouTube</div>`;
-    } else {
-      thumbHtml=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:11px">Sin URL</div>`;
-    }
-    const statsRows=_labStatsRows(item);
-    return `<div class="lab-card" onclick="openLabDetail('${item.id}')">
-      <div class="lab-card-thumb">${thumbHtml}</div>
-      <div class="lab-card-info">
-        ${item.tipo_contenido?`<div class="lab-type-badge" style="background:${tipoColor}22;color:${tipoColor}">${escHtml(item.tipo_contenido)}</div>`:''}
-        ${item.dolor?`<div style="font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:4px">${escHtml(item.dolor)}</div>`:''}
-        ${statsRows}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function _labTipoColor(tipo){
-  const map={'Educativo':'#6090d4','Autoridad':'#9b74d4','Caso de éxito':'#5cb87a','Nutrición':'#5bbbd4','Lifestyle':'#e0a848','CTA':'#d46060','Venta directa':'#d46060','Entretenimiento':'#e0b54a','Tutorial':'#9b74d4','Vlog':'#5bbbd4','Tips':'#6090d4'};
-  return map[tipo]||'#5a607a';
-}
-
-function _labStatsRows(item){
-  const row=(label,val)=>`<div class="lab-stat-row"><span>${label}</span><span class="lab-stat-val">${val}</span></div>`;
-  const badge=(label,color)=>`<span style="font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;background:${color}22;color:${color}">${label}</span>`;
-  if(_labTab==='reel'||_labTab==='carrusel'){
-    const cu=item.com_unicos??(item.comentarios?Math.round(item.comentarios/2):null);
-    return [
-      row('Views',_fmt(item.views)),
-      row('Likes',_fmt(item.likes)),
-      cu!=null?row('Com. únicos',_fmt(cu)):'',
-    ].join('');
-  }
-  if(_labTab==='youtube'){
-    const rCTR=_calcRendCTR(item.ctr); const rRet=_calcRendRetencion(item.duracion,item.retencion);
-    return [
-      row('Views',_fmt(item.views)),
-      `<div class="lab-stat-row"><span>CTR</span><span class="lab-stat-val">${item.ctr!=null?item.ctr+'%':'—'} ${rCTR?badge(rCTR.label,rCTR.color):''}</span></div>`,
-      `<div class="lab-stat-row"><span>Retención</span><span class="lab-stat-val">${item.retencion!=null?item.retencion+'%':'—'} ${rRet?badge(rRet.label,rRet.color):''}</span></div>`,
-    ].join('');
-  }
-  if(_labTab==='historia'){
-    const vf=item.views_frames||[];
-    const vu=vf[vf.length-1]||0;
-    const dropTotal=vf.length>1&&vf[0]&&vu?Math.round((1-vu/vf[0])*100)+'%':'—';
-    const rend=_calcRendCTA(item.respuestas_cta,vu);
-    return [
-      row('Views (1ra)',_fmt(item.views)),
-      row('Drop-off',dropTotal),
-      rend?`<div class="lab-stat-row"><span>CTA</span><span class="lab-stat-val">${(rend.pct*100).toFixed(1)}% ${badge(rend.label,rend.color)}</span></div>`:'',
-    ].join('');
-  }
-  return row('Views',_fmt(item.views));
-}
-
-function _fmt(n){ if(!n&&n!==0) return '—'; const num=Number(n); if(isNaN(num)) return '—'; if(num>=1000000) return(num/1000000).toFixed(1)+'M'; if(num>=1000) return(num/1000).toFixed(1)+'k'; return num.toLocaleString('es-AR'); }
-
-function openLabDetail(id){
-  const item=labCache.find(x=>String(x.id)===String(id));
-  if(!item) return;
-  openLabModal(id);
-}
-
-function openLabModal(id){
-  _editLabId=id;
-  const item=id?labCache.find(x=>String(x.id)===String(id)):null;
-  _histFrames=item?.frames||[];
-  document.getElementById('lab-modal-title').textContent=item?'Editar registro':'Nuevo registro';
-  document.getElementById('lab-delete-btn').style.display=item?'':'none';
-  document.getElementById('lab-modal-body').innerHTML=_buildLabForm(item);
-  openModal('modal-lab');
-}
-
-function _buildLabForm(item){
-  const tab=_labTab;
-  const tipos=_getLabTipos(tab);
-  const tipoOpts=tipos.map(t=>`<option ${(item?.tipo_contenido||'')=== t?'selected':''}>${escHtml(t)}</option>`).join('');
-  const rdOnly='background:var(--surface-2);color:var(--text3);cursor:default;';
-  let statsHtml='';
-  if(tab==='reel'||tab==='carrusel'){
-    const cu=item?.com_unicos??(item?.comentarios?Math.round(item.comentarios/2):null);
-    statsHtml=`
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group"><label class="form-label">Views</label><input class="form-input" type="number" id="lab-views" value="${item?.views||''}"></div>
-        <div class="form-group"><label class="form-label">Likes</label><input class="form-input" type="number" id="lab-likes" value="${item?.likes||''}"></div>
-        <div class="form-group"><label class="form-label">Comentarios</label><input class="form-input" type="number" id="lab-comentarios" value="${item?.comentarios||''}" oninput="_refreshComUnicos()"></div>
-        <div class="form-group"><label class="form-label">Comentarios únicos <span style="font-size:9px;color:var(--text3)">(auto)</span></label>
-          <input class="form-input" type="text" id="lab-com-unicos-display" value="${cu??''}" style="${rdOnly}" readonly>
-        </div>
-        <div class="form-group"><label class="form-label">Guardados</label><input class="form-input" type="number" id="lab-guardados" value="${item?.guardados||''}"></div>
-        <div class="form-group"><label class="form-label">Compartidos</label><input class="form-input" type="number" id="lab-compartidos" value="${item?.compartidos||''}"></div>
-      </div>`;
-  } else if(tab==='youtube'){
-    const rCTR=_calcRendCTR(item?.ctr); const rRet=_calcRendRetencion(item?.duracion,item?.retencion);
-    statsHtml=`
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group"><label class="form-label">Views</label><input class="form-input" type="number" id="lab-views" value="${item?.views||''}"></div>
-        <div class="form-group"><label class="form-label">Likes</label><input class="form-input" type="number" id="lab-likes" value="${item?.likes||''}"></div>
-        <div class="form-group"><label class="form-label">CTR (%)</label><input class="form-input" type="number" step="0.1" id="lab-ctr" value="${item?.ctr||''}" oninput="_refreshYTCalc()"></div>
-        <div class="form-group"><label class="form-label">Rendimiento CTR <span style="font-size:9px;color:var(--text3)">(auto)</span></label>
-          <div class="form-input" style="${rdOnly}font-size:12px;display:flex;align-items:center;min-height:36px" id="lab-rend-ctr">${rCTR?`<span style="font-weight:700;color:${rCTR.color}">${rCTR.label}</span>`:'—'}</div>
-        </div>
-        <div class="form-group"><label class="form-label">Retención (%)</label><input class="form-input" type="number" step="0.1" id="lab-retencion" value="${item?.retencion||''}" oninput="_refreshYTCalc()"></div>
-        <div class="form-group"><label class="form-label">Rendimiento retención <span style="font-size:9px;color:var(--text3)">(auto)</span></label>
-          <div class="form-input" style="${rdOnly}font-size:12px;display:flex;align-items:center;min-height:36px" id="lab-rend-retencion">${rRet?`<span style="font-weight:700;color:${rRet.color}">${rRet.label}</span>`:'—'}</div>
-        </div>
-        <div class="form-group"><label class="form-label">Duración (min)</label><input class="form-input" type="number" id="lab-duracion" value="${item?.duracion||''}" oninput="_refreshYTCalc()"></div>
-        <div class="form-group"><label class="form-label">Promedio views</label><input class="form-input" type="number" id="lab-avg-views" value="${item?.avg_views||''}"></div>
-      </div>`;
-  } else if(tab==='historia'){
-    statsHtml=`
-      <div class="form-group"><label class="form-label">Cantidad de historias</label>
-        <input class="form-input" type="number" id="lab-hist-cant" min="1" max="20" value="${_histFrames.length||item?.cant_historias||1}" oninput="updateHistFrames(this.value)">
-      </div>
-      <div class="form-group"><label class="form-label">Secuencia de imágenes</label>
-        <div class="hist-seq" id="hist-frames-container">${_renderHistFrames()}</div>
-      </div>
-      <div id="hist-views-rows"></div>
-      <div class="form-group">
-        <label class="form-label">Respuestas al CTA</label>
-        <input class="form-input" type="number" id="lab-respuestas-cta" value="${item?.respuestas_cta||''}" oninput="_refreshHistCTACalc()">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Rendimiento CTA <span style="font-size:9px;color:var(--text3)">(auto: respuestas / views última historia)</span></label>
-        <div class="form-input" style="${rdOnly}font-size:12px;display:flex;align-items:center;min-height:36px" id="lab-cta-calc-display">—</div>
-      </div>`;
-    setTimeout(()=>{updateHistFrames(document.getElementById('lab-hist-cant')?.value||1);_refreshHistCTACalc();},50);
-  }
-
-  const urlHtml=tab!=='historia'?`
-    <div class="form-group"><label class="form-label">URL ${tab==='youtube'?'YouTube':'Instagram'}</label>
-      <input class="form-input" type="url" id="lab-url" value="${escHtml(item?.url||'')}" placeholder="https://...">
-    </div>`:'';
-
-  return `${urlHtml}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group" style="margin-bottom:0"><label class="form-label">Tipo de contenido</label>
-        <select class="form-input" id="lab-tipo-contenido">
-          <option value="">— Sin tipo —</option>${tipoOpts}
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:0"><label class="form-label">Dolor / ángulo</label>
-        <input class="form-input" id="lab-dolor" value="${escHtml(item?.dolor||'')}" placeholder="Tema principal">
-      </div>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label" style="display:flex;justify-content:space-between">
-        Gestión de tipos
-        <button onclick="openGestionTipos()" style="font-size:9px;background:none;border:none;color:var(--gold);cursor:pointer;padding:0">+ Gestionar tipos</button>
-      </label>
-    </div>
-    ${statsHtml}
-    <div class="form-group"><label class="form-label">Conclusión / observaciones</label>
-      <textarea class="form-input" id="lab-obs" style="min-height:70px">${escHtml(item?.obs||'')}</textarea>
-    </div>`;
-}
-
-function onLabTipoChange(val){
-  const respGroup=document.getElementById('lab-resp-group');
-  if(respGroup) respGroup.style.display=['CTA','Venta directa'].includes(val)?'':'none';
-}
-
-function _renderHistFrames(){
-  return _histFrames.map((f,i)=>
-    `<div style="position:relative">
-      <img src="${f}" class="hist-frame" onclick="removeHistFrame(${i})" title="Click para eliminar">
-    </div>`
-  ).join('')+`<div class="hist-frame-add" onclick="addHistFrame()">＋</div>`;
-}
-
-function updateHistFrames(cant){
-  const n=Math.max(1,Math.min(20,parseInt(cant)||1));
-  const container=document.getElementById('hist-frames-container');
-  if(container) container.innerHTML=_renderHistFrames();
-  // Views input rows
-  const wrap=document.getElementById('hist-views-rows');
-  if(!wrap) return;
-  wrap.innerHTML=`<div class="form-group"><label class="form-label">Views por historia</label>
-    <div style="display:flex;flex-direction:column;gap:6px">
-    ${Array.from({length:n},(_,i)=>{
-      const existing=document.getElementById(`lab-hist-v-${i}`);
-      return `<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--text3);min-width:70px">Historia ${i+1}</span>
-        <input class="form-input" type="number" id="lab-hist-v-${i}" value="${existing?.value||''}" style="flex:1">
-        ${i>0?`<span id="lab-dropoff-${i}" style="font-size:10px;color:var(--text3);min-width:70px"></span>`:''}
-      </div>`;
-    }).join('')}
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:6px">Drop-off total: <span id="lab-dropoff-total" style="font-weight:700;color:var(--text)">—</span></div>
-  </div>`;
-  wrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{calcHistDropoffs();_refreshHistCTACalc();}));
-}
-
-function calcHistDropoffs(){
-  const wrap=document.getElementById('hist-views-rows'); if(!wrap) return;
-  const inputs=[...wrap.querySelectorAll('input[id^="lab-hist-v-"]')];
-  const vals=inputs.map(i=>parseFloat(i.value)||0);
-  inputs.forEach((_,i)=>{
-    if(i===0) return;
-    const el=document.getElementById(`lab-dropoff-${i}`);
-    if(el&&vals[i-1]>0) el.textContent=`↓ ${Math.round((1-vals[i]/vals[i-1])*100)}%`;
-  });
-  const tot=document.getElementById('lab-dropoff-total');
-  if(tot&&vals[0]>0) tot.textContent=`${Math.round((1-vals[vals.length-1]/vals[0])*100)}%`;
-  _refreshHistCTACalc();
-}
-
-function _compressImage(file, maxW, maxH, quality){
-  return new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const img=new Image();
-      img.onload=()=>{
-        let w=img.width, h=img.height;
-        if(w>maxW||h>maxH){
-          const ratio=Math.min(maxW/w, maxH/h);
-          w=Math.round(w*ratio); h=Math.round(h*ratio);
-        }
-        const canvas=document.createElement('canvas');
-        canvas.width=w; canvas.height=h;
-        canvas.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src=ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function addHistFrame(){
-  const input=document.createElement('input');
-  input.type='file';input.accept='image/*';
-  input.onchange=async e=>{
-    const file=e.target.files[0]; if(!file) return;
-    const compressed=await _compressImage(file, 400, 700, 0.7);
-    _histFrames.push(compressed);
-    const container=document.getElementById('hist-frames-container');
-    if(container) container.innerHTML=_renderHistFrames();
-  };
-  input.click();
-}
-
-function removeHistFrame(i){
-  _histFrames.splice(i,1);
-  const container=document.getElementById('hist-frames-container');
-  if(container) container.innerHTML=_renderHistFrames();
-}
-
-function openGestionTipos(){
-  _renderGestionTiposModal();
-  openModal('modal-lab-tipos');
-}
-function _renderGestionTiposModal(){
-  const tab=_labTab;
-  const tipos=_getLabTipos(tab);
-  const LABEL={reel:'Reels',carrusel:'Carruseles',historia:'Historias',youtube:'YouTube'};
-  const titleEl=document.getElementById('lab-tipos-title');
-  const listEl=document.getElementById('lab-tipos-list');
-  if(titleEl) titleEl.textContent=`Tipos — ${LABEL[tab]||tab}`;
-  if(!listEl) return;
-  listEl.innerHTML=tipos.length
-    ? tipos.map((t,i)=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)">
-          <span style="font-size:13px;color:var(--text)">${escHtml(t)}</span>
-          <button onclick="_deleteLabTipo(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 4px" title="Eliminar">×</button>
-        </div>`).join('')
-    : '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sin tipos definidos</div>';
-}
-function _deleteLabTipo(idx){
-  const tipos=_getLabTipos(_labTab);
-  tipos.splice(idx,1);
-  _saveLabTipos(_labTab,tipos);
-  _renderGestionTiposModal();
-  _updateLabTipoFilter();
-}
-function _addLabTipo(){
-  const input=document.getElementById('lab-tipos-nuevo');
-  const t=(input?.value||'').trim(); if(!t) return;
-  const tipos=_getLabTipos(_labTab);
-  if(!tipos.includes(t)) tipos.push(t);
-  _saveLabTipos(_labTab,tipos);
-  _renderGestionTiposModal();
-  _updateLabTipoFilter();
-  if(input) input.value='';
-}
-
-async function saveLabItem(){
-  const tab=_labTab;
-  const url=document.getElementById('lab-url')?.value.trim()||'';
-  const tipo_contenido=document.getElementById('lab-tipo-contenido')?.value.trim()||'';
-  const dolor=document.getElementById('lab-dolor')?.value.trim()||'';
-  const obs=document.getElementById('lab-obs')?.value.trim()||'';
-
-  let body={tipo:tab,url:tab!=='historia'?(document.getElementById('lab-url')?.value.trim()||''):'',tipo_contenido,dolor,obs};
-
-  if(tab==='reel'||tab==='carrusel'){
-    body.views=parseFloat(document.getElementById('lab-views')?.value)||null;
-    body.likes=parseFloat(document.getElementById('lab-likes')?.value)||null;
-    body.comentarios=parseFloat(document.getElementById('lab-comentarios')?.value)||null;
-    body.com_unicos=Math.round((body.comentarios||0)/2)||null;
-    body.guardados=parseFloat(document.getElementById('lab-guardados')?.value)||null;
-    body.compartidos=parseFloat(document.getElementById('lab-compartidos')?.value)||null;
-  } else if(tab==='youtube'){
-    body.views=parseFloat(document.getElementById('lab-views')?.value)||null;
-    body.ctr=parseFloat(document.getElementById('lab-ctr')?.value)||null;
-    body.retencion=parseFloat(document.getElementById('lab-retencion')?.value)||null;
-    body.avg_views=parseFloat(document.getElementById('lab-avg-views')?.value)||null;
-    body.duracion=parseFloat(document.getElementById('lab-duracion')?.value)||null;
-    body.likes=parseFloat(document.getElementById('lab-likes')?.value)||null;
-    const rCTR=_calcRendCTR(body.ctr); if(rCTR) body.rend_ctr=rCTR.label;
-    const rRet=_calcRendRetencion(body.duracion,body.retencion); if(rRet) body.rend_retencion=rRet.label;
-  } else if(tab==='historia'){
-    const cant=parseInt(document.getElementById('lab-hist-cant')?.value)||1;
-    body.cant_historias=cant;
-    body.frames=_histFrames;
-    body.views_frames=Array.from({length:cant},(_,i)=>parseFloat(document.getElementById(`lab-hist-v-${i}`)?.value)||0);
-    body.views=body.views_frames[0]||null;
-    body.respuestas_cta=parseFloat(document.getElementById('lab-respuestas-cta')?.value)||null;
-    const vu=body.views_frames[body.views_frames.length-1]||0;
-    const rend=_calcRendCTA(body.respuestas_cta,vu);
-    if(rend){ body.pct_cta=rend.pct; body.rend_cta=rend.label; }
-  }
-
-  try{
-    if(_editLabId){
-      const res=await apiFetch(`${API_URL}/laboratorio/${_editLabId}`,{method:'PATCH',body:JSON.stringify(body)});
-      if(!res.ok){toast('Error al guardar');return;}
-      const idx=labCache.findIndex(x=>String(x.id)===String(_editLabId));
-      if(idx>=0) labCache[idx]={...labCache[idx],...body};
-    } else {
-      const res=await apiFetch(`${API_URL}/laboratorio`,{method:'POST',body:JSON.stringify(body)});
-      if(!res.ok){toast('Error al guardar');return;}
-      const created=await res.json();
-      labCache.unshift(created);
-    }
-    closeModal('modal-lab');
-    renderLabGrid();
-    toast('Guardado ✓');
-  }catch(e){toast('Error al guardar');}
-}
-
-async function deleteLabItem(){
-  if(!_editLabId) return;
-  if(!confirm('¿Eliminar este registro?')) return;
-  await apiFetch(`${API_URL}/laboratorio/${_editLabId}`,{method:'DELETE'});
-  labCache=labCache.filter(x=>String(x.id)!==String(_editLabId));
-  closeModal('modal-lab');
-  renderLabGrid();
-  toast('Eliminado');
-}
-
-// ========================================
 // 🔔 NOTIFICACIONES DE TAREAS HOLDING
 // ========================================
 let _notifItems = [];
@@ -7796,17 +6891,98 @@ async function checkHoldingNotifications(email){
     if(!res.ok) return;
     const tasks = await res.json();
     const lastSeen = localStorage.getItem(_notifKey(email)) || '1970-01-01T00:00:00Z';
-    // Tasks assigned to me, created by someone else, after last login
     const _inResp=(val,em)=>{if(!val)return false;try{const p=JSON.parse(val);if(Array.isArray(p))return p.includes(em);}catch{}return val===em;};
     const nuevas = tasks.filter(t =>
       _inResp(t.responsable, email) &&
       t.created_by && t.created_by !== email &&
       (t.created_at||'') > lastSeen
     );
-    if(!nuevas.length) return;
-    _notifItems = nuevas;
-    _renderNotifBell();
+    if(nuevas.length){ _notifItems = nuevas; _renderNotifBell(); }
   }catch(e){ /* holding optional */ }
+
+  // Daily / semanal form notification
+  try{
+    const r = await fetch(`${API_URL}/holding/notify?email=${encodeURIComponent(email)}`);
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.show) return;
+    const hora = new Date().getHours();
+    if(hora >= 0 && hora < 7) return; // madrugada — sin aviso
+    if(hora >= 20){
+      // Noche: banner persistente + trigger email (una vez por día)
+      _showFormBanner(d, true);
+      _triggerEmailNotif(d, email);
+    } else {
+      // Mañana/tarde: aviso suave y descartable
+      _showSoftReminder(d);
+    }
+  }catch{}
+}
+
+function _ensureBannerStyles(){
+  if(document.getElementById('form-banner-style')) return;
+  const st=document.createElement('style');
+  st.id='form-banner-style';
+  st.textContent=`
+    @keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes slideInDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+  `;
+  document.head.appendChild(st);
+}
+
+function _showSoftReminder(d){
+  if(document.getElementById('form-soft-reminder')) return;
+  _ensureBannerStyles();
+  const tipo = d.tipo === 'daily' ? 'daily' : 'semanal';
+  const icon = d.tipo === 'daily' ? '⚡' : '📅';
+  const rem = document.createElement('div');
+  rem.id = 'form-soft-reminder';
+  rem.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a1a2e;border-bottom:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;animation:slideInDown .3s ease';
+  rem.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:16px">${icon}</span>
+      <span style="font-size:13px;color:#c8cad8">Esta noche tenés que rellenar el formulario <b style="color:#e8e9f0">${tipo}</b>${d.formulario_nombre?' — '+d.formulario_nombre:''}.</span>
+    </div>
+    <button onclick="document.getElementById('form-soft-reminder').remove()" style="background:none;border:none;color:#4e5068;font-size:18px;cursor:pointer;line-height:1;flex-shrink:0">×</button>
+  `;
+  document.body.prepend(rem);
+}
+
+function _showFormBanner(d, persistent=false){
+  if(document.getElementById('form-daily-banner')) return;
+  _ensureBannerStyles();
+  const tipo = d.tipo === 'daily' ? 'Daily' : 'Semanal';
+  const color = d.tipo === 'daily' ? '#fb923c' : '#60a5fa';
+  const bg    = d.tipo === 'daily' ? 'rgba(251,146,60,.1)' : 'rgba(96,165,250,.1)';
+  const border= d.tipo === 'daily' ? 'rgba(251,146,60,.3)' : 'rgba(96,165,250,.3)';
+  const icon  = d.tipo === 'daily' ? '⚡' : '📅';
+  const banner = document.createElement('div');
+  banner.id = 'form-daily-banner';
+  banner.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--surface,#111118);border:1.5px solid ${border};border-radius:14px;padding:16px 20px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:10px;animation:slideInRight .3s ease`;
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:10px;background:${bg};border:1px solid ${border};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#e8e9f0">Formulario ${tipo} pendiente</div>
+        <div style="font-size:11px;color:#8890a8;margin-top:2px">${d.formulario_nombre||'Completá tu reporte de hoy'}</div>
+      </div>
+    </div>
+    <a href="${d.link}" target="_blank" onclick="setTimeout(()=>{const b=document.getElementById('form-daily-banner');if(b)b.remove();},4000)" style="display:block;text-align:center;background:${bg};border:1px solid ${border};color:${color};font-size:12px;font-weight:700;padding:9px;border-radius:8px;text-decoration:none">Completar formulario →</a>
+    ${persistent?`<div style="font-size:10px;color:#4e5068;text-align:center">Esta alerta no desaparece hasta que completes el formulario</div>`:''}
+  `;
+  document.body.appendChild(banner);
+}
+
+function _triggerEmailNotif(d, userEmail){
+  // Send max once per day per user
+  const key = `notif_email_sent_${userEmail}_${new Date().toISOString().slice(0,10)}`;
+  if(localStorage.getItem(key)) return;
+  localStorage.setItem(key, '1');
+  fetch(`${API_URL}/holding/notify-email`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ email: userEmail, tipo: d.tipo, formulario_nombre: d.formulario_nombre, link: d.link })
+  }).catch(()=>{});
 }
 
 function _negocioLabel(negocio_id){
@@ -8673,1466 +7849,455 @@ function _buildAIInsightsHTML(ai) {
   </div>`;
 }
 
-// ========== IA ANÁLISIS DE LLAMADAS ==========
+// ========== REPORTES IA ==========
 
-let _aiView      = 'tabla';  // 'tabla' | 'ia'
-let _aiSubView   = 'nuevo';  // 'nuevo' | 'historial'
-let _aiAnalysisId = null;
-let _aiMessages  = [];
-let _aiLoading   = false;
-let _aiAnalysesList = [];
-let _aiScorecard = null;  // scorecard parsed from last analysis
+let _reportsView    = 'tabla';
+let _reportsList    = [];
+let _conclusionsList = [];
+let _reportsUploading = false;
+let _reportCurrentFile = null;
 
-const _AI_CALL_PHASES = [
-  { id:'hits',          name:'Hits',          icon:'🎯' },
-  { id:'rapport',       name:'Rapport',       icon:'🤝' },
-  { id:'desarrollo',    name:'Desarrollo',    icon:'🔍' },
-  { id:'descubrimiento',name:'Descubrimiento',icon:'💡' },
-  { id:'prepitch',      name:'Pre pitch',     icon:'📍' },
-  { id:'pitch',         name:'Pitch',         icon:'🎤' },
-  { id:'solucion',      name:'Solución',      icon:'🔧' },
-  { id:'presentacion',  name:'Presentación',  icon:'📊' },
-  { id:'cierre',        name:'Cierre',        icon:'✅' },
-  { id:'objeciones',    name:'Objeciones',    icon:'🛡' },
-];
-
-function setCallsView(v) {
-  _aiView = v;
-  const tabla = document.getElementById('calls-tabla-view');
-  const ia    = document.getElementById('calls-ia-view');
-  const btnT  = document.getElementById('calls-view-btn-tabla');
-  const btnI  = document.getElementById('calls-view-btn-ia');
-  if (!tabla || !ia) return;
-
-  const activeStyle  = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em';
-  const inactiveStyle = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em';
-
-  if (v === 'tabla') {
-    tabla.style.display = '';
-    ia.style.display = 'none';
-    if (btnT) btnT.style.cssText = activeStyle;
-    if (btnI) btnI.style.cssText = inactiveStyle;
-  } else {
-    tabla.style.display = 'none';
-    ia.style.display = '';
-    if (btnT) btnT.style.cssText = inactiveStyle;
-    if (btnI) btnI.style.cssText = activeStyle;
-    renderCallsIA();
-    loadAIAnalysesList();
-  }
+function setCallsView(v){
+  _reportsView = v;
+  const btnT = document.getElementById('calls-view-btn-tabla');
+  const btnR = document.getElementById('calls-view-btn-reportes');
+  const gold = '1px solid var(--gold)', dim = '1px solid rgba(255,255,255,0.1)';
+  const goldBg = 'rgba(224,181,74,0.15)', noBg = 'transparent';
+  if(btnT){ btnT.style.border=v==='tabla'?gold:dim; btnT.style.background=v==='tabla'?goldBg:noBg; btnT.style.color=v==='tabla'?'var(--gold)':'var(--text3)'; }
+  if(btnR){ btnR.style.border=v==='reportes'?gold:dim; btnR.style.background=v==='reportes'?goldBg:noBg; btnR.style.color=v==='reportes'?'var(--gold)':'var(--text3)'; }
+  document.getElementById('calls-tabla-view').style.display    = v==='tabla'    ? '' : 'none';
+  document.getElementById('calls-reportes-view').style.display = v==='reportes' ? '' : 'none';
+  if(v==='reportes'){ renderCallReports(); renderConclusions(); fetchReports(); fetchConclusions(); }
 }
 
-// Simple markdown renderer for AI responses
-function _mdToHtml(text) {
-  if (!text) return '';
-  let html = text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/^## (.+)$/gm, '<h4 style="font-size:13px;font-weight:800;color:var(--text);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em">$1</h4>')
-    .replace(/^### (.+)$/gm, '<h5 style="font-size:12px;font-weight:700;color:var(--text2);margin:12px 0 4px">$1</h5>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text);font-weight:700">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^[-•] (.+)$/gm, '<li style="color:var(--text2);font-size:13px;margin:4px 0;line-height:1.6;padding-left:4px">$1</li>')
-    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul style="list-style:disc;padding-left:18px;margin:6px 0">${m}</ul>`)
-    .replace(/\n\n/g, '</p><p style="margin:8px 0;color:var(--text2);font-size:13px;line-height:1.6">')
-    .replace(/\n/g, '<br>');
-  return `<p style="margin:8px 0;color:var(--text2);font-size:13px;line-height:1.6">${html}</p>`;
+async function fetchReports(){
+  try{
+    const res = await apiFetch(`${API_URL}/reports`);
+    if(res.ok) _reportsList = await res.json();
+  }catch(e){ console.error('[fetchReports]', e); }
+  finally{ renderCallReports(); }
 }
 
-// ── PDF Export ───────────────────────────────────────────────────────────────
+function renderCallReports(){
+  const root = document.getElementById('calls-reportes-root');
+  if(!root) return;
 
-function exportAnalysisPDF() {
-  let sc = _aiScorecard;
-  // Try to re-parse scorecard from message content if not in memory (e.g. old analyses)
-  if (!sc || !sc.phases) {
-    const rawContent = (_aiMessages[1]?.content || '');
-    const match = rawContent.match(/__SCORECARD__\s*([\s\S]*?)(?:\s*__\/SCORECARD__|$)/);
-    if (match) {
-      try {
-        const raw = match[1].replace(/^```(?:json)?\s*/,'').replace(/\s*```\s*$/,'').trim();
-        sc = JSON.parse(raw);
-      } catch {}
-    }
-  }
-  // If no scorecard, export just the narrative analysis as a printable page
-  if (!sc || !sc.phases) {
-    const narrative = (_aiMessages[1]?.content||'').replace(/\n*__SCORECARD__[\s\S]*/,'').trim();
-    if(!narrative){ toast('No hay análisis para exportar'); return; }
-    const w = window.open('','_blank');
-    if(!w){ toast('Permitir popups para exportar PDF'); return; }
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-      <title>Análisis de Llamada</title>
-      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#1a1a18;color:#f0ede6;padding:32px 40px;font-size:13px;line-height:1.6}
-      h1{font-size:22px;font-weight:800;margin-bottom:20px}
-      h2,h3,h4{margin:14px 0 6px;color:#d4a832}strong{color:#fff}
-      p{margin-bottom:8px;color:#c0bdb6}ul,ol{padding-left:18px;margin-bottom:10px}li{margin-bottom:4px;color:#c0bdb6}
-      hr{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:16px 0}
-      .print-btn{background:#d4a832;color:#111;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:24px;display:block}
-      @media print{.print-btn{display:none!important}body{padding:20px}@page{size:A4;margin:12mm}}</style></head>
-      <body><button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
-      ${narrative.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^- (.+)$/gm,'<li>$1</li>').replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}
-      </body></html>`);
-    w.document.close();
-    return;
-  }
+  // Actualiza el botón de conclusiones con el conteo actual
+  const btnC = document.getElementById('btn-conclusiones');
+  if(btnC) btnC.textContent = _reportsList.length === 0 ? 'Generar conclusiones' : `Generar conclusiones (${_reportsList.length} reportes)`;
 
-  // Draw bar chart on canvas and capture as image for PDF
-  _drawScorecardRadar(sc);
-  const canvas = document.getElementById('ai-scorecard-radar');
-  const radarDataUrl = canvas ? canvas.toDataURL('image/png') : null;
-
-  const scores = sc.phases.map(p => Number(p.score) || 0);
-  const avg    = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const high   = scores.filter(s => s >= 7).length;
-  const low    = scores.filter(s => s < 6).length;
-  const weakIdx = scores.indexOf(Math.min(...scores));
-  const weakPhase = _AI_CALL_PHASES[weakIdx];
-  const pById = {};
-  sc.phases.forEach(p => { pById[p.id] = p; });
-
-  const scColor = s => s >= 7 ? '#5cb87a' : s >= 5 ? '#d4913a' : '#d46060';
-  const scBg    = s => s >= 7 ? 'rgba(92,184,122,.18)' : s >= 5 ? 'rgba(212,145,58,.18)' : 'rgba(212,96,96,.18)';
-  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  const phaseRows = _AI_CALL_PHASES.map((ph, i) => {
-    const p  = pById[ph.id] || { score: 0, good: [], improve: [] };
-    const s  = Number(p.score) || 0;
-    const goodItems = (p.good   || []).map(g => `<li>${esc(g)}</li>`).join('');
-    const impItems  = (p.improve|| []).map(g => `<li>${esc(g)}</li>`).join('');
-    return `<tr>
-      <td class="ph-num">${i + 1}</td>
-      <td class="ph-name">${ph.icon} ${ph.name}</td>
-      <td class="ph-score"><span class="score-pill" style="background:${scBg(s)};color:${scColor(s)}">${s}/10</span>
-        <div class="score-bar"><div class="score-fill" style="width:${s * 10}%;background:${scColor(s)}"></div></div>
-      </td>
-      <td class="ph-good"><ul>${goodItems || '<li class="dim">—</li>'}</ul></td>
-      <td class="ph-improve"><ul>${impItems || '<li class="dim">—</li>'}</ul></td>
-    </tr>`;
-  }).join('');
-
-  const actionsHtml = (sc.actions || []).map((a, i) => `
-    <div class="action">
-      <div class="action-num">${i + 1}</div>
-      <div class="action-body">
-        <div class="action-title">${esc(a.title || '')}</div>
-        <div class="action-desc">${esc(a.desc || '')}</div>
-      </div>
-    </div>`).join('');
-
-  // Narrative analysis (first assistant message, already stripped of scorecard)
-  const narrativeRaw = _aiMessages[1]?.content || '';
-  const narrativeHtml = narrativeRaw
-    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-    .replace(/^\*\*(.+?)\*\*/gm, '<strong>$1</strong>')
-    .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>[\s\S]+?<\/li>)+/g, m => `<ul>${m}</ul>`)
-    .replace(/\n{2,}/g, '</p><p>')
-    .replace(/^([^<\n].+)$/gm, (m) => m.startsWith('<') ? m : `<p>${m}</p>`);
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  const sellerName = _analyzerMeta?.seller || 'Vendedor';
-  const productName = _analyzerMeta?.product || '—';
-  const durName = _analyzerMeta?.dur || '—';
-
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Reporte · ${esc(sellerName)}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;font-size:14px;line-height:1.6;padding:32px 40px;max-width:860px;margin:0 auto}
-  @media print{body{padding:20px 28px;background:#fff} @page{size:A4;margin:12mm 14mm}}
-  .no-print{text-align:center;margin-bottom:24px}
-  .print-btn{background:#1a1a18;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
-  @media print{.no-print{display:none!important}}
-  .r-hdr{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:22px;margin-bottom:14px}
-  .r-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
-  .r-label{font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-  .r-name{font-size:24px;font-weight:700;color:#1a1a18;margin-bottom:6px}
-  .r-meta{font-size:13px;color:#5f5e5a;display:flex;gap:16px;flex-wrap:wrap}
-  .score-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.06em;text-align:right}
-  .big-score{font-size:54px;font-weight:700;line-height:1}
-  .big-sub{font-size:11px;color:#888780;text-align:right;margin-top:2px}
-  .exec{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-left:3px solid #3266ad;border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:14px}
-  .exec p{font-size:14px;line-height:1.75;color:#1a1a18}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-  .kpi{background:#f5f4f0;border-radius:8px;padding:12px;text-align:center}
-  .kpi-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-  .kpi-val{font-size:26px;font-weight:700}
-  .kpi-sub{font-size:11px;color:#888780;margin-top:2px}
-  .radar-wrap{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:18px;margin-bottom:14px}
-  .radar-wrap img{width:100%;height:auto}
-  .ptable-c{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;overflow:hidden;margin-bottom:14px}
-  .ptable{width:100%;border-collapse:collapse;font-size:13px}
-  .ptable th{text-align:left;font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:0.5px solid rgba(0,0,0,0.11);background:#f5f4f0}
-  .ptable td{padding:11px 14px;border-bottom:0.5px solid rgba(0,0,0,0.08);vertical-align:top}
-  .ptable tr:last-child td{border-bottom:none}
-  .ph-num{color:#888780;font-size:12px;font-weight:600;text-align:center;width:30px}
-  .ph-name{font-weight:600;font-size:13px}
-  .ph-score{width:80px}
-  .score-pill{font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;white-space:nowrap}
-  .score-bar{height:4px;background:#e8e6df;border-radius:2px;margin-top:6px}
-  .score-fill{height:100%;border-radius:2px}
-  .ph-good ul,.ph-improve ul{list-style:none;padding:0}
-  .ph-good li,.ph-improve li{font-size:12px;color:#5f5e5a;line-height:1.6;padding:1px 0}
-  .ph-good li::before{content:'· ';color:#888780}
-  .ph-improve li::before{content:'· ';color:#888780}
-  .dim{color:#888780!important}
-  .impact{background:#faeeda;border:0.5px solid rgba(133,79,11,0.25);border-radius:12px;padding:18px;display:flex;gap:14px;margin-bottom:14px}
-  .impact-icon{font-size:20px;flex-shrink:0;margin-top:2px}
-  .impact-title{font-size:14px;font-weight:600;color:#854f0b;display:block;margin-bottom:4px}
-  .impact-desc{font-size:13px;line-height:1.65;color:#1a1a18}
-  .actions-c{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:20px;margin-bottom:14px}
-  .act-title{font-size:13px;font-weight:700;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
-  .action{display:flex;gap:12px;padding:13px;background:#f5f4f0;border-radius:8px;margin-bottom:10px}
-  .action:last-child{margin-bottom:0}
-  .action-num{width:26px;height:26px;border-radius:50%;background:#1a1a18;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .action-title{font-size:13px;font-weight:600;display:block;margin-bottom:3px}
-  .action-desc{font-size:12px;color:#5f5e5a;line-height:1.65}
-  .narrative{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:20px;margin-bottom:14px}
-  .narrative h3{font-size:11px;font-weight:700;color:#5f5e5a;text-transform:uppercase;letter-spacing:.07em;margin:16px 0 6px;padding-top:14px;border-top:0.5px solid rgba(0,0,0,0.08)}
-  .narrative h3:first-child{margin-top:0;border-top:none;padding-top:0}
-  .narrative p{font-size:13px;color:#1a1a18;margin-bottom:8px;line-height:1.7}
-  .narrative ul{padding-left:18px;margin-bottom:8px}
-  .narrative li{font-size:13px;color:#1a1a18;margin-bottom:3px;line-height:1.6}
-  .narrative strong{font-weight:700}
-  .footer{margin-top:24px;padding-top:12px;border-top:0.5px solid rgba(0,0,0,0.11);display:flex;justify-content:space-between;font-size:10px;color:#888780}
-</style>
-</head>
-<body>
-
-<div class="no-print">
-  <button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
-</div>
-
-<div class="r-hdr">
-  <div class="r-top">
-    <div>
-      <div class="r-label">Reporte · Análisis IA</div>
-      <div class="r-name">${esc(sellerName)}</div>
-      <div class="r-meta">
-        <span>📅 ${dateStr}</span>
-        ${productName !== '—' ? `<span>🎯 ${esc(productName)}</span>` : ''}
-        ${durName !== '—' ? `<span>⏱ ${esc(durName)}</span>` : ''}
-      </div>
-    </div>
-    <div>
-      <div class="score-label">Calificación</div>
-      <div class="big-score" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
-      <div class="big-sub">/ 10</div>
-    </div>
-  </div>
-</div>
-
-<div class="kpis">
-  <div class="kpi">
-    <div class="kpi-label">Calificación</div>
-    <div class="kpi-val" style="color:${scColor(avg)}">${avg.toFixed(1)}</div>
-    <div class="kpi-sub">promedio</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Fases fuertes</div>
-    <div class="kpi-val" style="color:#3b6d11">${high}</div>
-    <div class="kpi-sub">score ≥ 7</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">A mejorar</div>
-    <div class="kpi-val" style="color:#a32d2d">${low}</div>
-    <div class="kpi-sub">score &lt; 6</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Fase crítica</div>
-    <div class="kpi-val" style="font-size:14px;padding-top:5px;font-weight:700">${weakPhase ? weakPhase.name : '—'}</div>
-    <div class="kpi-sub">mayor oportunidad</div>
-  </div>
-</div>
-
-${radarDataUrl ? `<div class="radar-wrap"><img src="${radarDataUrl}" alt="Radar de fases"></div>` : ''}
-
-<div class="ptable-c">
-<table class="ptable">
-  <thead><tr>
-    <th style="width:30px">#</th><th>Fase</th><th style="width:68px">Score</th>
-    <th>✓ Fortalezas</th><th>△ Oportunidades</th>
-  </tr></thead>
-  <tbody>${phaseRows}</tbody>
-</table>
-</div>
-
-${sc.impactTitle ? `
-<div class="impact">
-  <div class="impact-icon">▲</div>
-  <div>
-    <div><strong class="impact-title">${esc(sc.impactTitle)}</strong></div>
-    <div class="impact-desc">${esc(sc.impactDesc || '')}</div>
-  </div>
-</div>` : ''}
-
-${actionsHtml ? `
-<div class="actions-c">
-  <div class="act-title">✏️ Plan de mejora — próxima llamada</div>
-  ${actionsHtml}
-</div>` : ''}
-
-
-<div class="footer">
-  <span>Reporte · Análisis IA</span>
-  <span>${dateStr}</span>
-</div>
-
-</body></html>`;
-
-  const win = window.open('', '_blank');
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => { win.focus(); win.print(); }, 900);
-}
-
-// ── Scorecard visual ─────────────────────────────────────────────────────────
-
-function _scColor(s){ return s>=7?'#5cb87a':s>=5?'#d4a832':'#d46060'; }
-function _scBgColor(s){ return s>=7?'rgba(92,184,122,.12)':s>=5?'rgba(212,168,50,.12)':'rgba(212,96,96,.12)'; }
-
-function _renderScorecardSection(sc){
-  if(!sc||!sc.phases||!sc.phases.length) return '';
-  const scores = sc.phases.map(p=>Number(p.score)||0);
-  const avg    = scores.reduce((a,b)=>a+b,0)/scores.length;
-  const high   = scores.filter(s=>s>=7).length;
-  const low    = scores.filter(s=>s<6).length;
-  const weakI  = scores.indexOf(Math.min(...scores));
-  const weakPhase = _AI_CALL_PHASES[weakI];
-
-  const phasesById = {};
-  sc.phases.forEach(p=>{ phasesById[p.id]=p; });
-
-  const phaseRows = _AI_CALL_PHASES.map((ph,i)=>{
-    const p   = phasesById[ph.id]||{score:0,good:[],improve:[]};
-    const s   = Number(p.score)||0;
-    const col = _scColor(s);
-    const bg  = _scBgColor(s);
-    const goodList = (p.good||[]).map(g=>`<li style="margin-bottom:3px">${g}</li>`).join('');
-    const impList  = (p.improve||[]).map(g=>`<li style="margin-bottom:3px">${g}</li>`).join('');
-    return `
-      <tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--text3);text-align:center;width:32px">${i+1}</td>
-        <td style="padding:10px 12px">
-          <div style="font-weight:600;font-size:13px;margin-bottom:4px">${ph.icon} ${ph.name}</div>
-          <div style="height:4px;background:var(--line);border-radius:2px;width:100%;max-width:120px">
-            <div style="height:100%;border-radius:2px;background:${col};width:${s*10}%"></div>
-          </div>
-        </td>
-        <td style="padding:10px 12px;text-align:center">
-          <span style="font-size:13px;font-weight:700;padding:2px 9px;border-radius:20px;background:${bg};color:${col}">${s}/10</span>
-        </td>
-        <td style="padding:10px 12px;font-size:12px;color:var(--text2)">
-          <ul style="list-style:none;padding:0;margin:0">${goodList||'<li style="color:var(--text3)">—</li>'}</ul>
-        </td>
-        <td style="padding:10px 12px;font-size:12px;color:var(--text2)">
-          <ul style="list-style:none;padding:0;margin:0">${impList||'<li style="color:var(--text3)">—</li>'}</ul>
-        </td>
-      </tr>`;
-  }).join('');
-
-  const actionsHtml = (sc.actions||[]).map((a,i)=>`
-    <div style="display:flex;gap:12px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px">
-      <div style="width:26px;height:26px;border-radius:50%;background:var(--gold);color:#000;font-size:12px;font-weight:700;
-                  display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-      <div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:3px">${a.title||''}</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.6">${a.desc||''}</div>
-      </div>
-    </div>`).join('');
-
-  const impactHtml = (sc.impactTitle||sc.impactDesc)?`
-    <div style="background:rgba(212,168,50,0.07);border:1px solid rgba(212,168,50,0.25);border-radius:10px;padding:16px 18px;margin-bottom:16px;display:flex;gap:12px">
-      <div style="font-size:18px;flex-shrink:0;margin-top:2px">▲</div>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#d4a832;margin-bottom:4px">${sc.impactTitle||''}</div>
-        <div style="font-size:12px;line-height:1.65">${sc.impactDesc||''}</div>
-      </div>
-    </div>`:'' ;
-
-  const kpiStyle = 'background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center';
-  const kpiLabel = 'font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px';
-  const kpiVal   = 'font-size:30px;font-weight:700;line-height:1';
-  const kpiSub   = 'font-size:10px;color:var(--text3);margin-top:3px';
-
-  return `
-    <div id="ai-scorecard-section" style="margin-bottom:20px">
-
-      <!-- Header score row -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Reporte · Análisis IA</div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Calificación</div>
-          <div style="font-size:52px;font-weight:800;line-height:1;color:${_scColor(avg)}">${avg.toFixed(1)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">/ 10</div>
+  // ── Historial de PDFs ─────────────────────────────────────
+  root.innerHTML = _reportsList.length === 0
+    ? `<div class="card"><div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">No hay reportes guardados aún.</div></div>`
+    : `<div class="card">
+        <div class="section-header" style="margin-bottom:16px">
+          <h3>PDFs cargados <span class="badge bgy" style="margin-left:6px">${_reportsList.length}</span></h3>
         </div>
-      </div>
-
-      <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
-        <div style="${kpiStyle}"><div style="${kpiLabel}">Calificación</div><div style="${kpiVal};color:${_scColor(avg)}">${avg.toFixed(1)}</div><div style="${kpiSub}">promedio</div></div>
-        <div style="${kpiStyle}"><div style="${kpiLabel}">Fases fuertes</div><div style="${kpiVal};color:#5cb87a">${high}</div><div style="${kpiSub}">score ≥ 7</div></div>
-        <div style="${kpiStyle}"><div style="${kpiLabel}">A mejorar</div><div style="${kpiVal};color:#d46060">${low}</div><div style="${kpiSub}">score &lt; 6</div></div>
-        <div style="${kpiStyle}"><div style="${kpiLabel}">Fase crítica</div><div style="font-size:13px;font-weight:700;padding-top:6px;color:var(--text)">${weakPhase?weakPhase.name:'—'}</div><div style="${kpiSub}">mayor oportunidad</div></div>
-      </div>
-
-      <!-- Bar chart -->
-      <div style="margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px 20px">
-        <canvas id="ai-scorecard-radar" width="600" height="220"></canvas>
-      </div>
-
-      <!-- Phase table -->
-      <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:rgba(255,255,255,0.04);border-bottom:1px solid var(--line)">
-              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:32px">#</th>
-              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">Fase</th>
-              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;width:70px">Score</th>
-              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">✓ Fortalezas</th>
-              <th style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:left">△ Oportunidades</th>
-            </tr>
-          </thead>
-          <tbody>${phaseRows}</tbody>
-        </table>
-      </div>
-
-      ${impactHtml}
-
-      ${actionsHtml?`
-        <div style="border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">✏️ Plan de mejora — próxima llamada</div>
-          ${actionsHtml}
-        </div>`:''}
-
-      <div style="height:1px;background:var(--line);margin-bottom:20px"></div>
-    </div>`;
-}
-
-function _drawScorecardRadar(sc){
-  const canvas = document.getElementById('ai-scorecard-radar');
-  if(!canvas||!sc||!sc.phases) return;
-  const ctx=canvas.getContext('2d');
-  const W=canvas.width, H=canvas.height;
-  ctx.clearRect(0,0,W,H);
-
-  const pById={};
-  sc.phases.forEach(p=>{ pById[p.id]=p; });
-
-  const padL=36, padR=12, padT=24, padB=52;
-  const chartW=W-padL-padR, chartH=H-padT-padB;
-  const n=_AI_CALL_PHASES.length;
-  const barW=Math.floor(chartW/n*0.6);
-  const gap=(chartW-barW*n)/(n+1);
-
-  // Grid lines y labels eje Y
-  const gridC='rgba(255,255,255,0.07)', tc='#6b6965';
-  [0,2,4,6,8,10].forEach(v=>{
-    const y=padT+chartH*(1-v/10);
-    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+chartW,y);
-    ctx.strokeStyle=gridC; ctx.lineWidth=0.7; ctx.stroke();
-    ctx.fillStyle=tc; ctx.font='9px sans-serif'; ctx.textAlign='right';
-    ctx.fillText(v, padL-5, y+3);
-  });
-
-  // Barras
-  _AI_CALL_PHASES.forEach((ph,i)=>{
-    const s=Number(pById[ph.id]?.score)||0;
-    const x=padL+gap+(barW+gap)*i;
-    const barH=chartH*(s/10);
-    const y=padT+chartH-barH;
-    const col=_scColor(s);
-
-    // Barra con gradiente
-    const grad=ctx.createLinearGradient(0,y,0,y+barH);
-    grad.addColorStop(0,col);
-    grad.addColorStop(1,col+'55');
-    ctx.fillStyle=grad;
-    ctx.beginPath();
-    ctx.roundRect(x,y,barW,barH,3);
-    ctx.fill();
-
-    // Score encima de la barra
-    ctx.fillStyle=col; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(s, x+barW/2, y-5);
-
-    // Nombre de la fase debajo
-    const shortNames=['Hits','Rapport','Desarr.','Descub.','Pre P.','Pitch','Soluc.','Present.','Cierre','Objecc.'];
-    ctx.fillStyle='#a8a69f'; ctx.font='9px sans-serif';
-    ctx.fillText(shortNames[i]||ph.name, x+barW/2, padT+chartH+14);
-    ctx.fillStyle='#6b6965'; ctx.font='9px sans-serif';
-    ctx.fillText(ph.icon||'', x+barW/2, padT+chartH+26);
-  });
-}
-
-function renderCallsIA() {
-  const root = document.getElementById('calls-ia-root');
-  if (!root) return;
-  if (_aiSubView === 'historial') { _renderAIHistorialView(); return; }
-  _renderAINewView();
-}
-
-// ── Analyzer metadata (seller / product / duration) ──────────────────────────
-let _analyzerMeta = { seller: '', product: '', dur: '' };
-
-function _renderAINewView() {
-  const root = document.getElementById('calls-ia-root');
-  if (!root) return;
-  const isAdmin = currentUserRole === 'admin';
-  const hasAnalysis = _aiMessages.length > 0;
-
-  const callOptions = callsCache.map(c =>
-    `<option value="${c.id}">${c.nombre||c.instagram||'Sin nombre'} — ${c.instagram||''}</option>`
-  ).join('');
-
-  const stepDone  = `<div class="ca-step done"><div class="ca-step-num">✓</div>`;
-  const stepAct   = (n,l) => `<div class="ca-step active"><div class="ca-step-num">${n}</div><span>${l}</span></div>`;
-  const stepIdle  = (n,l) => `<div class="ca-step"><div class="ca-step-num">${n}</div><span>${l}</span></div>`;
-
-  const steps = hasAnalysis
-    ? `${stepDone}<span>Datos</span></div>${stepDone}<span>Analizando</span></div>${stepAct(3,'Ver reporte')}`
-    : `${stepAct(1,'Datos de la llamada')}${stepIdle(2,'Analizar')}${stepIdle(3,'Ver reporte')}`;
-
-  const inputStyle = 'width:100%;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit';
-  const selStyle   = 'width:100%;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit;appearance:none';
-
-  root.innerHTML = `
-    <div class="ca-wrap">
-      <!-- Header bar -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <button onclick="setAISubView('historial')" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
-          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          Historial${_aiAnalysesList.length > 0 ? ` (${_aiAnalysesList.length})` : ''}
-        </button>
-        <div style="display:flex;gap:8px">
-          ${isAdmin ? `<button onclick="openAIConfig()" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
-            border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">⚙ Config</button>` : ''}
-          ${hasAnalysis ? `<button onclick="startNewAIAnalysis()" style="padding:5px 14px;font-size:12px;font-weight:700;border-radius:var(--rs);
-            border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">+ Nueva evaluación</button>` : ''}
-        </div>
-      </div>
-
-      <!-- Steps -->
-      <div class="ca-steps">${steps}</div>
-
-      <!-- INPUT FORM -->
-      <div id="ai-input-section" style="${hasAnalysis?'display:none':''}">
-        <div class="card" style="padding:20px">
-          <div style="font-size:14px;font-weight:700;margin-bottom:16px">Información de la llamada</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Vendedor</label>
-              <input type="text" id="ai-seller" placeholder="Nombre del vendedor" style="${inputStyle}" value="${_analyzerMeta.seller||''}"></div>
-            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Fecha</label>
-              <input type="date" id="ai-date" style="${inputStyle}" value="${new Date().toISOString().slice(0,10)}"></div>
-            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Producto / Servicio</label>
-              <input type="text" id="ai-product" placeholder="Ej: Mentoría, curso, consultoría…" style="${inputStyle}" value="${_analyzerMeta.product||''}"></div>
-            <div><label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Duración</label>
-              <select id="ai-dur" style="${selStyle}">
-                <option value="">—</option>
-                <option ${_analyzerMeta.dur==='Menos de 15 min'?'selected':''}>Menos de 15 min</option>
-                <option ${_analyzerMeta.dur==='15–30 min'?'selected':''}>15–30 min</option>
-                <option ${_analyzerMeta.dur==='30–45 min'?'selected':''}>30–45 min</option>
-                <option ${_analyzerMeta.dur==='45–60 min'?'selected':''}>45–60 min</option>
-                <option ${_analyzerMeta.dur==='Más de 60 min'?'selected':''}>Más de 60 min</option>
-              </select></div>
-          </div>
-          <div style="margin-bottom:14px">
-            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Vincular a llamada (opcional)</label>
-            <select id="ai-call-select" style="${selStyle};max-width:420px">
-              <option value="">— Sin vincular —</option>
-              ${callOptions}
-            </select>
-          </div>
-          <div style="margin-bottom:16px">
-            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Transcripción o descripción de la llamada</label>
-            <textarea id="ai-transcript-input" rows="10"
-              placeholder="Pegá el transcript completo, o describí lo que pasó con el mayor detalle posible…"
-              style="${inputStyle};resize:vertical;line-height:1.6;min-height:180px;display:block"></textarea>
-            <p style="font-size:11px;color:var(--text3);margin-top:5px">Cuanto más detalle proveas, más preciso y útil será el análisis.</p>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button id="ai-analyze-btn" onclick="runAIAnalysis()"
-              style="padding:10px 28px;font-size:13.5px;font-weight:700;border-radius:var(--rs);
-                     border:none;background:var(--gold);color:#000;cursor:pointer;letter-spacing:.02em">
-              Continuar →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- REPORT AREA -->
-      <div id="ai-chat-area" style="${!hasAnalysis?'display:none':''}">
-        <div id="ai-messages-container"></div>
-        <!-- Follow-up chat -->
-        <div style="margin-top:16px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Seguimiento — preguntá sobre esta llamada</div>
-          <div style="display:flex;gap:10px;align-items:flex-end">
-            <textarea id="ai-followup-input" rows="2"
-              placeholder="Preguntá algo sobre esta llamada… (Enter para enviar)"
-              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}"
-              style="flex:1;background:rgba(255,255,255,0.03);border:.5px solid rgba(255,255,255,0.1);
-                     border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);
-                     line-height:1.5;resize:none;font-family:inherit"></textarea>
-            <button id="ai-send-btn" onclick="sendAIChatMessage()"
-              style="padding:10px 20px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-                     border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;white-space:nowrap">
-              Enviar →
-            </button>
-            <button id="ai-export-wrap" onclick="exportAnalysisPDF()"
-              style="padding:10px 16px;font-size:12px;font-weight:700;border-radius:var(--rs);
-                     border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);
-                     color:var(--text2);cursor:pointer;white-space:nowrap;font-family:inherit">
-              📄 PDF
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-  if (hasAnalysis) _renderAIMessages();
-}
-
-function _renderAIHistorialView() {
-  const root = document.getElementById('calls-ia-root');
-  if (!root) return;
-  const isAdmin = currentUserRole === 'admin';
-
-  const listHTML = _aiAnalysesList.length === 0
-    ? `<div style="text-align:center;padding:48px 0;color:var(--text3);font-size:13px">No hay análisis guardados aún.</div>`
-    : _aiAnalysesList.map(a => {
-        const preview = (a.transcript||'').slice(0, 120).replace(/</g,'&lt;');
-        const date = a.created_at
-          ? new Date(a.created_at).toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
-          : '';
-        const msgCount = Array.isArray(a.messages) ? Math.floor(a.messages.length / 2) : 0;
-        const chars = (a.transcript||'').length;
-        return `
-          <div style="border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:rgba(255,255,255,0.02);margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:10px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:13px;color:var(--text2);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${preview}…"</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${_reportsList.map(r => {
+            const fecha = new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+            const callAsig = r.call_id ? callsCache.find(c=>c.id===r.call_id) : null;
+            const asigLabel = callAsig
+              ? `<span style="font-size:11px;color:rgba(80,220,150,0.8)">📞 ${callAsig.nombre||callAsig.instagram||r.call_id}</span>`
+              : `<button style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:var(--rs);color:var(--text3);font-size:11px;padding:3px 10px;cursor:pointer" onclick="_abrirBusquedaLlamada('${r.id}')">Asignar a llamada</button>`;
+            return `<div id="report-card-${r.id}" style="padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:var(--rs)">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="font-size:20px">📄</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">${r.filename}</div>
+                  <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span>${fecha}${r.note ? ' · '+r.note.slice(0,55) : ''}</span>
+                    ${asigLabel}
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0">
+                  <button onclick="openPdfModal('${r.id}')" style="background:rgba(200,168,50,0.15);border:1px solid rgba(200,168,50,0.3);border-radius:var(--rs);color:var(--gold);font-size:11px;padding:5px 12px;cursor:pointer">Ver</button>
+                  <button onclick="deleteReport('${r.id}')" style="background:rgba(220,80,80,0.1);border:1px solid rgba(220,80,80,0.2);border-radius:var(--rs);color:rgba(220,80,80,0.8);font-size:11px;padding:5px 12px;cursor:pointer">Eliminar</button>
+                </div>
               </div>
-              <div style="font-size:11px;color:var(--text3);white-space:nowrap">${date}</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-              <div style="display:flex;gap:10px">
-                <span style="font-size:11px;color:var(--text3)">${chars.toLocaleString()} caracteres</span>
-                <span style="font-size:11px;color:var(--text3)">·</span>
-                <span style="font-size:11px;color:var(--text3)">${msgCount} intercambio${msgCount!==1?'s':''}</span>
-              </div>
-              <div style="display:flex;gap:8px">
-                <button onclick="loadAIAnalysis('${a.id}')"
-                  style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                         border:1px solid var(--gold);background:rgba(224,181,74,0.1);color:var(--gold);cursor:pointer">
-                  Ver análisis
-                </button>
-                ${isAdmin ? `<button onclick="deleteAIAnalysis('${a.id}')"
-                  style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                         border:1px solid rgba(184,72,72,0.3);background:rgba(184,72,72,0.08);color:#d47070;cursor:pointer">
-                  Eliminar
-                </button>` : ''}
-              </div>
-            </div>
-          </div>`;
-      }).join('');
-
-  root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <button onclick="setAISubView('nuevo')" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-          border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          ← Volver
-        </button>
-        <div style="font-size:15px;font-weight:700;color:var(--text)">
-          Historial de análisis
-          <span style="font-size:12px;font-weight:500;color:var(--text3);margin-left:8px">${_aiAnalysesList.length} análisis guardados</span>
+              <div id="search-panel-${r.id}" style="display:none;margin-top:12px;border-top:1px solid rgba(255,255,255,0.07);padding-top:12px"></div>
+            </div>`;
+          }).join('')}
         </div>
-      </div>
-      <button onclick="loadAIAnalysesList()" style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-        border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-        Actualizar
-      </button>
-    </div>
-    <div>${listHTML}</div>`;
-}
-
-function _renderAIMessages() {
-  const container = document.getElementById('ai-messages-container');
-  if (!container) return;
-
-  const pairs = [];
-  for (let i = 0; i < _aiMessages.length; i += 2) {
-    const user = _aiMessages[i];
-    const assistant = _aiMessages[i + 1];
-    if (user) pairs.push({ user, assistant });
-  }
-
-  container.innerHTML = pairs.map((p, idx) => {
-    const isFirst = idx === 0;
-    const userLabel = isFirst ? 'Transcript enviado' : 'Pregunta';
-    const userContent = isFirst
-      ? `<div style="font-size:11.5px;color:var(--text3);font-style:italic">Transcript analizado · ${(p.user.content||'').length} caracteres</div>`
-      : `<div style="background:rgba(224,181,74,0.08);border:1px solid rgba(224,181,74,0.15);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2)">${(p.user.content||'').replace(/</g,'&lt;')}</div>`;
-
-    const cleanContent = (p.assistant?.content || '').replace(/\n*__SCORECARD__[\s\S]*/,'').trim();
-    const assistantHtml = _mdToHtml(cleanContent);
-    const scorecardHtml = (isFirst && _aiScorecard) ? _renderScorecardSection(_aiScorecard) : '';
-
-    return `
-      <div>
-        <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${userLabel}</div>
-        ${userContent}
-        ${p.assistant ? `
-          <div style="margin-top:12px">
-            <div style="font-size:10.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✦ Análisis IA</div>
-            <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:var(--rs);padding:18px 20px">
-              ${scorecardHtml}
-              ${isFirst ? '' : assistantHtml}
-            </div>
-          </div>` : ''}
       </div>`;
+}
+
+// ── Búsqueda de llamada para asignar ──────────────────────────
+
+function _abrirBusquedaLlamada(reportId){
+  // Cierra otros paneles abiertos
+  document.querySelectorAll('[id^="search-panel-"]').forEach(p=>{ if(p.id!==`search-panel-${reportId}`) p.style.display='none'; });
+  const panel = document.getElementById(`search-panel-${reportId}`);
+  if(!panel) return;
+  if(panel.style.display!=='none'){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  panel.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px">Buscar llamada para asignar</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <input id="srch-nombre-${reportId}" type="text" placeholder="Nombre del lead…"
+        oninput="_filtrarLlamadasPanel('${reportId}')"
+        style="flex:1;min-width:160px;padding:7px 12px;font-size:12px;background:rgba(255,255,255,0.04);
+               border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text)">
+      <input id="srch-fecha-${reportId}" type="date"
+        oninput="_filtrarLlamadasPanel('${reportId}')"
+        style="padding:7px 10px;font-size:12px;background:rgba(255,255,255,0.04);
+               border:1px solid rgba(255,255,255,0.1);border-radius:var(--rs);color:var(--text)">
+    </div>
+    <div id="srch-results-${reportId}" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:12px;color:var(--text3)">Escribí un nombre o seleccioná una fecha para buscar.</div>
+    </div>`;
+}
+
+function _filtrarLlamadasPanel(reportId){
+  const nombre = (document.getElementById(`srch-nombre-${reportId}`)?.value || '').toLowerCase().trim();
+  const fecha  = document.getElementById(`srch-fecha-${reportId}`)?.value || '';
+  const results = document.getElementById(`srch-results-${reportId}`);
+  if(!results) return;
+  if(!nombre && !fecha){ results.innerHTML='<div style="font-size:12px;color:var(--text3)">Escribí un nombre o seleccioná una fecha para buscar.</div>'; return; }
+  const matches = callsCache.filter(c=>{
+    const nameOk = !nombre || (c.nombre||'').toLowerCase().includes(nombre) || (c.instagram||'').toLowerCase().includes(nombre);
+    let fechaOk = true;
+    if(fecha){
+      const cf = (c.fecha_realizada||c.created_at||'').slice(0,10);
+      fechaOk = cf === fecha;
+    }
+    return nameOk && fechaOk;
+  }).slice(0,15);
+  if(!matches.length){ results.innerHTML='<div style="font-size:12px;color:var(--text3)">Sin resultados.</div>'; return; }
+  results.innerHTML = matches.map(c=>{
+    const f = (c.fecha_realizada||c.created_at||'').slice(0,10);
+    const hora = (c.fecha_realizada||c.created_at||'').slice(11,16);
+    const yaAsig = _reportsList.find(r=>r.call_id===c.id);
+    const badge = yaAsig ? `<span style="font-size:10px;color:rgba(80,220,150,0.7);margin-left:6px">ya tiene reporte</span>` : '';
+    return `<div style="padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--rs);display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${c.nombre||'Sin nombre'}${badge}</div>
+        <div style="font-size:11px;color:var(--text3)">@${c.instagram||'—'} · ${f}${hora?' '+hora:''} · ${c.estado||'—'}</div>
+      </div>
+      <button class="btn btn-gold" style="font-size:11px;padding:4px 12px;flex-shrink:0" onclick="asignarReporteALlamada('${reportId}','${c.id}')">Asignar</button>
+    </div>`;
   }).join('');
-
-  // Scroll to bottom
-  container.scrollTop = container.scrollHeight;
-
-  // Export button — always visible when there's an analysis
-  const exportWrap = document.getElementById('ai-export-wrap');
-  if (exportWrap) exportWrap.style.display = '';
-
-  // Show chat area
-  const chatArea = document.getElementById('ai-chat-area');
-  if (chatArea) chatArea.style.display = '';
 }
 
-async function runAIAnalysis() {
-  if (_aiLoading) return;
-  const transcriptEl = document.getElementById('ai-transcript-input');
-  const transcript = (transcriptEl?.value || '').trim();
-  if (!transcript) { toast('Pegá un transcript primero'); transcriptEl?.focus(); return; }
-  if (transcript.length < 30) { toast('El transcript es muy corto'); return; }
-
-  const callId = document.getElementById('ai-call-select')?.value || '';
-  const btn = document.getElementById('ai-analyze-btn');
-
-  _aiLoading = true;
-  if (btn) { btn.disabled = true; btn.textContent = 'Analizando…'; }
-
-  try {
-    const body = { transcript };
-    if (callId) body.call_id = callId;
-
-    const res = await apiFetch(`${API_URL}/ai/analyze`, { method: 'POST', body: JSON.stringify(body) });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-    const data = await res.json();
-
-    _aiAnalysisId = data.id;
-    _aiMessages   = data.messages || [];
-    _aiScorecard  = data.scorecard || null;
-
-    if (transcriptEl) transcriptEl.value = '';
-    renderCallsIA();
-    if (_aiScorecard) setTimeout(()=>_drawScorecardRadar(_aiScorecard), 50);
-    loadAIAnalysesList();
-    toast('Análisis completado ✓');
-  } catch (err) {
-    toast('Error: ' + err.message);
-  } finally {
-    _aiLoading = false;
-    if (btn) { btn.disabled = false; btn.textContent = 'Analizar llamada →'; }
-  }
+async function asignarReporteALlamada(reportId, callId){
+  try{
+    const res = await apiFetch(`${API_URL}/reports/${reportId}`, { method:'PATCH', body:JSON.stringify({ call_id: callId }) });
+    if(!res.ok){ toast('Error al asignar'); return; }
+    const rp = _reportsList.find(r=>r.id===reportId);
+    if(rp) rp.call_id = callId;
+    renderCallReports();
+    // Rerenderiza la tabla de llamadas para que aparezca el botón "Ver"
+    if(typeof _applyCallsFilter==='function') _applyCallsFilter();
+    toast('Reporte asignado a la llamada ✓');
+  }catch(e){ toast('Error: '+e.message); }
 }
 
-async function sendAIChatMessage() {
-  if (_aiLoading) return;
-  const input = document.getElementById('ai-followup-input');
-  const message = (input?.value || '').trim();
-  if (!message) return;
+// ── Asignar desde la tabla de llamadas ───────────────────────
 
-  const btn = document.getElementById('ai-send-btn');
-  _aiLoading = true;
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  if (input) input.value = '';
-
-  // Optimistic: add user message to UI immediately
-  _aiMessages = [..._aiMessages, { role: 'user', content: message }];
-  _renderAIMessages();
-
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ analysis_id: _aiAnalysisId, message, messages: _aiMessages.slice(0, -1) })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-    const data = await res.json();
-    _aiMessages = data.messages || _aiMessages;
-    _renderAIMessages();
-  } catch (err) {
-    // Remove optimistic message on error
-    _aiMessages = _aiMessages.slice(0, -1);
-    _renderAIMessages();
-    toast('Error: ' + err.message);
-  } finally {
-    _aiLoading = false;
-    if (btn) { btn.disabled = false; btn.textContent = 'Enviar →'; }
-  }
-}
-
-function setAISubView(v) {
-  _aiSubView = v;
-  renderCallsIA();
-  if (v === 'historial') loadAIAnalysesList();
-}
-
-async function loadAIAnalysesList() {
-  try {
-    const res = await apiFetch(`${API_URL}/ai/analyses`);
-    if (!res.ok) return;
-    _aiAnalysesList = await res.json();
-    if (_aiSubView === 'historial') _renderAIHistorialView();
-  } catch (err) {
-    console.warn('[AI] loadAIAnalysesList:', err.message);
-  }
-}
-
-async function loadAIAnalysis(id) {
-  try {
-    const res = await apiFetch(`${API_URL}/ai/analyses/${id}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    _aiAnalysisId = data.id;
-    _aiMessages   = data.messages || [];
-    _aiScorecard  = data.scorecard || null;
-    _aiSubView    = 'nuevo';
-    renderCallsIA();
-    if (_aiScorecard) setTimeout(()=>_drawScorecardRadar(_aiScorecard), 50);
-  } catch (err) {
-    toast('Error al cargar análisis');
-  }
-}
-
-function startNewAIAnalysis() {
-  _aiAnalysisId = null;
-  _aiMessages   = [];
-  _aiScorecard  = null;
-  _aiSubView    = 'nuevo';
-  renderCallsIA();
-}
-
-async function deleteAIAnalysis(id) {
-  if (currentUserRole !== 'admin') return;
-  if (!confirm('¿Eliminar este análisis? Esta acción no se puede deshacer.')) return;
-  try {
-    const res = await apiFetch(`${API_URL}/ai/analyses/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Error al eliminar');
-    _aiAnalysesList = _aiAnalysesList.filter(a => a.id !== id);
-    if (_aiAnalysisId === id) { _aiAnalysisId = null; _aiMessages = []; }
-    _renderAIHistorialView();
-    toast('Análisis eliminado ✓');
-  } catch (err) {
-    toast('Error: ' + err.message);
-  }
-}
-
-async function openAIConfig() {
-  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
-  openModal('modal-ia-config');
-  try {
-    const clienteId = localStorage.getItem('clienteSeleccionado') || '';
-    const { data } = await _sb
-      .from('ai_config')
-      .select('*')
-      .eq('cliente_id', clienteId)
-      .limit(1)
-      .maybeSingle();
-    const ctxEl = document.getElementById('ia-config-context');
-    const promptEl = document.getElementById('ia-config-prompt');
-    if (ctxEl) ctxEl.value = (data && data.custom_context) || '';
-    if (promptEl) promptEl.value = (data && data.system_prompt) || '';
-  } catch (err) {
-    console.warn('[AI CONFIG]', err.message);
-  }
-}
-
-async function saveAIConfig() {
-  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
-  const system_prompt = (document.getElementById('ia-config-prompt')?.value || '').trim();
-  const custom_context = (document.getElementById('ia-config-context')?.value || '').trim();
-  try {
-    const res = await apiFetch(`${API_URL}/ai/config`, {
-      method: 'PATCH',
-      body: JSON.stringify({ system_prompt, custom_context })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-    closeModal('modal-ia-config');
-    toast('Configuración de IA guardada ✓');
-  } catch (err) {
-    toast('Error al guardar: ' + err.message);
-  }
-}
-
-// ========== IA ANÁLISIS DE CHATS (LEADS) ==========
-
-let _leadsView       = 'tabla';  // 'tabla' | 'ia'
-let _chatSubView     = 'nuevo';  // 'nuevo' | 'historial'
-let _chatAnalysisId  = null;
-let _chatMessages    = [];
-let _chatLoading     = false;
-let _chatImages         = [];    // [{name, base64, mediaType, previewUrl}]
-let _chatFollowupImages = [];    // images staged for the next follow-up send
-let _chatInputText      = '';    // persists textarea text across re-renders
-let _chatFollowupInputText = ''; // persists followup textarea text across re-renders
-let _chatAnalysesList = [];
-
-function setLeadsView(v) {
-  _leadsView = v;
-  const tabla = document.getElementById('leads-tabla-view');
-  const ia    = document.getElementById('leads-ia-view');
-  const btnT  = document.getElementById('leads-view-btn-tabla');
-  const btnI  = document.getElementById('leads-view-btn-ia');
-  if (!tabla || !ia) return;
-
-  const activeStyle   = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;letter-spacing:.02em';
-  const inactiveStyle = 'padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.02em';
-
-  if (v === 'tabla') {
-    tabla.style.display = '';
-    ia.style.display = 'none';
-    if (btnT) btnT.style.cssText = activeStyle;
-    if (btnI) btnI.style.cssText = inactiveStyle;
+function abrirAsignarReporte(callId, callNombre){
+  const modal = document.getElementById('modal-asignar-reporte');
+  if(!modal) return;
+  document.getElementById('modal-asignar-call-info').textContent = `Llamada: ${callNombre||callId}`;
+  const list = document.getElementById('modal-asignar-list');
+  if(_reportsList.length===0){
+    list.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">No hay reportes cargados. Cargá uno desde la sección Reportes IA.</div>';
   } else {
-    tabla.style.display = 'none';
-    ia.style.display = '';
-    if (btnT) btnT.style.cssText = inactiveStyle;
-    if (btnI) btnI.style.cssText = activeStyle;
-    renderLeadsIA();
-    loadChatAnalysesList();
+    list.innerHTML = _reportsList.map(r=>{
+      const fecha = new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+      const esEste = r.call_id===callId;
+      return `<div style="padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid ${esEste?'rgba(80,220,150,0.4)':'rgba(255,255,255,0.08)'};border-radius:var(--rs);display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">${r.filename}</div>
+          <div style="font-size:11px;color:var(--text3)">${fecha}${r.note?' · '+r.note.slice(0,50):''}</div>
+        </div>
+        ${esEste
+          ? `<span style="font-size:11px;color:rgba(80,220,150,0.8)">Asignado</span>`
+          : `<button class="btn btn-gold" style="font-size:11px;padding:4px 14px;flex-shrink:0" onclick="asignarDesdeModal('${r.id}','${callId}')">Asignar</button>`}
+      </div>`;
+    }).join('');
   }
+  openModal('modal-asignar-reporte');
 }
 
-function renderLeadsIA() {
-  const root = document.getElementById('leads-ia-root');
-  if (!root) return;
-  if (_chatSubView === 'historial') { _renderChatHistorialView(); return; }
-  _renderChatNewView();
+async function asignarDesdeModal(reportId, callId){
+  try{
+    const res = await apiFetch(`${API_URL}/reports/${reportId}`, { method:'PATCH', body:JSON.stringify({ call_id: callId }) });
+    if(!res.ok){ toast('Error al asignar'); return; }
+    const rp = _reportsList.find(r=>r.id===reportId);
+    if(rp) rp.call_id = callId;
+    closeModal('modal-asignar-reporte');
+    if(typeof _applyCallsFilter==='function') _applyCallsFilter();
+    toast('Reporte asignado ✓');
+  }catch(e){ toast('Error: '+e.message); }
 }
 
-function _renderChatNewView() {
-  const root = document.getElementById('leads-ia-root');
-  if (!root) return;
-  const isAdmin    = currentUserRole === 'admin';
-  const hasAnalysis = _chatMessages.length > 0;
+// ── Conclusiones generales ────────────────────────────────────
 
-  const thumbnailsHtml = _chatImages.length > 0 ? `
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:4px">
-      ${_chatImages.map((img, idx) => `
-        <div style="position:relative;display:inline-block">
-          <img src="${img.previewUrl}" alt="${escHtml(img.name)}"
-            style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.12);cursor:pointer"
-            onclick="previewChatImage(${idx})">
-          <button onclick="removeChatImage(${idx})"
-            style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
-                   background:#d04848;border:none;color:#fff;font-size:11px;font-weight:900;cursor:pointer;
-                   display:flex;align-items:center;justify-content:center;line-height:1">×</button>
-        </div>
-      `).join('')}
-      <label for="chat-img-input"
-        style="width:72px;height:72px;border:1px dashed rgba(255,255,255,0.2);border-radius:6px;
-               display:flex;align-items:center;justify-content:center;cursor:pointer;
-               color:var(--text3);font-size:22px;flex-shrink:0">+</label>
-    </div>
-  ` : '';
+async function fetchConclusions(){
+  try{
+    const res = await apiFetch(`${API_URL}/reports/conclusions`);
+    if(res.ok) _conclusionsList = await res.json();
+  }catch(e){ console.error('[fetchConclusions]', e); }
+  finally{ renderConclusions(); }
+}
 
-  const messagesHtml = hasAnalysis ? `
-    <div id="chat-messages-wrap" style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
-      ${_chatMessages.map(m => m.role === 'user' ? `
-        <div style="background:rgba(224,181,74,0.06);border:1px solid rgba(224,181,74,0.14);
-                    border-radius:10px;padding:12px 16px">
-          <span style="font-size:10px;font-weight:700;color:rgba(224,181,74,0.55);text-transform:uppercase;
-                       letter-spacing:.07em;display:block;margin-bottom:6px">Vos</span>
-          <div style="font-size:13px;color:var(--text3);white-space:pre-wrap;line-height:1.55">
-            ${escHtml(typeof m.content === 'string' ? m.content : '[imagen + texto]')}
-          </div>
-        </div>
-      ` : `
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
-                    border-radius:10px;padding:16px 20px">
-          <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;
-                       letter-spacing:.07em;display:block;margin-bottom:10px">✦ IA Análisis</span>
-          ${_mdToHtml(m.content)}
-        </div>
-      `).join('')}
-      ${_chatLoading ? `
-        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--text3);font-size:13px">
-          <span>⏳</span> La IA está analizando…
-        </div>
-      ` : ''}
-    </div>
-    <div style="margin-top:16px">
-      ${_chatFollowupImages.length > 0 ? `
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-          ${_chatFollowupImages.map((img, idx) => `
-            <div style="position:relative;display:inline-block">
-              <img src="${img.previewUrl}" alt="${escHtml(img.name)}"
-                style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.12);cursor:pointer"
-                onclick="previewFollowupImage(${idx})">
-              <button onclick="removeFollowupImage(${idx})"
-                style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
-                       background:#d04848;border:none;color:#fff;font-size:10px;font-weight:900;cursor:pointer;
-                       display:flex;align-items:center;justify-content:center;line-height:1">×</button>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <textarea id="chat-followup-input" rows="2"
-          placeholder="Preguntá algo sobre este chat… (Enter = enviar, Shift+Enter = nueva línea)"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatFollowup();}"
-          oninput="_chatFollowupInputText=this.value"
-          style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
-                 border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--text2);
-                 resize:none;font-family:inherit;line-height:1.5"></textarea>
-        <label for="chat-followup-img-input"
-          style="padding:9px 11px;font-size:17px;border:1px solid ${_chatFollowupImages.length > 0 ? 'rgba(224,181,74,0.4)' : 'rgba(255,255,255,0.1)'};
-                 border-radius:var(--rs);background:rgba(255,255,255,0.04);cursor:pointer;
-                 flex-shrink:0;display:flex;align-items:center;color:${_chatFollowupImages.length > 0 ? 'var(--gold)' : 'var(--text3)'};
-                 position:relative" title="Adjuntar imagen">
-          📎
-          ${_chatFollowupImages.length > 0 ? `<span style="position:absolute;top:-5px;right:-5px;background:var(--gold);color:#000;
-            font-size:9px;font-weight:800;width:14px;height:14px;border-radius:50%;
-            display:flex;align-items:center;justify-content:center">${_chatFollowupImages.length}</span>` : ''}
-        </label>
-        <input type="file" id="chat-followup-img-input" accept="image/*" multiple
-          style="display:none" onchange="addFollowupImages()">
-        <button onclick="sendChatFollowup()"
-          style="padding:10px 20px;font-size:13px;font-weight:700;border-radius:var(--rs);
-                 border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);
-                 cursor:pointer;white-space:nowrap;flex-shrink:0;${_chatLoading ? 'opacity:0.5;' : ''}"
-          ${_chatLoading ? 'disabled' : ''}>
-          ${_chatLoading ? 'Analizando…' : 'Enviar →'}
-        </button>
-      </div>
-    </div>
-  ` : '';
-
+function renderConclusions(){
+  const root = document.getElementById('calls-conclusions-root');
+  if(!root) return;
+  if(_conclusionsList.length===0){ root.innerHTML=''; return; }
   root.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="setChatSubView('historial')"
-          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          Historial${_chatAnalysesList.length > 0 ? ` (${_chatAnalysesList.length})` : ''}
-        </button>
-        ${isAdmin ? `<button onclick="openChatAIConfig()"
-          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          ⚙ Configurar IA
-        </button>` : ''}
+    <div class="card">
+      <div class="section-header" style="margin-bottom:16px">
+        <h3>Historial de conclusiones <span class="badge bgy" style="margin-left:6px">${_conclusionsList.length}</span></h3>
       </div>
-      <div style="display:flex;gap:8px">
-        ${hasAnalysis
-          ? `<button onclick="startNewChatAnalysis()"
-              style="padding:7px 16px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-                     border:1px solid rgba(184,72,72,0.4);background:rgba(184,72,72,0.1);color:#d47070;cursor:pointer">
-              Terminar análisis
-            </button>`
-          : `<button onclick="startNewChatAnalysis()"
-              style="padding:7px 18px;font-size:12.5px;font-weight:700;border-radius:var(--rs);
-                     border:1px solid var(--gold);background:rgba(224,181,74,0.12);color:var(--gold);cursor:pointer">
-              + Nuevo análisis
-            </button>`
-        }
-      </div>
-    </div>
-
-    <div class="card" style="padding:24px">
-      <div id="chat-input-section" style="${hasAnalysis ? 'display:none' : ''}">
-        <div style="margin-bottom:8px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Conversación con el lead</div>
-          <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Pegá el texto del chat y/o subí screenshots. Podés usar texto + imágenes juntos.</div>
-          <textarea id="chat-text-input" rows="9"
-            placeholder="Pegá la conversación aquí… (Instagram DM, WhatsApp, etc.)&#10;&#10;Ejemplo:&#10;Setter: Hola! Vi que te interesó el programa&#10;Lead: Sí, ¿cuánto cuesta?&#10;Setter: Son $5,000&#10;Lead: Es mucho..."
-            oninput="_chatInputText=this.value"
-            style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
-                   border-radius:var(--rs);padding:14px;font-size:13px;color:var(--text2);line-height:1.65;
-                   resize:vertical;box-sizing:border-box;font-family:inherit;min-height:180px"></textarea>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-          <label for="chat-img-input"
-            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:600;
-                   border:1px dashed rgba(255,255,255,0.2);border-radius:var(--rs);color:var(--text3);
-                   cursor:pointer;background:rgba(255,255,255,0.02)">
-            📎 ${_chatImages.length > 0 ? _chatImages.length + ' imagen(es) adjunta(s) — agregar más' : 'Adjuntar screenshots (opcional)'}
-          </label>
-          <input type="file" id="chat-img-input" accept="image/*" multiple
-            style="display:none" onchange="addChatImages()">
-        </div>
-        ${thumbnailsHtml}
-        <div style="display:flex;justify-content:flex-end;margin-top:16px">
-          <button id="chat-analyze-btn" onclick="runChatAnalysis()"
-            style="padding:9px 26px;font-size:13px;font-weight:700;border-radius:var(--rs);
-                   border:1px solid var(--gold);background:rgba(224,181,74,0.15);color:var(--gold);cursor:pointer;
-                   ${_chatLoading ? 'opacity:0.5;' : ''}"
-            ${_chatLoading ? 'disabled' : ''}>
-            ${_chatLoading ? '⏳ Analizando…' : '✦ Analizar chat'}
-          </button>
-        </div>
-      </div>
-      ${messagesHtml}
-    </div>
-  `;
-
-  const ta = document.getElementById('chat-text-input');
-  if (ta) ta.value = _chatInputText;
-  const fta = document.getElementById('chat-followup-input');
-  if (fta) fta.value = _chatFollowupInputText;
-}
-
-function _renderChatHistorialView() {
-  const root = document.getElementById('leads-ia-root');
-  if (!root) return;
-  const isAdmin = currentUserRole === 'admin';
-
-  const cardsHtml = _chatAnalysesList.length === 0
-    ? `<div style="text-align:center;padding:48px 0;color:var(--text3);font-size:13px">No hay análisis de chats guardados aún.</div>`
-    : _chatAnalysesList.map(a => {
-        const date = new Date(a.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const preview = (a.chat_text || '').slice(0, 110).replace(/</g, '&lt;');
-        const msgCount = Math.max(0, Math.floor(((a.messages || []).length) / 2) - 1);
-        return `
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;
-                      padding:16px 18px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                <span style="font-size:11px;font-weight:600;color:var(--text3)">${date}</span>
-                ${a.lead_name ? `<span style="font-size:11px;background:rgba(224,181,74,0.1);border:1px solid rgba(224,181,74,0.18);
-                  color:var(--gold);padding:2px 8px;border-radius:20px;font-weight:600">${escHtml(a.lead_name)}</span>` : ''}
-                ${a.has_images ? `<span style="font-size:10px;color:var(--text3);background:rgba(255,255,255,0.04);
-                  padding:2px 7px;border-radius:20px;border:1px solid rgba(255,255,255,0.07)">📎 imágenes</span>` : ''}
-                ${msgCount > 0 ? `<span style="font-size:10px;color:var(--text3)">${msgCount} pregunta${msgCount !== 1 ? 's' : ''} de seguimiento</span>` : ''}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${_conclusionsList.map(c=>{
+          const fecha = new Date(c.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+          const pdfsLabel = (c.report_names||[]).join(' · ') || '—';
+          return `<div style="padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:var(--rs)">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <div style="font-size:20px;padding-top:2px">🧠</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">${c.name}</div>
+                <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${fecha}</div>
+                <div style="font-size:11px;color:rgba(80,220,150,0.8);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">PDFs: ${pdfsLabel}</div>
               </div>
-              <div style="font-size:12.5px;color:var(--text3);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                ${preview ? '"' + preview + (a.chat_text?.length > 110 ? '…"' : '"') : '<em>Solo imágenes</em>'}
+              <div style="display:flex;gap:8px;flex-shrink:0">
+                <button onclick="openConclusionModal('${c.id}')" style="background:rgba(200,168,50,0.15);border:1px solid rgba(200,168,50,0.3);border-radius:var(--rs);color:var(--gold);font-size:11px;padding:4px 12px;cursor:pointer">Ver</button>
+                <button onclick="deleteConclusion('${c.id}')" style="background:rgba(220,80,80,0.1);border:1px solid rgba(220,80,80,0.2);border-radius:var(--rs);color:rgba(220,80,80,0.8);font-size:11px;padding:4px 10px;cursor:pointer">Eliminar</button>
               </div>
-            </div>
-            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
-              <button onclick="loadChatAnalysis('${a.id}')"
-                style="padding:5px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                       border:1px solid var(--gold);background:rgba(224,181,74,0.1);color:var(--gold);cursor:pointer">
-                Ver análisis
-              </button>
-              ${isAdmin ? `<button onclick="deleteChatAnalysis('${a.id}')"
-                style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                       border:1px solid rgba(184,72,72,0.3);background:transparent;color:#d47070;cursor:pointer">
-                Eliminar
-              </button>` : ''}
             </div>
           </div>`;
-      }).join('');
-
-  root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <button onclick="setChatSubView('nuevo')"
-          style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:var(--rs);
-                 border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer">
-          ← Nuevo análisis
-        </button>
+        }).join('')}
       </div>
-      <div style="font-size:13px;font-weight:700;color:var(--text2)">
-        Historial de análisis de chats
-        <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:4px">${_chatAnalysesList.length} guardados</span>
-      </div>
-    </div>
-    <div class="card" style="padding:20px">
-      <div style="display:flex;flex-direction:column;gap:10px">${cardsHtml}</div>
-    </div>
-  `;
+    </div>`;
 }
 
-function setChatSubView(v) {
-  _chatSubView = v;
-  renderLeadsIA();
+function openConclusionModal(id){
+  const c = _conclusionsList.find(x=>x.id===id);
+  if(!c) return;
+  const fecha = new Date(c.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+  const pdfsLabel = (c.report_names||[]).join(', ') || '—';
+  document.getElementById('modal-report-title').textContent = c.name;
+  document.getElementById('modal-report-meta').textContent  = `${fecha} · PDFs: ${pdfsLabel}`;
+  document.getElementById('modal-report-body').innerHTML    = _markdownToHtml(c.analysis);
+  document.getElementById('modal-report-export-btn').onclick = ()=>{
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${c.name}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.7}h2{font-size:17px;margin-top:32px;border-left:3px solid #c8a832;padding-left:10px}ul{padding-left:20px}li{margin-bottom:4px}strong{color:#111}</style>
+</head><body><h1>${c.name}</h1><p style="color:#666;font-size:13px">${fecha} · PDFs analizados: ${pdfsLabel}</p>
+${_markdownToHtml(c.analysis)}</body></html>`;
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    a.download=`conclusiones_${c.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()}.html`; a.click(); URL.revokeObjectURL(a.href);
+  };
+  openModal('modal-report-detail');
 }
 
-async function loadChatAnalysesList() {
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat-analyses`);
-    if (!res.ok) return;
-    _chatAnalysesList = await res.json();
-    if (_chatSubView === 'historial') _renderChatHistorialView();
-  } catch (_) {}
+async function deleteConclusion(id){
+  if(!confirm('¿Eliminar este reporte de conclusiones?')) return;
+  try{
+    const res = await apiFetch(`${API_URL}/reports/conclusions/${id}`, { method:'DELETE' });
+    if(!res.ok) return;
+    _conclusionsList = _conclusionsList.filter(c=>c.id!==id);
+    renderConclusions();
+    toast('Conclusión eliminada');
+  }catch(e){ toast('Error: '+e.message); }
 }
 
-async function loadChatAnalysis(id) {
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat-analyses/${id}`);
-    if (!res.ok) return;
+async function generarConclusiones(){
+  if(_reportsList.length===0){ toast('Cargá al menos un reporte primero'); return; }
+  const nameInput = document.getElementById('conclusion-name-input');
+  const name = nameInput?.value.trim();
+  if(!name){ toast('Escribí un nombre para el reporte de conclusiones'); nameInput?.focus(); return; }
+  const btn = document.getElementById('btn-conclusiones');
+  if(btn){ btn.disabled=true; btn.textContent='Analizando PDFs…'; }
+  try{
+    const res = await apiFetch(`${API_URL}/reports/conclusions`, { method:'POST', body:JSON.stringify({ name }) });
+    if(!res.ok){ const e=await res.json(); toast('Error: '+(e.error||res.status)); return; }
+    const saved = await res.json();
+    _conclusionsList.unshift(saved);
+    renderConclusions();
+    if(nameInput) nameInput.value='';
+    openConclusionModal(saved.id);
+    toast('Conclusiones generadas ✓');
+  }catch(e){ toast('Error: '+e.message); }
+  finally{
+    if(btn){ btn.disabled=false; btn.textContent='Generar conclusiones'; }
+  }
+}
+
+// ── Drag & drop / file select ─────────────────────────────────
+
+function _reportsDrop(e){
+  e.preventDefault();
+  document.getElementById('reports-dropzone').style.borderColor='rgba(255,255,255,0.1)';
+  const file=e.dataTransfer?.files?.[0];
+  if(file) _reportsSetFile(file);
+}
+function _reportsFileSelected(input){ if(input.files?.[0]) _reportsSetFile(input.files[0]); }
+function _reportsSetFile(file){
+  if(!file.name.toLowerCase().endsWith('.pdf')){ toast('Solo se aceptan archivos PDF'); return; }
+  if(file.size>42*1024*1024){ toast('El archivo supera los 40 MB'); return; }
+  _reportCurrentFile=file;
+  const sel=document.getElementById('reports-selected-file');
+  if(sel) sel.style.display='flex';
+  const nm=document.getElementById('reports-selected-name');
+  if(nm) nm.textContent=file.name+' ('+(file.size/1024/1024).toFixed(1)+' MB)';
+}
+function _reportsClearFile(){
+  _reportCurrentFile=null;
+  const sel=document.getElementById('reports-selected-file');
+  if(sel) sel.style.display='none';
+  const inp=document.getElementById('reports-file-input');
+  if(inp) inp.value='';
+}
+
+async function uploadReport(){
+  if(!_reportCurrentFile){ toast('Seleccioná un PDF primero'); return; }
+  if(_reportsUploading) return;
+  _reportsUploading=true;
+  const btn=document.getElementById('reports-upload-btn');
+  const status=document.getElementById('reports-upload-status');
+  if(btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+  if(status) status.textContent='Subiendo PDF…';
+  try{
+    const note=(document.getElementById('reports-note')?.value||'').trim();
+    const base64=await _fileToBase64(_reportCurrentFile);
+    const res=await apiFetch(`${API_URL}/reports`,{
+      method:'POST',
+      body:JSON.stringify({filename:_reportCurrentFile.name,pdfBase64:base64,note})
+    });
+    if(!res.ok){ const e=await res.json(); toast('Error: '+(e.error||res.status)); return; }
+    const saved=await res.json();
+    _reportsList.unshift(saved);
+    _reportsClearFile();
+    const noteEl=document.getElementById('reports-note');
+    if(noteEl) noteEl.value='';
+    renderCallReports();
+    toast('Reporte guardado ✓');
+  }catch(e){ toast('Error: '+e.message); }
+  finally{
+    _reportsUploading=false;
+    if(btn){ btn.disabled=false; btn.textContent='Guardar reporte'; }
+    if(status) status.textContent='';
+  }
+}
+
+function _fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Ver PDF ───────────────────────────────────────────────────
+
+let _pdfBlobUrl = null;
+
+async function openPdfModal(id){
+  const r = _reportsList.find(x=>x.id===id);
+  const modal = document.getElementById('modal-pdf-viewer');
+  const iframe = document.getElementById('modal-pdf-iframe');
+  const loading = document.getElementById('modal-pdf-loading');
+  const title = document.getElementById('modal-pdf-title');
+  if(!modal || !iframe) return;
+
+  if(_pdfBlobUrl){ URL.revokeObjectURL(_pdfBlobUrl); _pdfBlobUrl=null; }
+  iframe.style.display='none'; iframe.src='about:blank';
+  loading.style.display='flex';
+  title.textContent = r?.filename || 'Reporte';
+  modal.style.display='flex';
+  document.body.style.overflow='hidden';
+
+  try{
+    const res = await apiFetch(`${API_URL}/reports/${id}`);
+    if(!res.ok) throw new Error('No se pudo cargar el PDF');
     const data = await res.json();
-    _chatAnalysisId = data.id;
-    _chatMessages   = data.messages || [];
-    _chatSubView    = 'nuevo';
-    _chatImages     = [];
-    _chatInputText  = '';
-    renderLeadsIA();
-  } catch (err) {
-    toast('Error al cargar: ' + err.message);
+    if(!data.pdf_base64) throw new Error('PDF no disponible');
+    const bytes = atob(data.pdf_base64);
+    const arr = new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++) arr[i]=bytes.charCodeAt(i);
+    const blob = new Blob([arr], {type:'application/pdf'});
+    _pdfBlobUrl = URL.createObjectURL(blob);
+    iframe.src = _pdfBlobUrl;
+    iframe.onload = ()=>{ loading.style.display='none'; iframe.style.display='block'; };
+  }catch(e){
+    loading.textContent = 'Error al cargar el PDF: '+e.message;
   }
 }
 
-function startNewChatAnalysis() {
-  _chatImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
-  _chatFollowupImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
-  _chatAnalysisId       = null;
-  _chatMessages         = [];
-  _chatImages           = [];
-  _chatFollowupImages   = [];
-  _chatInputText        = '';
-  _chatFollowupInputText = '';
-  _chatSubView          = 'nuevo';
-  renderLeadsIA();
+function closePdfModal(){
+  const modal = document.getElementById('modal-pdf-viewer');
+  const iframe = document.getElementById('modal-pdf-iframe');
+  if(modal) modal.style.display='none';
+  if(iframe){ iframe.src='about:blank'; }
+  if(_pdfBlobUrl){ URL.revokeObjectURL(_pdfBlobUrl); _pdfBlobUrl=null; }
+  document.body.style.overflow='';
 }
 
-async function runChatAnalysis() {
-  const textEl   = document.getElementById('chat-text-input');
-  const chatText = (textEl?.value || _chatInputText || '').trim();
+// ── Ver / Exportar / Eliminar ─────────────────────────────────
 
-  if (!chatText && _chatImages.length === 0) {
-    toast('Pegá una conversación o adjuntá al menos un screenshot');
-    return;
-  }
-  if (_chatLoading) return;
-
-  _chatLoading   = true;
-  _chatInputText = chatText;
-  _renderChatNewView();
-
-  try {
-    const body = {
-      chat_text: chatText,
-      images: _chatImages.map(img => ({ base64: img.base64, mediaType: img.mediaType, name: img.name }))
-    };
-
-    const res = await apiFetch(`${API_URL}/ai/chat-analyze`, {
-      method: 'POST',
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-
-    const data      = await res.json();
-    _chatAnalysisId = data.id;
-    _chatMessages   = data.messages || [];
-    _chatImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
-    _chatImages     = [];
-    _chatInputText  = '';
-    _chatLoading    = false;
-    renderLeadsIA();
-    loadChatAnalysesList();
-    setTimeout(() => {
-      const wrap = document.getElementById('chat-messages-wrap');
-      if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 120);
-  } catch (err) {
-    _chatLoading = false;
-    _renderChatNewView();
-    toast('Error al analizar: ' + err.message);
-  }
+function openReportModal(id){
+  const r=_reportsList.find(x=>x.id===id);
+  if(!r) return;
+  const fecha=new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  const modal=document.getElementById('modal-report-detail');
+  if(!modal) return;
+  document.getElementById('modal-report-title').textContent=r.filename;
+  document.getElementById('modal-report-meta').textContent=fecha+(r.note?' · '+r.note:'');
+  document.getElementById('modal-report-body').innerHTML=_markdownToHtml(r.analysis||'');
+  document.getElementById('modal-report-export-btn').onclick=()=>exportReport(id);
+  openModal('modal-report-detail');
 }
 
-async function sendChatFollowup() {
-  const input   = document.getElementById('chat-followup-input');
-  const message = (input?.value || '').trim();
-  if (!message && _chatFollowupImages.length === 0) return;
-  if (_chatLoading) return;
-
-  _chatLoading = true;
-  const imgNote    = _chatFollowupImages.length > 0 ? `[${_chatFollowupImages.length} imagen(es)]\n` : '';
-  const displayMsg = `${imgNote}${message}`.trim();
-  _chatMessages    = [..._chatMessages, { role: 'user', content: displayMsg }];
-  if (input) input.value = '';
-  _chatFollowupInputText = '';
-
-  const imagesToSend = [..._chatFollowupImages];
-  _chatFollowupImages.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
-  _chatFollowupImages = [];
-  _renderChatNewView();
-
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat-followup`, {
-      method: 'POST',
-      body: JSON.stringify({
-        analysis_id: _chatAnalysisId,
-        message,
-        images: imagesToSend.map(img => ({ base64: img.base64, mediaType: img.mediaType, name: img.name })),
-        messages: _chatMessages.slice(0, -1)
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-
-    const data    = await res.json();
-    _chatMessages = data.messages || _chatMessages;
-    _chatLoading  = false;
-    _renderChatNewView();
-    setTimeout(() => {
-      const wrap = document.getElementById('chat-messages-wrap');
-      if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 120);
-  } catch (err) {
-    _chatMessages  = _chatMessages.slice(0, -1);
-    _chatLoading   = false;
-    _renderChatNewView();
-    toast('Error: ' + err.message);
-  }
+function exportReport(id){
+  const r=_reportsList.find(x=>x.id===id);
+  if(!r) return;
+  const fecha=new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  const html=`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Reporte — ${r.filename}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.7}
+h1{font-size:22px;margin-bottom:4px}.meta{color:#666;font-size:13px;margin-bottom:32px;border-bottom:1px solid #eee;padding-bottom:16px}
+h2{font-size:17px;margin-top:32px;color:#111;border-left:3px solid #c8a832;padding-left:10px}
+h3{font-size:15px;color:#333}ul,ol{padding-left:20px}li{margin-bottom:4px}strong{color:#111}
+@media print{body{margin:20px}}</style>
+</head><body>
+<h1>${r.filename}</h1>
+<div class="meta">${fecha}${r.note?' &middot; '+r.note:''}</div>
+${_markdownToHtml(r.analysis||'')}
+<hr style="margin-top:40px;border:none;border-top:1px solid #eee">
+<p style="font-size:11px;color:#aaa">Generado por CRM · Análisis IA</p>
+</body></html>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  a.download=r.filename.replace(/\.pdf$/i,'')+'_analisis.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-async function addFollowupImages() {
-  const input = document.getElementById('chat-followup-img-input');
-  if (!input?.files?.length) return;
-
-  const fta = document.getElementById('chat-followup-input');
-  if (fta) _chatFollowupInputText = fta.value;
-
-  for (const file of input.files) {
-    if (!file.type.startsWith('image/')) continue;
-    const base64 = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result.split(',')[1]);
-      reader.readAsDataURL(file);
-    });
-    _chatFollowupImages.push({ name: file.name, base64, mediaType: file.type, previewUrl: URL.createObjectURL(file) });
-  }
-  input.value = '';
-  _renderChatNewView();
-  const fta2 = document.getElementById('chat-followup-input');
-  if (fta2) fta2.value = _chatFollowupInputText;
+async function deleteReport(id){
+  if(!confirm('¿Eliminar este reporte del historial?')) return;
+  try{
+    const res=await apiFetch(`${API_URL}/reports/${id}`,{method:'DELETE'});
+    if(!res.ok) return;
+    _reportsList=_reportsList.filter(r=>r.id!==id);
+    renderCallReports();
+    toast('Reporte eliminado');
+  }catch(e){ toast('Error: '+e.message); }
 }
 
-function removeFollowupImage(idx) {
-  const fta = document.getElementById('chat-followup-input');
-  if (fta) _chatFollowupInputText = fta.value;
-  if (_chatFollowupImages[idx]?.previewUrl) URL.revokeObjectURL(_chatFollowupImages[idx].previewUrl);
-  _chatFollowupImages.splice(idx, 1);
-  _renderChatNewView();
-  const fta2 = document.getElementById('chat-followup-input');
-  if (fta2) fta2.value = _chatFollowupInputText;
-}
-
-function previewFollowupImage(idx) {
-  const img = _chatFollowupImages[idx];
-  if (img?.previewUrl) window.open(img.previewUrl, '_blank');
-}
-
-async function addChatImages() {
-  const input = document.getElementById('chat-img-input');
-  if (!input?.files?.length) return;
-
-  const ta = document.getElementById('chat-text-input');
-  if (ta) _chatInputText = ta.value;
-
-  for (const file of input.files) {
-    if (!file.type.startsWith('image/')) continue;
-    const base64 = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result.split(',')[1]);
-      reader.readAsDataURL(file);
-    });
-    _chatImages.push({ name: file.name, base64, mediaType: file.type, previewUrl: URL.createObjectURL(file) });
-  }
-  input.value = '';
-  _renderChatNewView();
-  const ta2 = document.getElementById('chat-text-input');
-  if (ta2) ta2.value = _chatInputText;
-}
-
-function removeChatImage(idx) {
-  const ta = document.getElementById('chat-text-input');
-  if (ta) _chatInputText = ta.value;
-  if (_chatImages[idx]?.previewUrl) URL.revokeObjectURL(_chatImages[idx].previewUrl);
-  _chatImages.splice(idx, 1);
-  _renderChatNewView();
-  const ta2 = document.getElementById('chat-text-input');
-  if (ta2) ta2.value = _chatInputText;
-}
-
-function previewChatImage(idx) {
-  const img = _chatImages[idx];
-  if (img?.previewUrl) window.open(img.previewUrl, '_blank');
-}
-
-async function deleteChatAnalysis(id) {
-  if (currentUserRole !== 'admin') return;
-  if (!confirm('¿Eliminar este análisis? Esta acción no se puede deshacer.')) return;
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat-analyses/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Error al eliminar');
-    _chatAnalysesList = _chatAnalysesList.filter(a => a.id !== id);
-    if (_chatAnalysisId === id) { _chatAnalysisId = null; _chatMessages = []; }
-    _renderChatHistorialView();
-    toast('Análisis eliminado ✓');
-  } catch (err) {
-    toast('Error: ' + err.message);
-  }
-}
-
-async function openChatAIConfig() {
-  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
-  openModal('modal-chat-ia-config');
-  try {
-    const clienteId = localStorage.getItem('clienteSeleccionado') || '';
-    const { data } = await _sb
-      .from('ai_config')
-      .select('chat_system_prompt, chat_custom_context')
-      .eq('cliente_id', clienteId)
-      .limit(1)
-      .maybeSingle();
-    const ctxEl    = document.getElementById('chat-ia-config-context');
-    const promptEl = document.getElementById('chat-ia-config-prompt');
-    if (ctxEl)    ctxEl.value    = (data && data.chat_custom_context) || '';
-    if (promptEl) promptEl.value = (data && data.chat_system_prompt)  || '';
-  } catch (err) {
-    console.warn('[CHAT AI CONFIG]', err.message);
-  }
-}
-
-async function saveChatAIConfig() {
-  if (currentUserRole !== 'admin') { toast('Solo los admins pueden configurar la IA'); return; }
-  const chat_system_prompt  = (document.getElementById('chat-ia-config-prompt')?.value  || '').trim();
-  const chat_custom_context = (document.getElementById('chat-ia-config-context')?.value || '').trim();
-  try {
-    const res = await apiFetch(`${API_URL}/ai/chat-config`, {
-      method: 'PATCH',
-      body: JSON.stringify({ chat_system_prompt, chat_custom_context })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-    closeModal('modal-chat-ia-config');
-    toast('Configuración de IA guardada ✓');
-  } catch (err) {
-    toast('Error al guardar: ' + err.message);
-  }
+function _markdownToHtml(md){
+  return md
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>\n?)+/g,s=>`<ul>${s}</ul>`)
+    .replace(/\n\n/g,'</p><p>')
+    ||md;
 }
 
 // ========== TAREAS ==========
@@ -11074,6 +9239,116 @@ function setCrmIdeasFilter(f, btn) {
   if (btn) btn.classList.add('active');
   renderCrmIdeas();
 }
+
+// ── DIAGNÓSTICO BARBERO ───────────────────────────────────────────────────────
+let _diagData = [];
+
+async function renderDiag() {
+  const tbody = document.getElementById('diag-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Cargando…</td></tr>';
+  try {
+    const resp = await apiFetch('/diagnostico/respuestas');
+    _diagData = resp.respuestas || [];
+    _renderDiagTable(_diagData);
+    _renderDiagMetrics(_diagData);
+    _renderDiagCharts(_diagData);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Error al cargar: ${e.message}</td></tr>`;
+  }
+}
+
+function filtrarDiag() {
+  const q = (document.getElementById('diag-search')?.value || '').toLowerCase();
+  const filtered = q
+    ? _diagData.filter(r => (r.nombre||'').toLowerCase().includes(q) || (r.instagram||'').toLowerCase().includes(q) || (r.celular||'').includes(q))
+    : _diagData;
+  _renderDiagTable(filtered);
+}
+
+const AVATAR_LABEL = { dueno: 'Dueño de barbería', futuro: 'Quiere abrir barbería', segunda: 'Quiere segunda barbería' };
+
+function _waLink(celular) {
+  if (!celular) return '—';
+  const num = celular.replace(/\D/g, '');
+  return `<a href="https://wa.me/${num}" target="_blank" rel="noopener" style="color:var(--success);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    ${celular}
+  </a>`;
+}
+
+function _renderDiagTable(data) {
+  const tbody = document.getElementById('diag-table-body');
+  if (!tbody) return;
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Sin respuestas aún</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(r => {
+    const fecha = r.created_at ? new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const ig = r.instagram ? `<a href="https://instagram.com/${r.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${r.instagram.replace('@','')}</a>` : '—';
+    const avatar = AVATAR_LABEL[r.avatar_tipo] || r.avatar_tipo || '—';
+    const comp = r.comprometido === true ? '<span style="color:var(--success)">✓ Sí</span>' : r.comprometido === false ? '<span style="color:var(--red)">✗ No</span>' : '—';
+    const diagSnippet = r.diagnostico ? `<span title="${r.diagnostico.replace(/"/g,'&quot;')}" style="color:var(--text2);cursor:help">${r.diagnostico.slice(0,60)}…</span>` : '—';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
+      <td style="padding:11px 16px;font-weight:500">${r.nombre||'—'}</td>
+      <td style="padding:11px 16px;white-space:nowrap">${_waLink(r.celular)}</td>
+      <td style="padding:11px 16px">${ig}</td>
+      <td style="padding:11px 16px;color:var(--text2);font-size:12px">${avatar}</td>
+      <td style="padding:11px 16px">${comp}</td>
+      <td style="padding:11px 16px;max-width:220px">${diagSnippet}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderDiagMetrics(data) {
+  const el = document.getElementById('diag-metrics');
+  if (!el) return;
+  const total = data.length;
+  const comp  = data.filter(r => r.comprometido === true).length;
+  const dueno = data.filter(r => r.avatar_tipo === 'dueno').length;
+  const futuro= data.filter(r => r.avatar_tipo === 'futuro').length;
+  const seg   = data.filter(r => r.avatar_tipo === 'segunda').length;
+  const mc = (l,v,c='') => `<div class="metric-card"><div class="metric-label">${l}</div><div class="metric-value ${c}">${v}</div></div>`;
+  el.innerHTML =
+    mc('Total respuestas', total) +
+    mc('Se comprometieron', comp, 'green') +
+    mc('No se comprometieron', total - comp, 'red') +
+    mc('Dueños de barbería', dueno) +
+    mc('Quieren abrir', futuro) +
+    mc('Quieren segunda', seg);
+}
+
+function _renderDiagCharts(data) {
+  _renderDiagBar('diag-chart-avatar', [
+    { label: 'Dueño', val: data.filter(r=>r.avatar_tipo==='dueno').length, color: 'var(--gold)' },
+    { label: 'Quiere abrir', val: data.filter(r=>r.avatar_tipo==='futuro').length, color: '#6090d4' },
+    { label: 'Segunda barbería', val: data.filter(r=>r.avatar_tipo==='segunda').length, color: '#5cb87a' },
+  ]);
+  _renderDiagBar('diag-chart-compromiso', [
+    { label: 'Se comprometió', val: data.filter(r=>r.comprometido===true).length, color: 'var(--success)' },
+    { label: 'No se comprometió', val: data.filter(r=>r.comprometido===false).length, color: 'var(--red)' },
+  ]);
+}
+
+function _renderDiagBar(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const max = Math.max(...items.map(i=>i.val), 1);
+  el.innerHTML = items.map(item => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:110px;font-size:12px;color:var(--text2);flex-shrink:0;text-align:right">${item.label}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:4px;height:22px;overflow:hidden">
+        <div style="height:100%;width:${Math.round((item.val/max)*100)}%;background:${item.color};border-radius:4px;transition:width .5s;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">
+          ${item.val > 0 ? `<span style="font-size:11px;font-weight:600;color:#000;opacity:.7">${item.val}</span>` : ''}
+        </div>
+      </div>
+      <div style="width:24px;font-size:12px;font-weight:600;color:var(--text)">${item.val}</div>
+    </div>
+  `).join('');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function renderCrmIdeas() {
   const tbody = document.getElementById('crm-ideas-tbody');
