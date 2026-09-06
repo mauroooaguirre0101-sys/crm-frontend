@@ -471,23 +471,29 @@ async function qNext() {
 async function submitForm() {
   showStep('step-loading');
 
-  // Generar diagnóstico localmente (sin backend)
-  const diagnostico = generarDiagnostico(state.avatar, state.respuestas);
+  let diagnostico;
+  try {
+    // Intentar con IA en el backend
+    const r = await fetch(`${BACKEND}/diagnostico/barbero`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: state.nombre, celular: state.celular,
+        instagram: state.instagram.replace(/^@/,''),
+        comprometido: state.comprometido, avatar: state.avatar,
+        respuestas: state.respuestas
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Error del servidor');
+    diagnostico = d.diagnostico;
+  } catch(e) {
+    // Fallback: diagnóstico por reglas local
+    console.warn('[Diagnostico] Backend no disponible, usando motor local:', e.message);
+    diagnostico = generarDiagnostico(state.avatar, state.respuestas);
+  }
 
-  // Guardar en backend en segundo plano (no bloquea si falla)
-  fetch(`${BACKEND}/diagnostico/barbero`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nombre: state.nombre, celular: state.celular,
-      instagram: state.instagram.replace(/^@/,''),
-      comprometido: state.comprometido, avatar: state.avatar,
-      respuestas: state.respuestas, diagnostico
-    })
-  }).catch(() => {}); // silencioso si el backend está caído
-
-  // Mostrar resultado inmediatamente
-  setTimeout(() => showResult(diagnostico), 1800); // simula procesamiento
+  showResult(diagnostico);
 }
 
 // ── Diagnóstico por reglas ────────────────────────────────────────
@@ -599,19 +605,32 @@ function generarDiagnostico(avatar, r) {
 }
 function showResult(raw) {
   document.getElementById('res-nombre').textContent = state.nombre.split(' ')[0];
-  // Renderizar bloques separados por doble salto de línea
-  const bloques = raw.split(/\n\n+/);
-  const html = bloques.map((bloque, i) => {
-    const partes = bloque.split('\n');
-    const titulo = partes[0].replace(/\*\*(.+?)\*\*/g, '$1');
-    const cuerpo = partes.slice(1).join(' ').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    return `<div class="diag-bloque">
+
+  // Parser flexible: agrupa líneas en bloques {titulo, cuerpo}
+  // Soporta formato local (**titulo**\ncuerpo) y Claude (**titulo**\n\ncuerpo)
+  const lineas = raw.split('\n');
+  const bloques = [];
+  let actual = null;
+
+  for (const linea of lineas) {
+    const esTitulo = /^\*\*.+\*\*/.test(linea.trim());
+    if (esTitulo) {
+      if (actual) bloques.push(actual);
+      actual = { titulo: linea.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\d+\.\s*/, '').trim(), cuerpo: [] };
+    } else if (actual && linea.trim()) {
+      actual.cuerpo.push(linea.trim());
+    }
+  }
+  if (actual) bloques.push(actual);
+
+  const html = bloques.map((b, i) => `
+    <div class="diag-bloque">
       <div class="diag-num">Cuello de botella ${i+1}</div>
-      <div class="diag-titulo">${titulo}</div>
-      ${cuerpo ? `<div class="diag-cuerpo">${cuerpo}</div>` : ''}
-    </div>`;
-  }).join('');
-  document.getElementById('res-diagnostico').innerHTML = html;
+      <div class="diag-titulo">${b.titulo}</div>
+      ${b.cuerpo.length ? `<div class="diag-cuerpo">${b.cuerpo.join(' ')}</div>` : ''}
+    </div>`).join('');
+
+  document.getElementById('res-diagnostico').innerHTML = html || `<p style="color:var(--text2)">${raw}</p>`;
   showStep('step-result');
 }
 </script>
