@@ -9243,10 +9243,12 @@ function setCrmIdeasFilter(f, btn) {
 // ── DIAGNÓSTICO BARBERO ───────────────────────────────────────────────────────
 let _diagData = [];
 
+const _diagById = {}; // mapa id → row para el modal
+
 async function renderDiag() {
   const tbody = document.getElementById('diag-table-body');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Cargando…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--text3)">Cargando…</td></tr>';
   try {
     const res = await apiFetch(`${API_URL}/diagnostico/respuestas`);
     if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -9295,6 +9297,9 @@ function _renderDiagTable(data) {
     tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--text3)">Sin respuestas aún</td></tr>';
     return;
   }
+  // Guardar en mapa para el modal (evita pasar JSON por atributo HTML)
+  data.forEach(r => { _diagById[r.id] = r; });
+
   tbody.innerHTML = data.map(r => {
     const fecha = r.created_at ? new Date(r.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
     const ig = r.instagram ? `<a href="https://instagram.com/${r.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${r.instagram.replace('@','')}</a>` : '—';
@@ -9302,10 +9307,12 @@ function _renderDiagTable(data) {
     const comp = r.comprometido === true ? '<span style="color:var(--success)">✓ Sí</span>' : r.comprometido === false ? '<span style="color:var(--red)">✗ No</span>' : '—';
     const income = _getIncome(r);
     const incomeTxt = income !== null ? `<span style="font-weight:600">$${income.toLocaleString('es-AR')}</span>` : '—';
-    const diagSnippet = r.diagnostico
-      ? `<span onclick="openDiagModal(${JSON.stringify(JSON.stringify(r))})" style="color:var(--accent,var(--gold));cursor:pointer;text-decoration:underline;text-underline-offset:3px">${r.diagnostico.replace(/<[^>]+>/g,'').slice(0,55)}…</span>`
-      : '—';
-    const rid = String(r.id).replace(/'/g,"\\'");
+    // Snippet limpio: sin markdown ni HTML
+    const cleanDiag = (r.diagnostico||'').replace(/\*\*/g,'').replace(/<[^>]+>/g,'').replace(/\n/g,' ').trim();
+    const diagSnippet = cleanDiag
+      ? `<span onclick="openDiagModal('${r.id}')" style="color:var(--gold);cursor:pointer;text-decoration:underline;text-underline-offset:3px;font-size:12px">${cleanDiag.slice(0,60)}…</span>`
+      : '<span style="color:var(--text3)">—</span>';
+    const rid = r.id;
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
       <td style="padding:11px 16px;font-weight:500">${r.nombre||'—'}</td>
@@ -9322,8 +9329,9 @@ function _renderDiagTable(data) {
   }).join('');
 }
 
-function openDiagModal(jsonStr) {
-  const r = JSON.parse(jsonStr);
+function openDiagModal(id) {
+  const r = _diagById[id];
+  if (!r) return;
   document.getElementById('diag-modal-nombre').textContent = r.nombre || '—';
   const resp = r.respuestas || {};
   const keys = Object.keys(resp);
