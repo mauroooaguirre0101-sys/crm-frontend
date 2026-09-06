@@ -378,8 +378,17 @@ const state = { comprometido: null, nombre: '', celular: '', instagram: '', avat
 let currentStep = 0, qIndex = 0, preguntas = [];
 const BACKEND = 'https://noble-determination-production.up.railway.app';
 
+const PREGUNTA_FACTURACION = {
+  id: 'facturacion_usd',
+  tipo: 'texto',
+  inputType: 'text',
+  placeholder: 'Ej: 1500',
+  texto: '¿Cuanto facturas al mes? <strong style="color:#1a1a1a;background:var(--gold);padding:1px 6px;border-radius:4px;font-size:.85em">(EN USD)</strong>'
+};
+
 const PREGUNTAS = {
   dueno: [
+    PREGUNTA_FACTURACION,
     { id: 'antiguedad', texto: '¿Hace cuanto tenes tu barbería?', opciones: ['Menos de 6 meses','6 meses a 1 año','1 a 3 años','Más de 3 años'] },
     { id: 'problema_principal', texto: '¿Cuál es hoy tu principal problema?', opciones: ['Me faltan clientes','Tengo clientes, pero no vuelven lo suficiente','Tengo problemas con mi equipo','La barbería depende demasiado de mí','No tengo claro cuánto gano realmente','Tengo clientes, pero siento que estoy estancado','Otro'] },
     { id: 'agenda', texto: '¿Cómo está actualmente tu agenda?', opciones: ['Menos del 50% ocupada','Entre 50% y 70%','Entre 70% y 90%','Más del 90%','Tengo la agenda llena, pero sigo dependiendo de mí'] },
@@ -391,6 +400,7 @@ const PREGUNTAS = {
     { id: 'meta_12m', texto: '¿Qué es lo que más te gustaría conseguir en los próximos 12 meses?', opciones: ['Llenar mi agenda','Ganar más con la barbería','Tener un equipo sólido','Dejar de estar presente todo el tiempo','Abrir una segunda barbería','Tener más libertad'] }
   ],
   futuro: [
+    PREGUNTA_FACTURACION,
     { id: 'situacion_actual', texto: '¿En qué situacion estas actualmente?', opciones: ['Trabajo para otra barbería','Trabajo desde mi casa','Trabajo a domicilio','Alquilo una silla','Otra'] },
     { id: 'decision', texto: '¿Que tan decidido estas a abrir tu propia barbería?', opciones: ['Ya estoy buscando local','Quiero abrirla dentro de pocos meses','Quiero abrirla este año','Es algo que quiero hacer, pero todavía no tengo fecha'] },
     { id: 'freno', texto: '¿Qué es lo que más te frena hoy para abrir?', opciones: ['No tengo suficiente capital','No sé qué local elegir','No sé cuánto necesito invertir','No sé cómo conseguir clientes','Me da miedo que no funcione','No sé cómo organizar el negocio','No sé cómo conseguir/armar un equipo','Otro'] },
@@ -402,6 +412,7 @@ const PREGUNTAS = {
     { id: 'meta_apertura', texto: '¿Qué sería lo que más te gustaría conseguir al abrir tu barbería?', opciones: ['Ganar más dinero','Tener mi propio negocio','Tener más clientes','Formar un equipo','Dejar de trabajar para otros','Tener más libertad'] }
   ],
   segunda: [
+    PREGUNTA_FACTURACION,
     { id: 'antiguedad_primera', texto: '¿Hace cuanto tenes tu primera barbería?', opciones: ['Menos de 1 año','1–2 años','2–5 años','Más de 5 años'] },
     { id: 'motivo_segunda', texto: '¿Por que queres abrir una segunda barbería?', opciones: ['Quiero aumentar mis ganancias','Quiero expandir la marca','La primera barbería ya llegó a su techo','Encontré una buena oportunidad','Quiero tener más libertad','Quiero dejar de depender de la primera','Otro'] },
     { id: 'problema_primera', texto: '¿Cuál es actualmente el principal problema de tu primera barbería?', opciones: ['Falta de clientes','Falta de retención','Problemas con el equipo','Depende demasiado de mí','No tengo claros los números','Problemas de organización/procesos','No tengo grandes problemas actualmente'] },
@@ -457,21 +468,48 @@ function startQuestions() {
 function renderQuestion() {
   const q = preguntas[qIndex];
   document.getElementById('q-step-label').textContent = `Pregunta ${qIndex + 1} de ${preguntas.length}`;
-  document.getElementById('q-title').textContent = q.texto;
   document.getElementById('btn-q-next').disabled = true;
   document.getElementById('q-error').style.display = 'none';
   const c = document.getElementById('q-options');
-  c.innerHTML = q.opciones.map(op =>
-    `<div class="opt-card" onclick="selectOpt(this,'${op.replace(/'/g,"\\'")}')"><div class="opt-dot"></div><div class="opt-text">${op}</div></div>`
-  ).join('');
-  const prev = state.respuestas[q.texto];
-  if (prev) c.querySelectorAll('.opt-card').forEach(card => {
-    if (card.querySelector('.opt-text').textContent === prev) {
-      card.classList.add('selected');
-      document.getElementById('btn-q-next').disabled = false;
-    }
-  });
+
+  // Título: soporte para HTML en la pregunta
+  document.getElementById('q-title').innerHTML = q.texto;
+
+  if (q.tipo === 'texto') {
+    // Input de texto libre
+    const prev = state.respuestas[q.texto] || '';
+    c.innerHTML = `<input
+      id="q-text-input"
+      type="${q.inputType || 'text'}"
+      placeholder="${q.placeholder || ''}"
+      value="${prev}"
+      style="background:var(--surf2);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+             color:var(--text);font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;
+             padding:16px 18px;width:100%;outline:none;transition:border-color .15s;min-height:56px;
+             -webkit-appearance:none;appearance:none;"
+      oninput="onTextInput(this.value)"
+      onfocus="this.style.borderColor='var(--gold)'"
+      onblur="this.style.borderColor='var(--border)'"
+    >`;
+    if (prev) document.getElementById('btn-q-next').disabled = false;
+  } else {
+    // Opciones múltiples (comportamiento original)
+    c.innerHTML = q.opciones.map(op =>
+      `<div class="opt-card" onclick="selectOpt(this,'${op.replace(/'/g,"\\'")}')"><div class="opt-dot"></div><div class="opt-text">${op}</div></div>`
+    ).join('');
+    const prev = state.respuestas[q.texto];
+    if (prev) c.querySelectorAll('.opt-card').forEach(card => {
+      if (card.querySelector('.opt-text').textContent === prev) {
+        card.classList.add('selected');
+        document.getElementById('btn-q-next').disabled = false;
+      }
+    });
+  }
   updateProgress();
+}
+function onTextInput(val) {
+  state.respuestas[preguntas[qIndex].texto] = val.trim();
+  document.getElementById('btn-q-next').disabled = !val.trim();
 }
 function selectOpt(el, val) {
   document.querySelectorAll('#q-options .opt-card').forEach(c => c.classList.remove('selected'));
