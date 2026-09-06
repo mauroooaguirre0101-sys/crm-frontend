@@ -9279,11 +9279,20 @@ function _waLink(celular) {
   </a>`;
 }
 
+// Extrae la facturación mensual en USD de las respuestas (key puede tener HTML)
+function _getIncome(r) {
+  const resp = r.respuestas || {};
+  const key = Object.keys(resp).find(k => k.includes('facturas al mes') || k.includes('Cuanto facturas'));
+  if (!key) return null;
+  const num = parseFloat(String(resp[key]).replace(/[^0-9.]/g, ''));
+  return isNaN(num) ? null : num;
+}
+
 function _renderDiagTable(data) {
   const tbody = document.getElementById('diag-table-body');
   if (!tbody) return;
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Sin respuestas aún</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--text3)">Sin respuestas aún</td></tr>';
     return;
   }
   tbody.innerHTML = data.map(r => {
@@ -9291,17 +9300,69 @@ function _renderDiagTable(data) {
     const ig = r.instagram ? `<a href="https://instagram.com/${r.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${r.instagram.replace('@','')}</a>` : '—';
     const avatar = AVATAR_LABEL[r.avatar_tipo] || r.avatar_tipo || '—';
     const comp = r.comprometido === true ? '<span style="color:var(--success)">✓ Sí</span>' : r.comprometido === false ? '<span style="color:var(--red)">✗ No</span>' : '—';
-    const diagSnippet = r.diagnostico ? `<span title="${r.diagnostico.replace(/"/g,'&quot;')}" style="color:var(--text2);cursor:help">${r.diagnostico.slice(0,60)}…</span>` : '—';
+    const income = _getIncome(r);
+    const incomeTxt = income !== null ? `<span style="font-weight:600">$${income.toLocaleString('es-AR')}</span>` : '—';
+    const diagSnippet = r.diagnostico
+      ? `<span onclick="openDiagModal(${JSON.stringify(JSON.stringify(r))})" style="color:var(--accent,var(--gold));cursor:pointer;text-decoration:underline;text-underline-offset:3px">${r.diagnostico.replace(/<[^>]+>/g,'').slice(0,55)}…</span>`
+      : '—';
+    const rid = String(r.id).replace(/'/g,"\\'");
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
       <td style="padding:11px 16px;font-weight:500">${r.nombre||'—'}</td>
       <td style="padding:11px 16px;white-space:nowrap">${_waLink(r.celular)}</td>
       <td style="padding:11px 16px">${ig}</td>
       <td style="padding:11px 16px;color:var(--text2);font-size:12px">${avatar}</td>
+      <td style="padding:11px 16px">${incomeTxt}</td>
       <td style="padding:11px 16px">${comp}</td>
-      <td style="padding:11px 16px;max-width:220px">${diagSnippet}</td>
+      <td style="padding:11px 16px;max-width:200px">${diagSnippet}</td>
+      <td style="padding:11px 16px;text-align:center">
+        <button onclick="deleteDiagResp('${rid}')" title="Eliminar" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:4px 6px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+      </td>
     </tr>`;
   }).join('');
+}
+
+function openDiagModal(jsonStr) {
+  const r = JSON.parse(jsonStr);
+  document.getElementById('diag-modal-nombre').textContent = r.nombre || '—';
+  const resp = r.respuestas || {};
+  const keys = Object.keys(resp);
+  let html = '';
+  if (keys.length) {
+    html += '<div style="margin-bottom:18px">';
+    html += keys.map(k => {
+      const label = k.replace(/<[^>]+>/g,'').trim();
+      return `<div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.05em;margin-bottom:3px">${label}</div>
+        <div style="color:var(--text)">${resp[k]}</div>
+      </div>`;
+    }).join('');
+    html += '</div>';
+  }
+  if (r.diagnostico) {
+    html += `<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.05em;margin-bottom:10px">DIAGNÓSTICO IA</div>
+      <div style="font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap">${r.diagnostico.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
+    </div>`;
+  }
+  document.getElementById('diag-modal-body').innerHTML = html;
+  document.getElementById('diag-modal').style.display = 'block';
+}
+function closeDiagModal() { document.getElementById('diag-modal').style.display = 'none'; }
+
+async function deleteDiagResp(id) {
+  if (!confirm('¿Eliminar esta respuesta?')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/diagnostico/respuestas/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    _diagData = _diagData.filter(r => r.id !== id);
+    _renderDiagTable(_diagData);
+    _renderDiagMetrics(_diagData);
+    _renderDiagCharts(_diagData);
+    toast('✓ Respuesta eliminada');
+  } catch(e) {
+    toast('✗ Error al eliminar: ' + e.message);
+  }
 }
 
 function _renderDiagMetrics(data) {
@@ -9332,6 +9393,16 @@ function _renderDiagCharts(data) {
     { label: 'Se comprometió', val: data.filter(r=>r.comprometido===true).length, color: 'var(--success)' },
     { label: 'No se comprometió', val: data.filter(r=>r.comprometido===false).length, color: 'var(--red)' },
   ]);
+  // Gráfico de ingresos
+  const incomes = data.map(_getIncome).filter(v => v !== null);
+  _renderDiagBar('diag-chart-income', [
+    { label: '+$3000', val: incomes.filter(v=>v>=3000).length, color: '#52B788' },
+    { label: '+$2000', val: incomes.filter(v=>v>=2000&&v<3000).length, color: '#74C69D' },
+    { label: '+$1000', val: incomes.filter(v=>v>=1000&&v<2000).length, color: '#95D5B2' },
+    { label: '-$1000', val: incomes.filter(v=>v>=500&&v<1000).length, color: '#f4a261' },
+    { label: '-$500',  val: incomes.filter(v=>v>=300&&v<500).length,  color: '#e76f51' },
+    { label: '-$300',  val: incomes.filter(v=>v<300).length,           color: '#e63946' },
+  ]);
 }
 
 function _renderDiagBar(containerId, items) {
@@ -9340,10 +9411,10 @@ function _renderDiagBar(containerId, items) {
   const max = Math.max(...items.map(i=>i.val), 1);
   el.innerHTML = items.map(item => `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="width:110px;font-size:12px;color:var(--text2);flex-shrink:0;text-align:right">${item.label}</div>
+      <div style="width:64px;font-size:12px;color:var(--text2);flex-shrink:0;text-align:right;font-weight:600">${item.label}</div>
       <div style="flex:1;background:var(--surface2);border-radius:4px;height:22px;overflow:hidden">
         <div style="height:100%;width:${Math.round((item.val/max)*100)}%;background:${item.color};border-radius:4px;transition:width .5s;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">
-          ${item.val > 0 ? `<span style="font-size:11px;font-weight:600;color:#000;opacity:.7">${item.val}</span>` : ''}
+          ${item.val > 0 ? `<span style="font-size:11px;font-weight:600;color:#000;opacity:.8">${item.val}</span>` : ''}
         </div>
       </div>
       <div style="width:24px;font-size:12px;font-weight:600;color:var(--text)">${item.val}</div>

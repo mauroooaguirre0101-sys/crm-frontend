@@ -7,20 +7,20 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600&display=swap">
 <style>
 :root {
-  --bg:        #0C0C0F;
-  --surf:      #131317;
-  --surf2:     #1C1C22;
-  --border:    #27272F;
-  --text:      #EDEAE3;
-  --text2:     #9B98A6;
-  --text3:     #4E4C58;
-  --gold:      #C8A96E;
-  --gold-dim:  rgba(200,169,110,.15);
-  --gold-line: rgba(200,169,110,.35);
+  --bg:        #080810;
+  --surf:      #0F0F1A;
+  --surf2:     #161625;
+  --border:    #1E1E35;
+  --text:      #EEEDF8;
+  --text2:     #8885A8;
+  --text3:     #3D3B58;
+  --gold:      #E63946;
+  --gold-dim:  rgba(230,57,70,.12);
+  --gold-line: rgba(230,57,70,.3);
   --success:   #52B788;
-  --red:       #D95F5F;
-  --radius:    14px;
-  --radius-sm: 9px;
+  --red:       #E63946;
+  --radius:    12px;
+  --radius-sm: 8px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
@@ -32,6 +32,11 @@ body {
   line-height: 1.6;
   min-height: 100dvh;
   overflow-x: hidden;
+  /* Grid futurista de fondo */
+  background-image:
+    linear-gradient(rgba(230,57,70,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(230,57,70,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 /* Progress bar */
