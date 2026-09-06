@@ -217,6 +217,20 @@ body {
 .diag-cuerpo {
   font-size: 14px; line-height: 1.75; color: var(--text2);
 }
+/* Botón Ver Análisis */
+#ver-analisis-wrap {
+  margin-bottom: 24px;
+}
+.btn-ver-analisis {
+  width: 100%; padding: 18px 24px;
+  background: var(--gold); color: #0C0C0F;
+  font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 700;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  letter-spacing: .02em; transition: opacity .2s, transform .15s;
+}
+.btn-ver-analisis:hover { opacity: .88; transform: translateY(-1px); }
+.btn-ver-analisis:active { transform: translateY(0); }
+
 .cta-box {
   background: linear-gradient(135deg, rgba(200,169,110,.12) 0%, rgba(200,169,110,.04) 100%);
   border: 1.5px solid var(--gold-line); border-radius: var(--radius);
@@ -339,13 +353,20 @@ body {
   <div class="step" id="step-result">
     <div class="result-header">
       <div class="result-eyebrow">Tu diagnóstico</div>
-      <h2 class="result-title">Estos son tus cuellos de botella actuales, <span class="result-nombre" id="res-nombre"></span></h2>
+      <h2 class="result-title">Identificamos tus cuellos de botella, <span class="result-nombre" id="res-nombre"></span></h2>
     </div>
-    <div class="diagnostico-body" id="res-diagnostico"></div>
-    <div class="cta-box">
+
+    <!-- Botón Ver Análisis (se oculta al hacer clic) -->
+    <div id="ver-analisis-wrap">
+      <button class="btn-ver-analisis" onclick="verAnalisis()">Ver mi análisis →</button>
+    </div>
+
+    <!-- Análisis oculto hasta que se presione el botón -->
+    <div class="diagnostico-body" id="res-diagnostico" style="display:none"></div>
+
+    <div class="cta-box" id="res-cta" style="display:none">
       <div class="cta-box-text">
-        Para entender cómo resolver estos problemas tenés que ir a la clase del
-        <em>Domingo 7/9 a las 20hs.</em>
+        Si queres saber como podes resolver estos problemas nos vemos mañana a las 20hs (UY/ARG) en mi clase exclusiva donde voy a explicar como abrir, escalar y automatizar una barbería, lo mismo que yo mismo aplique para hoy en dia tener <em>2 barberías funcionando sin depender de mí.</em>
       </div>
     </div>
   </div>
@@ -359,38 +380,38 @@ const BACKEND = 'https://noble-determination-production.up.railway.app';
 
 const PREGUNTAS = {
   dueno: [
-    { id: 'antiguedad', texto: '¿Hace cuánto tenés tu barbería?', opciones: ['Menos de 6 meses','6 meses a 1 año','1 a 3 años','Más de 3 años'] },
+    { id: 'antiguedad', texto: '¿Hace cuanto tenes tu barbería?', opciones: ['Menos de 6 meses','6 meses a 1 año','1 a 3 años','Más de 3 años'] },
     { id: 'problema_principal', texto: '¿Cuál es hoy tu principal problema?', opciones: ['Me faltan clientes','Tengo clientes, pero no vuelven lo suficiente','Tengo problemas con mi equipo','La barbería depende demasiado de mí','No tengo claro cuánto gano realmente','Tengo clientes, pero siento que estoy estancado','Otro'] },
     { id: 'agenda', texto: '¿Cómo está actualmente tu agenda?', opciones: ['Menos del 50% ocupada','Entre 50% y 70%','Entre 70% y 90%','Más del 90%','Tengo la agenda llena, pero sigo dependiendo de mí'] },
     { id: 'sin_mi', texto: '¿Qué pasa cuando vos no vas a la barbería?', opciones: ['La barbería funciona prácticamente igual','Funciona, pero tengo que estar pendiente','Se generan varios problemas','Prácticamente todo se frena'] },
     { id: 'equipo_tamaño', texto: '¿Cuántas personas trabajan actualmente en tu barbería, incluyéndote?', opciones: ['Solo yo','2','3–4','5 o más'] },
     { id: 'equipo_calidad', texto: '¿Cómo describirías a tu equipo?', opciones: ['Cada uno sabe perfectamente qué tiene que hacer','Funciona bien, pero todavía tengo que controlar bastante','Hay problemas frecuentes de organización','Cada uno trabaja bastante a su manera','No tengo equipo'] },
-    { id: 'procesos', texto: '¿Tenés procesos definidos para tareas importantes de la barbería?', opciones: ['Sí, están escritos y el equipo los sigue','Algunos están definidos, pero no todos','Los tengo en mi cabeza','Cada uno hace las cosas como sabe'] },
-    { id: 'numeros', texto: '¿Sabés exactamente cuánto dinero te queda de ganancia después de pagar todos los gastos?', opciones: ['Sí, lo sé todos los meses','Tengo una idea aproximada','No, solamente sé cuánto facturo','No controlo mis números'] },
+    { id: 'procesos', texto: '¿Tenes procesos definidos para tareas importantes de la barbería?', opciones: ['Sí, están escritos y el equipo los sigue','Algunos están definidos, pero no todos','Los tengo en mi cabeza','Cada uno hace las cosas como sabe'] },
+    { id: 'numeros', texto: '¿Sabes exactamente cuanto dinero te queda de ganancia después de pagar todos los gastos?', opciones: ['Sí, lo sé todos los meses','Tengo una idea aproximada','No, solamente sé cuánto facturo','No controlo mis números'] },
     { id: 'meta_12m', texto: '¿Qué es lo que más te gustaría conseguir en los próximos 12 meses?', opciones: ['Llenar mi agenda','Ganar más con la barbería','Tener un equipo sólido','Dejar de estar presente todo el tiempo','Abrir una segunda barbería','Tener más libertad'] }
   ],
   futuro: [
-    { id: 'situacion_actual', texto: '¿En qué situación estás actualmente?', opciones: ['Trabajo para otra barbería','Trabajo desde mi casa','Trabajo a domicilio','Alquilo una silla','Otra'] },
-    { id: 'decision', texto: '¿Qué tan decidido estás a abrir tu propia barbería?', opciones: ['Ya estoy buscando local','Quiero abrirla dentro de pocos meses','Quiero abrirla este año','Es algo que quiero hacer, pero todavía no tengo fecha'] },
+    { id: 'situacion_actual', texto: '¿En qué situacion estas actualmente?', opciones: ['Trabajo para otra barbería','Trabajo desde mi casa','Trabajo a domicilio','Alquilo una silla','Otra'] },
+    { id: 'decision', texto: '¿Que tan decidido estas a abrir tu propia barbería?', opciones: ['Ya estoy buscando local','Quiero abrirla dentro de pocos meses','Quiero abrirla este año','Es algo que quiero hacer, pero todavía no tengo fecha'] },
     { id: 'freno', texto: '¿Qué es lo que más te frena hoy para abrir?', opciones: ['No tengo suficiente capital','No sé qué local elegir','No sé cuánto necesito invertir','No sé cómo conseguir clientes','Me da miedo que no funcione','No sé cómo organizar el negocio','No sé cómo conseguir/armar un equipo','Otro'] },
     { id: 'clientes_semana', texto: '¿Cuántos clientes atendés aproximadamente por semana?', opciones: ['Menos de 10','10–20','20–40','40–60','Más de 60'] },
     { id: 'primeros_clientes', texto: 'Si mañana tuvieras tu propio local, ¿de dónde vendrían tus primeros clientes?', opciones: ['Principalmente de mi clientela actual','Redes sociales/contenido','Recomendaciones','Publicidad','No tengo una base clara de clientes'] },
-    { id: 'capital', texto: '¿Tenés ahorrado el dinero necesario para comenzar?', opciones: ['Sí, tengo todo','Tengo una parte importante','Tengo poco','Todavía no tengo capital'] },
-    { id: 'presupuesto', texto: '¿Tenés definido cuánto necesitás invertir para abrir?', opciones: ['Sí, tengo un presupuesto claro','Tengo una estimación','No, todavía no lo sé'] },
-    { id: 'claridad_negocio', texto: '¿Qué tan claro tenés cómo funcionaría tu barbería?', opciones: ['Tengo definido el concepto, precios y forma de trabajar','Tengo una idea bastante clara','Tengo algunas ideas, pero no sé cómo estructurarlo','Todavía no lo tengo definido'] },
+    { id: 'capital', texto: '¿Tenes ahorrado el dinero necesario para comenzar?', opciones: ['Sí, tengo todo','Tengo una parte importante','Tengo poco','Todavía no tengo capital'] },
+    { id: 'presupuesto', texto: '¿Tenes definido cuanto necesitas invertir para abrir?', opciones: ['Sí, tengo un presupuesto claro','Tengo una estimación','No, todavía no lo sé'] },
+    { id: 'claridad_negocio', texto: '¿Que tan claro tenes como funcionaría tu barbería?', opciones: ['Tengo definido el concepto, precios y forma de trabajar','Tengo una idea bastante clara','Tengo algunas ideas, pero no sé cómo estructurarlo','Todavía no lo tengo definido'] },
     { id: 'meta_apertura', texto: '¿Qué sería lo que más te gustaría conseguir al abrir tu barbería?', opciones: ['Ganar más dinero','Tener mi propio negocio','Tener más clientes','Formar un equipo','Dejar de trabajar para otros','Tener más libertad'] }
   ],
   segunda: [
-    { id: 'antiguedad_primera', texto: '¿Hace cuánto tenés tu primera barbería?', opciones: ['Menos de 1 año','1–2 años','2–5 años','Más de 5 años'] },
-    { id: 'motivo_segunda', texto: '¿Por qué querés abrir una segunda barbería?', opciones: ['Quiero aumentar mis ganancias','Quiero expandir la marca','La primera barbería ya llegó a su techo','Encontré una buena oportunidad','Quiero tener más libertad','Quiero dejar de depender de la primera','Otro'] },
+    { id: 'antiguedad_primera', texto: '¿Hace cuanto tenes tu primera barbería?', opciones: ['Menos de 1 año','1–2 años','2–5 años','Más de 5 años'] },
+    { id: 'motivo_segunda', texto: '¿Por que queres abrir una segunda barbería?', opciones: ['Quiero aumentar mis ganancias','Quiero expandir la marca','La primera barbería ya llegó a su techo','Encontré una buena oportunidad','Quiero tener más libertad','Quiero dejar de depender de la primera','Otro'] },
     { id: 'problema_primera', texto: '¿Cuál es actualmente el principal problema de tu primera barbería?', opciones: ['Falta de clientes','Falta de retención','Problemas con el equipo','Depende demasiado de mí','No tengo claros los números','Problemas de organización/procesos','No tengo grandes problemas actualmente'] },
-    { id: 'ausencia_semana', texto: '¿Qué pasa si te ausentás durante una semana?', opciones: ['Funciona igual sin mí','Funciona, pero tengo que supervisar','Aparecen varios problemas','Prácticamente no podría ausentarme'] },
+    { id: 'ausencia_semana', texto: '¿Que pasa si te ausentas durante una semana?', opciones: ['Funciona igual sin mí','Funciona, pero tengo que supervisar','Aparecen varios problemas','Prácticamente no podría ausentarme'] },
     { id: 'dependencia_operativa', texto: '¿Cuánto de la operación diaria sigue dependiendo de vos?', opciones: ['Muy poco','Algunas tareas importantes','La mayoría de las decisiones','Prácticamente todo'] },
-    { id: 'sucesor', texto: '¿Tenés una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?', opciones: ['Sí, totalmente','Tengo alguien, pero todavía necesita preparación','No','Yo seguiría manejando ambas'] },
-    { id: 'numeros_separados', texto: '¿Tenés separados los números de tu primera barbería?', opciones: ['Sí, sé exactamente cuánto factura, gasta y gana','Tengo una idea aproximada','No, mezclo varios números','No los controlo'] },
-    { id: 'procesos_escritos', texto: '¿Tenés procesos escritos que permitan que otra persona gestione la barbería?', opciones: ['Sí','Algunos','No, los tengo en mi cabeza','No tenemos procesos definidos'] },
+    { id: 'sucesor', texto: '¿Tenes una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?', opciones: ['Sí, totalmente','Tengo alguien, pero todavía necesita preparación','No','Yo seguiría manejando ambas'] },
+    { id: 'numeros_separados', texto: '¿Tenes separados los números de tu primera barbería?', opciones: ['Sí, sé exactamente cuánto factura, gasta y gana','Tengo una idea aproximada','No, mezclo varios números','No los controlo'] },
+    { id: 'procesos_escritos', texto: '¿Tenes procesos escritos que permitan que otra persona gestione la barbería?', opciones: ['Sí','Algunos','No, los tengo en mi cabeza','No tenemos procesos definidos'] },
     { id: 'agenda_primera', texto: '¿Cómo está actualmente la agenda de tu primera barbería?', opciones: ['Menos del 50% ocupada','50–70%','70–90%','Más del 90%'] },
-    { id: 'preparacion_autonomia', texto: '¿Qué tan preparado sentís que está tu negocio para funcionar sin vos?', opciones: ['Totalmente preparado','Bastante preparado','Poco preparado','Nada preparado'] }
+    { id: 'preparacion_autonomia', texto: '¿Que tan preparado sentis que esta tu negocio para funcionar sin vos?', opciones: ['Totalmente preparado','Bastante preparado','Poco preparado','Nada preparado'] }
   ]
 };
 
@@ -524,8 +545,8 @@ function generarDiagnostico(avatar, r) {
     }
 
     // Cuello 3: Números
-    const numeros = r['¿Sabés exactamente cuánto dinero te queda de ganancia después de pagar todos los gastos?'] || '';
-    const procesos = r['¿Tenés procesos definidos para tareas importantes de la barbería?'] || '';
+    const numeros = r['¿Sabes exactamente cuanto dinero te queda de ganancia después de pagar todos los gastos?'] || '';
+    const procesos = r['¿Tenes procesos definidos para tareas importantes de la barbería?'] || '';
     if (numeros.includes('No') || numeros.includes('aproximada')) {
       bloques.push(`**Sin control financiero claro**\nNo sabés con exactitud cuánto ganás después de gastos. Eso significa que estás tomando decisiones (contratar, invertir, bajar precios) sin información real. Muchas barberías que cierran no lo hacen por falta de clientes, sino porque el dueño nunca supo exactamente si estaba ganando o perdiendo.`);
     } else if (procesos.includes('cabeza') || procesos.includes('como sabe')) {
@@ -536,8 +557,8 @@ function generarDiagnostico(avatar, r) {
 
   } else if (avatar === 'futuro') {
     // Cuello 1: Capital y preparación financiera
-    const capital = r['¿Tenés ahorrado el dinero necesario para comenzar?'] || '';
-    const presupuesto = r['¿Tenés definido cuánto necesitás invertir para abrir?'] || '';
+    const capital = r['¿Tenes ahorrado el dinero necesario para comenzar?'] || '';
+    const presupuesto = r['¿Tenes definido cuanto necesitas invertir para abrir?'] || '';
     if (capital.includes('Todavía no') || capital.includes('poco')) {
       bloques.push(`**Capital insuficiente para abrir**\nNo tenés el dinero necesario para abrir todavía. Abrir una barbería sin capital suficiente es uno de los errores más comunes — los primeros meses casi siempre generan menos de lo esperado y los gastos fijos siguen igual. Sin un colchón, el negocio cierra antes de arrancar.`);
     } else if (presupuesto.includes('No')) {
@@ -556,7 +577,7 @@ function generarDiagnostico(avatar, r) {
     }
 
     // Cuello 3: Claridad del modelo de negocio
-    const claridad = r['¿Qué tan claro tenés cómo funcionaría tu barbería?'] || '';
+    const claridad = r['¿Que tan claro tenes como funcionaría tu barbería?'] || '';
     const freno = r['¿Qué es lo que más te frena hoy para abrir?'] || '';
     if (claridad.includes('no sé') || claridad.includes('Todavía')) {
       bloques.push(`**Modelo de negocio sin definir**\nNo tenés claro cómo funcionaría tu barbería: qué servicios ofrecés, a qué precios, cuántos clientes necesitás por día para cubrir gastos. Sin eso definido, estás construyendo sobre arena. El modelo de negocio es lo primero que necesitás resolver antes de buscar local.`);
@@ -568,7 +589,7 @@ function generarDiagnostico(avatar, r) {
 
   } else { // segunda
     // Cuello 1: La primera barbería no está lista para escalar
-    const sinMi = r['¿Qué pasa si te ausentás durante una semana?'] || '';
+    const sinMi = r['¿Que pasa si te ausentas durante una semana?'] || '';
     const dependencia = r['¿Cuánto de la operación diaria sigue dependiendo de vos?'] || '';
     if (sinMi.includes('ausentarme') || sinMi.includes('varios problemas') || dependencia.includes('todo') || dependencia.includes('mayoría')) {
       bloques.push(`**La primera barbería todavía depende demasiado de vos**\nSi te ausentás una semana, la primera barbería tiene problemas. Eso significa que todavía no está lista para funcionar sola. Abrir una segunda mientras esto pasa es multiplicar el caos: vas a tener que estar en dos lugares a la vez y ninguno va a funcionar bien.`);
@@ -577,7 +598,7 @@ function generarDiagnostico(avatar, r) {
     }
 
     // Cuello 2: Líder para la primera
-    const sucesor = r['¿Tenés una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?'] || '';
+    const sucesor = r['¿Tenes una persona capaz de hacerse cargo de la primera barbería cuando abras la segunda?'] || '';
     if (sucesor.includes('No') || sucesor.includes('manejando ambas')) {
       bloques.push(`**No tenés quién gestione la primera barbería**\nNo tenés una persona preparada para hacerse cargo cuando te vayas a la segunda. Sin eso, la apertura de la segunda es inviable. Formar a ese líder lleva tiempo — no es algo que se resuelve en semanas. Este es probablemente el cuello de botella más crítico que tenés hoy.`);
     } else if (sucesor.includes('todavía necesita')) {
@@ -587,8 +608,8 @@ function generarDiagnostico(avatar, r) {
     }
 
     // Cuello 3: Números y procesos
-    const numeros = r['¿Tenés separados los números de tu primera barbería?'] || '';
-    const procesos = r['¿Tenés procesos escritos que permitan que otra persona gestione la barbería?'] || '';
+    const numeros = r['¿Tenes separados los números de tu primera barbería?'] || '';
+    const procesos = r['¿Tenes procesos escritos que permitan que otra persona gestione la barbería?'] || '';
     const agenda = r['¿Cómo está actualmente la agenda de tu primera barbería?'] || '';
     if (numeros.includes('No') || numeros.includes('mezclo')) {
       bloques.push(`**Sin control financiero separado**\nNo tenés los números de la primera barbería claros e independientes. Eso significa que no sabés si realmente es rentable o en qué margen operás. Antes de abrir una segunda, necesitás saber exactamente qué genera la primera — de lo contrario vas a multiplicar un modelo que quizás no sea tan rentable como creés.`);
@@ -632,6 +653,23 @@ function showResult(raw) {
 
   document.getElementById('res-diagnostico').innerHTML = html || `<p style="color:var(--text2)">${raw}</p>`;
   showStep('step-result');
+}
+
+function verAnalisis() {
+  document.getElementById('ver-analisis-wrap').style.display = 'none';
+  const diag = document.getElementById('res-diagnostico');
+  const cta  = document.getElementById('res-cta');
+  diag.style.display = 'flex';
+  cta.style.display  = 'block';
+  // Animar entrada
+  diag.style.opacity = '0';
+  diag.style.transform = 'translateY(16px)';
+  requestAnimationFrame(() => {
+    diag.style.transition = 'opacity .5s ease, transform .5s ease';
+    diag.style.opacity = '1';
+    diag.style.transform = 'translateY(0)';
+  });
+  setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
 }
 </script>
 </body>
