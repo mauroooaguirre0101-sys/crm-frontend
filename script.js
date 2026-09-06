@@ -9248,8 +9248,10 @@ async function renderDiag() {
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text3)">Cargando…</td></tr>';
   try {
-    const resp = await apiFetch(`${API_URL}/diagnostico/respuestas`);
-    _diagData = resp.respuestas || [];
+    const res = await apiFetch(`${API_URL}/diagnostico/respuestas`);
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    _diagData = data.respuestas || [];
     _renderDiagTable(_diagData);
     _renderDiagMetrics(_diagData);
     _renderDiagCharts(_diagData);
