@@ -9281,6 +9281,25 @@ function _waLink(celular) {
   </a>`;
 }
 
+// Mapa prefijo → país (ordenado de más largo a más corto para match correcto)
+const _PREFIJOS = [
+  ['+598','🇺🇾 Uruguay'],['+593','🇪🇨 Ecuador'],['+595','🇵🇾 Paraguay'],
+  ['+591','🇧🇴 Bolivia'],['+502','🇬🇹 Guatemala'],['+503','🇸🇻 El Salvador'],
+  ['+504','🇭🇳 Honduras'],['+505','🇳🇮 Nicaragua'],['+506','🇨🇷 Costa Rica'],
+  ['+507','🇵🇦 Panamá'],['+509','🇭🇹 Haiti'],['+34','🇪🇸 España'],
+  ['+54','🇦🇷 Argentina'],['+55','🇧🇷 Brasil'],['+56','🇨🇱 Chile'],
+  ['+57','🇨🇴 Colombia'],['+51','🇵🇪 Perú'],['+52','🇲🇽 México'],
+  ['+58','🇻🇪 Venezuela'],['+1','🇺🇸 EEUU/Canadá'],
+];
+function _getCountry(celular) {
+  if (!celular) return 'Sin número';
+  const num = celular.startsWith('+') ? celular : '+' + celular.replace(/\D/g,'');
+  for (const [prefix, name] of _PREFIJOS) {
+    if (num.startsWith(prefix)) return name;
+  }
+  return 'Otro';
+}
+
 // Extrae la facturación mensual en USD de las respuestas (key puede tener HTML)
 function _getIncome(r) {
   const resp = r.respuestas || {};
@@ -9401,6 +9420,14 @@ function _renderDiagCharts(data) {
     { label: 'Se comprometió', val: data.filter(r=>r.comprometido===true).length, color: 'var(--success)' },
     { label: 'No se comprometió', val: data.filter(r=>r.comprometido===false).length, color: 'var(--red)' },
   ]);
+  // Gráfico de países
+  const paisCount = {};
+  data.forEach(r => { const p = _getCountry(r.celular); paisCount[p] = (paisCount[p]||0) + 1; });
+  const paisItems = Object.entries(paisCount)
+    .sort((a,b) => b[1]-a[1])
+    .map(([label, val], i) => ({ label, val, color: ['#6090d4','#52B788','var(--gold)','#e76f51','#9b72cf','#5cb87a'][i%6] }));
+  _renderDiagBar('diag-chart-pais', paisItems.length ? paisItems : [{ label: 'Sin datos', val: 0, color: 'var(--text3)' }]);
+
   // Gráfico de ingresos
   const incomes = data.map(_getIncome).filter(v => v !== null);
   _renderDiagBar('diag-chart-income', [
