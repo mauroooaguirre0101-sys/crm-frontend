@@ -4161,7 +4161,178 @@ function renderFin(){
   renderRenovaciones();
   renderActivityLog();
   _renderFinAnnualChart();
+
+  // Ventas manuales — solo cliente_6
+  const ventasSec = document.getElementById('ventas-section');
+  if (ventasSec) {
+    const esCliente6 = (localStorage.getItem('clienteSeleccionado')||'') === 'cliente_6';
+    ventasSec.style.display = esCliente6 ? 'block' : 'none';
+    if (esCliente6) fetchVentas();
+  }
 }
+
+// ─── VENTAS MANUALES ─────────────────────────────────────────────────────────
+let _ventas = [];
+
+async function fetchVentas() {
+  try {
+    const res = await apiFetch(`${API_URL}/ventas`);
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const d = await res.json();
+    _ventas = d.ventas || [];
+    renderVentasTable();
+    renderVentasMetrics();
+  } catch(e) {
+    const tb = document.getElementById('ventas-table-body');
+    if (tb) tb.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--text3)">Error: ${e.message}</td></tr>`;
+  }
+}
+
+const VENTAS_PRECIOS = { PIF:'$300 USD · pago único', '2cuotas':'$150 USD × 2 cuotas', '3cuotas':'$100 USD × 3 cuotas' };
+const VENTAS_CUOTAS = { PIF:1, '2cuotas':2, '3cuotas':3 };
+const VENTAS_MONTO  = { PIF:300, '2cuotas':150, '3cuotas':100 };
+
+function onVentaTipoChange() {
+  const tipo = document.getElementById('v-tipo')?.value;
+  const preview = document.getElementById('v-preview-txt');
+  if (!preview) return;
+  if (tipo === 'PIF') {
+    preview.innerHTML = `Pago único de <strong style="color:var(--gold-light)">$300 USD</strong>`;
+  } else if (tipo === '2cuotas') {
+    preview.innerHTML = `2 cuotas de <strong style="color:var(--gold-light)">$150 USD</strong> — 2do pago en ~1 mes`;
+  } else {
+    preview.innerHTML = `3 cuotas de <strong style="color:var(--gold-light)">$100 USD</strong> — 2do y 3er pago cada 1 mes`;
+  }
+}
+
+async function saveVenta() {
+  const nombre   = document.getElementById('v-nombre')?.value.trim();
+  const instagram= document.getElementById('v-instagram')?.value.trim();
+  const celular  = document.getElementById('v-celular')?.value.trim();
+  const tipo_pago= document.getElementById('v-tipo')?.value;
+  const medio_pago=document.getElementById('v-medio')?.value;
+  const fechaRaw = document.getElementById('v-fecha')?.value;
+  const fecha_venta = fechaRaw || new Date().toISOString().slice(0,10);
+
+  if (!nombre) { toast('✗ El nombre es obligatorio'); return; }
+
+  try {
+    const res = await apiFetch(`${API_URL}/ventas`, {
+      method: 'POST',
+      body: JSON.stringify({ nombre, instagram: instagram||null, celular: celular||null, tipo_pago, medio_pago, fecha_venta })
+    });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    const d = await res.json();
+    _ventas.unshift(d.venta);
+    renderVentasTable();
+    renderVentasMetrics();
+    closeModal('modal-venta');
+    // Limpiar form
+    ['v-nombre','v-instagram','v-celular','v-fecha'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('v-tipo').value = 'PIF';
+    onVentaTipoChange();
+    toast('✓ Venta registrada');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
+async function pagarCuotaVenta(id) {
+  try {
+    const res = await apiFetch(`${API_URL}/ventas/${id}/pagar-cuota`, { method: 'PATCH', body: '{}' });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    const d = await res.json();
+    const idx = _ventas.findIndex(v => v.id === id);
+    if (idx !== -1) _ventas[idx] = d.venta;
+    renderVentasTable();
+    renderVentasMetrics();
+    toast('✓ Cuota marcada como pagada');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
+async function deleteVenta(id) {
+  if (!confirm('¿Eliminar esta venta?')) return;
+  try {
+    const res = await apiFetch(`${API_URL}/ventas/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    _ventas = _ventas.filter(v => v.id !== id);
+    renderVentasTable();
+    renderVentasMetrics();
+    toast('✓ Venta eliminada');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
+function renderVentasTable() {
+  const tbody = document.getElementById('ventas-table-body');
+  if (!tbody) return;
+  if (!_ventas.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center;color:var(--text3)">Sin ventas registradas</td></tr>';
+    return;
+  }
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  tbody.innerHTML = _ventas.map(v => {
+    const fecha = v.fecha_venta ? new Date(v.fecha_venta+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+    const ig = v.instagram ? `<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${v.instagram.replace('@','')}</a>` : '—';
+    const wa = v.celular ? _waLink(v.celular) : '—';
+    const tipoBadge = v.tipo_pago === 'PIF'
+      ? `<span style="background:rgba(82,183,136,.15);color:#52B788;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700">PIF</span>`
+      : `<span style="background:rgba(96,144,212,.15);color:#6090d4;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700">${v.tipo_pago}</span>`;
+    const cobrado = (v.cuotas_pagadas * v.monto_cuota);
+    const cuotasTxt = `${v.cuotas_pagadas}/${v.cuotas_total}`;
+    // Próximo pago
+    let proximoCell = '<span style="color:var(--text3)">—</span>';
+    if (v.fecha_proximo_pago) {
+      const fp = new Date(v.fecha_proximo_pago+'T12:00:00');
+      const dias = Math.round((fp-hoy)/(1000*60*60*24));
+      const color = dias < 0 ? 'var(--red)' : dias <= 7 ? '#f4a261' : 'var(--text2)';
+      const label = dias < 0 ? `Vencido hace ${-dias}d` : dias === 0 ? 'Hoy' : `en ${dias}d`;
+      proximoCell = `<div style="color:${color};font-size:12px">${fp.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</div>
+        <div style="font-size:10px;color:${color}">${label}</div>
+        ${v.cuotas_pagadas < v.cuotas_total ? `<button onclick="pagarCuotaVenta('${v.id}')" style="margin-top:4px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;color:var(--text2)">✓ Pagar</button>` : ''}`;
+    } else if (v.cuotas_pagadas >= v.cuotas_total) {
+      proximoCell = '<span style="color:var(--success);font-size:12px">✓ Saldado</span>';
+    }
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
+      <td style="padding:11px 16px;font-weight:500">${v.nombre||'—'}</td>
+      <td style="padding:11px 16px;white-space:nowrap">${wa}</td>
+      <td style="padding:11px 16px">${ig}</td>
+      <td style="padding:11px 16px">${tipoBadge}</td>
+      <td style="padding:11px 16px;font-size:12px;color:var(--text2)">${v.medio_pago||'—'}</td>
+      <td style="padding:11px 16px;font-weight:600;color:var(--gold-light)">$${cobrado}</td>
+      <td style="padding:11px 16px;font-size:12px;text-align:center">${cuotasTxt}</td>
+      <td style="padding:11px 16px">${proximoCell}</td>
+      <td style="padding:11px 16px;text-align:center">
+        <button onclick="deleteVenta('${v.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderVentasMetrics() {
+  const el = document.getElementById('ventas-metrics');
+  if (!el) return;
+  const total = _ventas.length;
+  const pif   = _ventas.filter(v => v.tipo_pago === 'PIF').length;
+  const cuotas= _ventas.filter(v => v.tipo_pago !== 'PIF').length;
+  const cobrado = _ventas.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
+  const pendiente= _ventas.reduce((a,v) => a + ((v.cuotas_total - v.cuotas_pagadas) * v.monto_cuota), 0);
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const vencidas = _ventas.filter(v => v.fecha_proximo_pago && new Date(v.fecha_proximo_pago+'T12:00:00') < hoy).length;
+
+  const m = (label, val, color='') => `<div style="flex:1;min-width:120px;padding:16px 20px;border-right:1px solid var(--border)">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">${label}</div>
+    <div style="font-size:1.5rem;font-weight:700;${color?'color:'+color:''}">${val}</div>
+  </div>`;
+
+  el.innerHTML =
+    m('Total ventas', total) +
+    m('Cobrado', `$${cobrado}`, 'var(--success)') +
+    m('Por cobrar', `$${pendiente}`, pendiente>0?'var(--gold-light)':'var(--text3)') +
+    m('PIF', pif) +
+    m('En cuotas', cuotas) +
+    (vencidas > 0 ? m('Cuotas vencidas', vencidas, 'var(--red)') : '');
+}
+
+// ─── FIN VENTAS MANUALES ─────────────────────────────────────────────────────
 
 let _finAnnualChart=null;
 function _renderFinAnnualChart(){

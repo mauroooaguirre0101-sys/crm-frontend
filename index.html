@@ -1188,6 +1188,43 @@
     </div>
   </div>
 
+  <!-- VENTAS MANUALES — solo cliente_6 -->
+  <div id="ventas-section" style="display:none;margin-top:20px">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700;font-size:15px">Ventas</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Programa de barbería · $300 USD</div>
+        </div>
+        <button class="btn btn-gold" onclick="openModal('modal-venta')">+ Nueva venta</button>
+      </div>
+      <!-- Métricas rápidas -->
+      <div id="ventas-metrics" style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--border)"></div>
+      <!-- Tabla -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">
+              <th style="padding:10px 16px;text-align:left">Fecha</th>
+              <th style="padding:10px 16px;text-align:left">Nombre</th>
+              <th style="padding:10px 16px;text-align:left">WhatsApp</th>
+              <th style="padding:10px 16px;text-align:left">Instagram</th>
+              <th style="padding:10px 16px;text-align:left">Tipo de pago</th>
+              <th style="padding:10px 16px;text-align:left">Medio</th>
+              <th style="padding:10px 16px;text-align:left">Cobrado</th>
+              <th style="padding:10px 16px;text-align:left">Cuotas</th>
+              <th style="padding:10px 16px;text-align:left">Próximo pago</th>
+              <th style="padding:10px 16px;text-align:left"></th>
+            </tr>
+          </thead>
+          <tbody id="ventas-table-body">
+            <tr><td colspan="10" style="padding:28px;text-align:center;color:var(--text3)">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- RENOVACIONES -->
   <div class="card" style="margin-top:20px">
     <div class="section-header">
@@ -2200,6 +2237,47 @@
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modal-ing')">Cancelar</button>
     <button class="btn btn-gold" onclick="saveIng()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL VENTA MANUAL (cliente_6) -->
+<div class="modal-bg" id="modal-venta" onclick="closeBg(event,this)">
+<div class="modal">
+  <div class="modal-title">+ Nueva venta</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nombre *</label>
+      <input type="text" id="v-nombre" placeholder="Juan Pérez"></div>
+    <div class="form-group"><label class="form-label">Instagram</label>
+      <input type="text" id="v-instagram" placeholder="@usuario"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Nro celular</label>
+      <input type="text" id="v-celular" placeholder="+549..."></div>
+    <div class="form-group"><label class="form-label">Fecha de venta</label>
+      <input type="date" id="v-fecha"></div>
+  </div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group"><label class="form-label">Tipo de pago *</label>
+      <select id="v-tipo" onchange="onVentaTipoChange()">
+        <option value="PIF">PIF — $300 USD completo</option>
+        <option value="2cuotas">2 cuotas — $150 USD c/u</option>
+        <option value="3cuotas">3 cuotas — $100 USD c/u</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Medio de pago *</label>
+      <select id="v-medio">
+        <option value="Binance">Binance</option>
+        <option value="MP ARG">MP ARG</option>
+        <option value="MP UY">MP UY</option>
+        <option value="Whop">Whop</option>
+      </select></div>
+  </div>
+  <!-- Preview de monto y cuotas -->
+  <div id="v-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text2);margin-bottom:4px">
+    <span id="v-preview-txt">Pago único de <strong style="color:var(--gold-light)">$300 USD</strong></span>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modal-venta')">Cancelar</button>
+    <button class="btn btn-gold" onclick="saveVenta()">Registrar venta</button>
   </div>
 </div></div>
 
