@@ -3209,6 +3209,12 @@ async function fetchLeadsPage(page=1){
 
 function renderLeads(){
   leadsCurrentPage = 1;
+  // Forzar Vista General como vista default al entrar a la sección
+  if(typeof _gf !== 'undefined' && _gf.period !== 'todo'){
+    _gf.period = 'todo'; _gf.mes = '';
+    const tabs = document.querySelectorAll('#leads-filter-tabs [data-period]');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.period === 'todo'));
+  }
   _applyLeadsFilter();
   fetchLeads(false);
   fetchLeadsPage(1);
