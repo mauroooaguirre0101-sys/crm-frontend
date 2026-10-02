@@ -2287,34 +2287,32 @@ let _leadsSortBy        = null;
 let _leadsSortDir       = 'desc';
 
 const LEAD_ESTADOS = [
-  'Primer contacto',
-  'Descubrimiento (Problemas-Objetivos)',
-  'Recurso de nutrición',
-  'PITCH VSL CHAT',
-  'VSL CHAT',
-  'Proponer Call',
-  'Calendly Enviado',
-  'Agendado',
+  'Primer Contacto',
+  'Descubrimiento (Dolores)',
+  'Descubrimiento (Deseos)',
+  'Nutriendose',
+  'VSL Enviado',
+  'Link de Pago Enviado',
   'Seña',
-  'Cerrada',
+  'Cerrado',
   'Perdido',
+  'En Seguimiento',
 ];
 const ESTADO_PERDIDO = new Set(['Perdido']);
-const ESTADO_CERRADO = new Set(['Cerrada','Cerrado','Seña']);
+const ESTADO_CERRADO = new Set(['Cerrado','Seña']);
 function _esPerdidoEfectivo(l){ return ESTADO_PERDIDO.has(l.estado)||((l.seguimientos||0)>=4&&l.respondio_seguimiento_4==='NO'); }
 
 const ESTADO_COLOR = {
-  'Primer contacto':                    { bg:'rgba(100,96,90,0.35)',   border:'rgba(120,116,108,0.3)', text:'#9a9690' },
-  'Descubrimiento (Problemas-Objetivos)':{ bg:'rgba(61,106,170,0.15)', border:'rgba(61,106,170,0.3)', text:'#6090d4' },
-  'Recurso de nutrición':               { bg:'rgba(122,74,184,0.15)',  border:'rgba(122,74,184,0.3)', text:'#a070d8' },
-  'PITCH VSL CHAT':                     { bg:'rgba(196,136,42,0.13)',  border:'rgba(196,136,42,0.3)', text:'#e0a848' },
-  'VSL CHAT':                           { bg:'rgba(196,136,42,0.13)',  border:'rgba(196,136,42,0.3)', text:'#e0a848' },
-  'Proponer Call':                      { bg:'rgba(196,136,42,0.13)',  border:'rgba(196,136,42,0.3)', text:'#e0a848' },
-  'Calendly Enviado':                   { bg:'rgba(212,168,50,0.1)',   border:'rgba(212,168,50,0.2)', text:'#d4a832' },
-  'Agendado':                           { bg:'rgba(212,168,50,0.07)',  border:'rgba(212,168,50,0.18)',text:'#d4a832' },
-  'Seña':                               { bg:'rgba(61,138,90,0.08)',   border:'rgba(61,138,90,0.2)',  text:'#4aaa6a' },
-  'Cerrada':                            { bg:'rgba(61,138,90,0.12)',   border:'rgba(61,138,90,0.25)', text:'#5cb87a' },
-  'Perdido':                            { bg:'rgba(184,72,72,0.12)',   border:'rgba(184,72,72,0.25)', text:'#d46060' },
+  'Primer Contacto':              { bg:'rgba(100,96,90,0.35)',    border:'rgba(120,116,108,0.3)',  text:'#9a9690' },
+  'Descubrimiento (Dolores)':     { bg:'rgba(61,106,170,0.15)',   border:'rgba(61,106,170,0.3)',   text:'#6090d4' },
+  'Descubrimiento (Deseos)':      { bg:'rgba(80,130,200,0.15)',   border:'rgba(80,130,200,0.3)',   text:'#5892d8' },
+  'Nutriendose':                  { bg:'rgba(122,74,184,0.15)',   border:'rgba(122,74,184,0.3)',   text:'#a070d8' },
+  'VSL Enviado':                  { bg:'rgba(196,136,42,0.13)',   border:'rgba(196,136,42,0.3)',   text:'#e0a848' },
+  'Link de Pago Enviado':         { bg:'rgba(220,110,30,0.13)',   border:'rgba(220,110,30,0.3)',   text:'#e07030' },
+  'Seña':                         { bg:'rgba(61,138,90,0.08)',    border:'rgba(61,138,90,0.2)',    text:'#4aaa6a' },
+  'Cerrado':                      { bg:'rgba(61,138,90,0.12)',    border:'rgba(61,138,90,0.25)',   text:'#5cb87a' },
+  'Perdido':                      { bg:'rgba(184,72,72,0.12)',    border:'rgba(184,72,72,0.25)',   text:'#d46060' },
+  'En Seguimiento':               { bg:'rgba(100,140,180,0.12)', border:'rgba(100,140,180,0.25)', text:'#6a9fc8' },
 };
 
 function tipoBadge(t){
@@ -3224,12 +3222,12 @@ function renderLeads(){
 
 // ========== FUNNEL MÉTRICAS ==========
 const FUNNEL_FASES = [
-  { label:'Primer Contacto',  estados:['Primer contacto'],                                      color:'#9a9690', bg:'rgba(154,150,144,0.22)' },
-  { label:'Descubrimiento',   estados:['Descubrimiento (Problemas-Objetivos)'],                 color:'#6090d4', bg:'rgba(61,106,170,0.22)'  },
-  { label:'Nutrición',        estados:['Recurso de nutrición'],                                  color:'#a070d8', bg:'rgba(122,74,184,0.22)'  },
-  { label:'Agendamiento',     estados:['PITCH VSL CHAT','VSL CHAT','Proponer Call','Calendly Enviado'], color:'#e0a848', bg:'rgba(196,136,42,0.22)'  },
-  { label:'Cierre',           estados:['Agendado'],                                              color:'#d4a832', bg:'rgba(212,168,50,0.2)'   },
-  { label:'Cerrados',         estados:['Cerrada','Seña'],                                         color:'#5cb87a', bg:'rgba(61,138,90,0.22)'   },
+  { label:'Primer Contacto',  estados:['Primer Contacto'],                                          color:'#9a9690', bg:'rgba(154,150,144,0.22)' },
+  { label:'Descubrimiento',   estados:['Descubrimiento (Dolores)','Descubrimiento (Deseos)'],        color:'#6090d4', bg:'rgba(61,106,170,0.22)'  },
+  { label:'Nutrición',        estados:['Nutriendose'],                                               color:'#a070d8', bg:'rgba(122,74,184,0.22)'  },
+  { label:'VSL',              estados:['VSL Enviado'],                                               color:'#e0a848', bg:'rgba(196,136,42,0.22)'  },
+  { label:'Link de Pago',     estados:['Link de Pago Enviado'],                                      color:'#e07030', bg:'rgba(220,110,30,0.22)'  },
+  { label:'Cerrados',         estados:['Seña','Cerrado'],                                            color:'#5cb87a', bg:'rgba(61,138,90,0.22)'   },
 ];
 let _funnelFilter = { period:'mes', mes:'' };
 let _funnelFasesCache = [];
@@ -3966,7 +3964,36 @@ function getCashCollected(filterFn){
     if(filterFn&&!filterFn(c.created_at)) return a;
     return a+(+c.monto_sena||0);
   },0);
-  return fromClients+fromCuotas+fromSenas;
+  // Ventas manuales (cliente_6) — suma cash_collected de cada venta
+  const fromVentas=(_ventas||[]).reduce((a,v)=>{
+    if(v.cash_collected==null) return a;
+    if(filterFn&&!filterFn(v.fecha_venta)) return a;
+    return a+(+v.cash_collected||0);
+  },0);
+  return fromClients+fromCuotas+fromSenas+fromVentas;
+}
+
+// Inyecta/sincroniza _ventas en S.ing como filas sintéticas (origen='venta_manual')
+function _syncVentasToIng(){
+  S.ing=(S.ing||[]).filter(x=>x.origen!=='venta_manual');
+  (_ventas||[]).forEach(v=>{
+    // Facturación = precio completo del programa (independiente de cuotas pagadas)
+    const facturacion = +v.monto_total || 300;
+    S.ing.push({
+      id:'vm_'+v.id,
+      concepto:v.nombre||'Venta manual',
+      nombre:v.nombre||'Venta manual',
+      tipoPago:v.tipo_pago,
+      tipo:v.tipo_pago,
+      fecha:v.fecha_venta||new Date().toISOString().slice(0,10),
+      usd:facturacion,
+      cash_collected:v.cash_collected,
+      origen:'venta_manual',
+      medio_pago:v.medio_pago,
+      instagram:v.instagram,
+    });
+  });
+  if(document.getElementById('page-fin')?.classList.contains('active')) renderFin();
 }
 function updateClientCC(id,val){
   const c=S.clients.find(x=>x.id===id);
@@ -4128,8 +4155,11 @@ function renderFin(){
     '';
 
   document.getElementById('ing-table').innerHTML=ing.map(x=>{
+    const isVM = x.origen==='venta_manual';
     let cc=null;
-    if(x.concepto==='Venta Nueva'&&x.instagram){
+    if(isVM){
+      cc=x.cash_collected!=null?+x.cash_collected:null;
+    } else if(x.concepto==='Venta Nueva'&&x.instagram){
       const cli=S.clients.find(c=>(c.instagram||'').toLowerCase()===(x.instagram||'').toLowerCase());
       if(cli&&(+cli.cash_collected||0)>0) cc=+cli.cash_collected;
     } else if(x.origen==='cuota'&&x.cuotaId){
@@ -4138,13 +4168,18 @@ function renderFin(){
     }
     const ccCell=cc!=null?`<td style="color:var(--gold-light);font-weight:600">${fmtMoney(cc)}</td>`:`<td style="color:var(--text3)">—</td>`;
     const nombreIng=x.nombre||x.clienteNombre||(x.instagram?S.clients.find(c=>(c.instagram||'').toLowerCase()===(x.instagram||'').toLowerCase())?.nombre:null)||'—';
-    return `<tr>
+    const editBtn = isVM ? '' : `<button class="btn-icon" onclick="editIngNombre('${x.id}')" style="font-size:11px;margin-left:4px" title="Editar nombre">✏</button>`;
+    const badge = isVM
+      ? `<span class="badge" style="background:rgba(96,144,212,.18);color:#6090d4;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">Venta Manual</span>`
+      : `<span class="badge bgr">${x.tipoPago||x.tipo||'—'}</span>`;
+    const rowStyle = isVM ? 'border-left:2px solid rgba(96,144,212,.4)' : '';
+    return `<tr style="${rowStyle}">
       <td style="color:var(--text)">${x.tipoPago||x.concepto||'—'}</td>
-      <td style="color:var(--text2);font-size:12px">${nombreIng}<button class="btn-icon" onclick="editIngNombre('${x.id}')" style="font-size:11px;margin-left:4px" title="Editar nombre">✏</button></td>
+      <td style="color:var(--text2);font-size:12px">${nombreIng}${editBtn}</td>
       <td>${x.fecha||'—'}</td>
       <td style="color:var(--gold-light)">${fmtMoney(+x.usd||0)}</td>
       ${ccCell}
-      <td><span class="badge bgr">${x.tipoPago||x.tipo||'—'}</span></td>
+      <td>${badge}</td>
       <td><button class="btn-icon" onclick="delIng('${x.id}')">×</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px">Sin ingresos</td></tr>';
@@ -4173,6 +4208,8 @@ function renderFin(){
 
 // ─── VENTAS MANUALES ─────────────────────────────────────────────────────────
 let _ventas = [];
+let _ventasSortAsc = false;   // false = más reciente primero (default)
+let _editingVentaId = null;   // null = nueva venta, string = editar
 
 async function fetchVentas() {
   try {
@@ -4182,6 +4219,7 @@ async function fetchVentas() {
     _ventas = d.ventas || [];
     renderVentasTable();
     renderVentasMetrics();
+    _syncVentasToIng();
   } catch(e) {
     const tb = document.getElementById('ventas-table-body');
     if (tb) tb.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--text3)">Error: ${e.message}</td></tr>`;
@@ -4191,6 +4229,88 @@ async function fetchVentas() {
 const VENTAS_PRECIOS = { PIF:'$300 USD · pago único', '2cuotas':'$150 USD × 2 cuotas', '3cuotas':'$100 USD × 3 cuotas' };
 const VENTAS_CUOTAS = { PIF:1, '2cuotas':2, '3cuotas':3 };
 const VENTAS_MONTO  = { PIF:300, '2cuotas':150, '3cuotas':100 };
+
+// ── Sort toggle ──────────────────────────────────────────────────────────────
+function _toggleVentasSort() {
+  _ventasSortAsc = !_ventasSortAsc;
+  const btn = document.getElementById('ventas-sort-btn');
+  if (btn) btn.textContent = _ventasSortAsc ? '📅 Más antigua ↑' : '📅 Más reciente ↓';
+  renderVentasTable();
+}
+
+// ── Open modal helpers ────────────────────────────────────────────────────────
+function _openNuevaVenta() {
+  _editingVentaId = null;
+  const title = document.getElementById('venta-modal-title');
+  if (title) title.textContent = '+ Nueva venta';
+  const saveBtn = document.getElementById('venta-modal-save-btn');
+  if (saveBtn) saveBtn.textContent = 'Registrar venta';
+  openModal('modal-venta');
+}
+
+function openEditVenta(id) {
+  const v = _ventas.find(x => x.id === id);
+  if (!v) return;
+  _editingVentaId = id;
+  const title = document.getElementById('venta-modal-title');
+  if (title) title.textContent = '✏ Editar venta';
+  const saveBtn = document.getElementById('venta-modal-save-btn');
+  if (saveBtn) saveBtn.textContent = 'Guardar cambios';
+  // Abrir primero (openModal resetea todos los campos) y luego rellenar
+  openModal('modal-venta');
+  const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val ?? ''; };
+  set('v-nombre',    v.nombre);
+  set('v-instagram', v.instagram);
+  set('v-celular',   v.celular);
+  set('v-fecha',     v.fecha_venta);
+  set('v-tipo',      v.tipo_pago || 'PIF');
+  set('v-medio',     v.medio_pago || 'Binance');
+  set('v-cash',      v.cash_collected != null ? v.cash_collected : '');
+  _autoDetectPaisVenta(v.celular);
+  onVentaTipoChange();
+}
+
+function _closeVentaModal() {
+  _editingVentaId = null;
+  const title = document.getElementById('venta-modal-title');
+  if (title) title.textContent = '+ Nueva venta';
+  const saveBtn = document.getElementById('venta-modal-save-btn');
+  if (saveBtn) saveBtn.textContent = 'Registrar venta';
+  closeModal('modal-venta');
+}
+
+// Detecta país desde prefijo del celular y setea el selector
+function _autoDetectPaisVenta(celular) {
+  if (!celular) return;
+  const paisSel = document.getElementById('v-pais');
+  if (!paisSel) return;
+  // Lista ordenada de prefijos más largos primero para evitar falsos positivos
+  const prefijos = ['+598','+593','+595','+591','+506','+549','+54','+56','+51','+57','+52','+55','+58','+34','+1'];
+  const match = prefijos.find(p => celular.startsWith(p));
+  // Para Argentina: +549 (con 9 móvil) debe mostrar +54
+  paisSel.value = match === '+549' ? '+54' : (match || '');
+}
+
+function _ventaOnPaisChange() {
+  const pais = document.getElementById('v-pais');
+  const cel  = document.getElementById('v-celular');
+  if (!pais || !cel) return;
+  const prefix = pais.value;
+  if (!prefix) return;
+  // Si el campo está vacío o solo tiene el prefijo anterior, ponemos el nuevo prefijo
+  const cur = cel.value.trim();
+  // Replace existing prefix or set fresh
+  const prefixRegex = /^\+\d+/;
+  if (!cur || prefixRegex.test(cur)) {
+    cel.value = prefix;
+  } else {
+    cel.value = prefix + cur.replace(prefixRegex, '');
+  }
+  cel.focus();
+  // Move cursor to end
+  const len = cel.value.length;
+  cel.setSelectionRange(len, len);
+}
 
 function onVentaTipoChange() {
   const tipo = document.getElementById('v-tipo')?.value;
@@ -4206,32 +4326,67 @@ function onVentaTipoChange() {
 }
 
 async function saveVenta() {
-  const nombre   = document.getElementById('v-nombre')?.value.trim();
-  const instagram= document.getElementById('v-instagram')?.value.trim();
-  const celular  = document.getElementById('v-celular')?.value.trim();
-  const tipo_pago= document.getElementById('v-tipo')?.value;
-  const medio_pago=document.getElementById('v-medio')?.value;
-  const fechaRaw = document.getElementById('v-fecha')?.value;
+  const nombre    = document.getElementById('v-nombre')?.value.trim();
+  const instagram = document.getElementById('v-instagram')?.value.trim();
+  const celular   = document.getElementById('v-celular')?.value.trim();
+  const tipo_pago = document.getElementById('v-tipo')?.value;
+  const medio_pago= document.getElementById('v-medio')?.value;
+  const fechaRaw  = document.getElementById('v-fecha')?.value;
   const fecha_venta = fechaRaw || new Date().toISOString().slice(0,10);
+  const cashRaw   = document.getElementById('v-cash')?.value;
+  const cash_collected = cashRaw !== '' && cashRaw != null ? Number(cashRaw) : null;
 
   if (!nombre) { toast('✗ El nombre es obligatorio'); return; }
 
   try {
-    const res = await apiFetch(`${API_URL}/ventas`, {
-      method: 'POST',
-      body: JSON.stringify({ nombre, instagram: instagram||null, celular: celular||null, tipo_pago, medio_pago, fecha_venta })
-    });
-    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
-    const d = await res.json();
-    _ventas.unshift(d.venta);
+    let d;
+    if (_editingVentaId) {
+      // ── Modo edición: PATCH con todos los campos editables ──
+      const res = await apiFetch(`${API_URL}/ventas/${_editingVentaId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nombre, instagram: instagram||null, celular: celular||null, tipo_pago, medio_pago, fecha_venta, cash_collected })
+      });
+      if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+      d = await res.json();
+      const idx = _ventas.findIndex(v => v.id === _editingVentaId);
+      if (idx !== -1) _ventas[idx] = d.venta;
+      toast('✓ Venta actualizada');
+    } else {
+      // ── Modo creación: POST ──
+      const res = await apiFetch(`${API_URL}/ventas`, {
+        method: 'POST',
+        body: JSON.stringify({ nombre, instagram: instagram||null, celular: celular||null, tipo_pago, medio_pago, fecha_venta, cash_collected })
+      });
+      if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+      d = await res.json();
+      _ventas.unshift(d.venta);
+      toast('✓ Venta registrada');
+    }
     renderVentasTable();
     renderVentasMetrics();
-    closeModal('modal-venta');
+    _syncVentasToIng();
+    _closeVentaModal();
     // Limpiar form
-    ['v-nombre','v-instagram','v-celular','v-fecha'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    ['v-nombre','v-instagram','v-celular','v-fecha','v-cash','v-pais'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     document.getElementById('v-tipo').value = 'PIF';
     onVentaTipoChange();
-    toast('✓ Venta registrada');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
+async function updateCashCollected(id, val) {
+  const cc = val.trim() === '' ? null : Number(val);
+  try {
+    const res = await apiFetch(`${API_URL}/ventas/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ cash_collected: cc })
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const d = await res.json();
+    const idx = _ventas.findIndex(v => v.id === id);
+    if (idx !== -1) _ventas[idx] = d.venta;
+    renderVentasMetrics();
+    _syncVentasToIng();
+    toast('✓ Guardado');
   } catch(e) { toast('✗ ' + e.message); }
 }
 
@@ -4244,6 +4399,7 @@ async function pagarCuotaVenta(id) {
     if (idx !== -1) _ventas[idx] = d.venta;
     renderVentasTable();
     renderVentasMetrics();
+    _syncVentasToIng();
     toast('✓ Cuota marcada como pagada');
   } catch(e) { toast('✗ ' + e.message); }
 }
@@ -4256,19 +4412,111 @@ async function deleteVenta(id) {
     _ventas = _ventas.filter(v => v.id !== id);
     renderVentasTable();
     renderVentasMetrics();
+    _syncVentasToIng();
     toast('✓ Venta eliminada');
   } catch(e) { toast('✗ ' + e.message); }
+}
+
+// ── Gráfico de medios de pago ─────────────────────────────────────────────────
+let _ventasMediosChart = null;
+const _MEDIOS_COLORS = {
+  'Binance':       { bg: 'rgba(240,185,11,.75)',  border: '#F0B90B' },
+  'MP ARG':        { bg: 'rgba(96,167,219,.75)',   border: '#60A7DB' },
+  'MP UY':         { bg: 'rgba(50,140,200,.75)',   border: '#328CC8' },
+  'Whop':          { bg: 'rgba(139,92,246,.75)',   border: '#8B5CF6' },
+  'Western Union': { bg: 'rgba(255,138,0,.75)',    border: '#FF8A00' },
+  'Transferencia': { bg: 'rgba(82,183,136,.75)',   border: '#52B788' },
+  'Seña':          { bg: 'rgba(236,72,153,.65)',    border: '#EC4899' },
+};
+const _MEDIO_DEFAULT = { bg: 'rgba(150,150,150,.55)', border: '#999' };
+
+function renderVentasMediosChart() {
+  const wrap   = document.getElementById('ventas-medios-chart-wrap');
+  const canvas = document.getElementById('ventas-medios-canvas');
+  const legend = document.getElementById('ventas-medios-legend');
+  if (!wrap || !canvas || !legend) return;
+
+  if (!_ventas.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+
+  // Agrupa por medio_pago
+  const map = {};
+  _ventas.forEach(v => {
+    const m = v.medio_pago || 'Sin medio';
+    if (!map[m]) map[m] = { count: 0, total: 0, cash: 0 };
+    map[m].count++;
+    map[m].total += v.cuotas_pagadas * v.monto_cuota;
+    map[m].cash  += v.cash_collected != null ? +v.cash_collected : 0;
+  });
+
+  const labels  = Object.keys(map);
+  const totals  = labels.map(l => map[l].total);
+  const bgs     = labels.map(l => (_MEDIOS_COLORS[l] || _MEDIO_DEFAULT).bg);
+  const borders = labels.map(l => (_MEDIOS_COLORS[l] || _MEDIO_DEFAULT).border);
+  const grandTotal = totals.reduce((a, x) => a + x, 0);
+  const grandCash  = labels.reduce((a, l) => a + map[l].cash, 0);
+
+  if (_ventasMediosChart) {
+    // ── Update-in-place: sin animación, sin parpadeo ──
+    _ventasMediosChart.data.labels = labels;
+    _ventasMediosChart.data.datasets[0].data = totals;
+    _ventasMediosChart.data.datasets[0].backgroundColor = bgs;
+    _ventasMediosChart.data.datasets[0].borderColor = borders;
+    _ventasMediosChart.options.plugins.tooltip.callbacks.label = _medioTooltipCb(labels, map);
+    _ventasMediosChart.update('none');
+  } else {
+    _ventasMediosChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: totals, backgroundColor: bgs, borderColor: borders, borderWidth: 1.5, hoverOffset: 4 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        animation: { duration: 400 },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: _medioTooltipCb(labels, map) } }
+        }
+      }
+    });
+  }
+
+  // Leyenda compacta
+  legend.innerHTML = labels.map(l => {
+    const d = map[l];
+    const pct = grandTotal > 0 ? Math.round((d.total / grandTotal) * 100) : 0;
+    const col = (_MEDIOS_COLORS[l] || _MEDIO_DEFAULT).border;
+    const cashLabel = d.cash > 0 ? `$${d.cash}` : '—';
+    return `<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden">
+      <span style="width:8px;height:8px;border-radius:2px;background:${col};flex-shrink:0"></span>
+      <span style="font-size:11px;color:var(--text);font-weight:600;flex-shrink:0">${l}</span>
+      <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis">${d.count}× · <span style="color:var(--gold-light)">${cashLabel}</span> · ${pct}%</span>
+    </div>`;
+  }).join('');
+}
+function _medioTooltipCb(labels, map) {
+  return ctx => {
+    const d = map[labels[ctx.dataIndex]];
+    return [`Ventas: ${d.count}`, `Cobrado: $${d.total}`, d.cash > 0 ? `Cash: $${d.cash}` : null].filter(Boolean);
+  };
 }
 
 function renderVentasTable() {
   const tbody = document.getElementById('ventas-table-body');
   if (!tbody) return;
   if (!_ventas.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center;color:var(--text3)">Sin ventas registradas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:28px;text-align:center;color:var(--text3)">Sin ventas registradas</td></tr>';
     return;
   }
   const hoy = new Date(); hoy.setHours(0,0,0,0);
-  tbody.innerHTML = _ventas.map(v => {
+  // Ordenar por fecha según estado del toggle
+  const sorted = [..._ventas].sort((a, b) => {
+    const da = a.fecha_venta ? new Date(a.fecha_venta) : new Date(0);
+    const db = b.fecha_venta ? new Date(b.fecha_venta) : new Date(0);
+    return _ventasSortAsc ? da - db : db - da;
+  });
+  tbody.innerHTML = sorted.map(v => {
     const fecha = v.fecha_venta ? new Date(v.fecha_venta+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
     const ig = v.instagram ? `<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${v.instagram.replace('@','')}</a>` : '—';
     const wa = v.celular ? _waLink(v.celular) : '—';
@@ -4290,17 +4538,26 @@ function renderVentasTable() {
     } else if (v.cuotas_pagadas >= v.cuotas_total) {
       proximoCell = '<span style="color:var(--success);font-size:12px">✓ Saldado</span>';
     }
-    return `<tr style="border-bottom:1px solid var(--border)">
+    return `<tr onclick="openEditVenta('${v.id}')" style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
       <td style="padding:11px 16px;font-weight:500">${v.nombre||'—'}</td>
-      <td style="padding:11px 16px;white-space:nowrap">${wa}</td>
-      <td style="padding:11px 16px">${ig}</td>
+      <td onclick="event.stopPropagation()" style="padding:11px 16px;white-space:nowrap">${wa}</td>
+      <td onclick="event.stopPropagation()" style="padding:11px 16px">${ig}</td>
       <td style="padding:11px 16px">${tipoBadge}</td>
       <td style="padding:11px 16px;font-size:12px;color:var(--text2)">${v.medio_pago||'—'}</td>
       <td style="padding:11px 16px;font-weight:600;color:var(--gold-light)">$${cobrado}</td>
+      <td onclick="event.stopPropagation()" style="padding:8px 12px;text-align:center">
+        <input type="number" value="${v.cash_collected != null ? v.cash_collected : ''}" placeholder="—"
+          style="width:72px;background:transparent;border:1px solid transparent;border-radius:4px;padding:3px 6px;color:var(--text2);font-size:13px;text-align:center;font-family:inherit"
+          title="Cash recibido tras comisiones"
+          onfocus="this.style.borderColor='var(--gold)'"
+          onblur="this.style.borderColor='transparent';updateCashCollected('${v.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+        />
+      </td>
       <td style="padding:11px 16px;font-size:12px;text-align:center">${cuotasTxt}</td>
-      <td style="padding:11px 16px">${proximoCell}</td>
-      <td style="padding:11px 16px;text-align:center">
+      <td onclick="event.stopPropagation()" style="padding:11px 16px">${proximoCell}</td>
+      <td onclick="event.stopPropagation()" style="padding:11px 16px;text-align:center">
         <button onclick="deleteVenta('${v.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </td>
     </tr>`;
@@ -4308,28 +4565,55 @@ function renderVentasTable() {
 }
 
 function renderVentasMetrics() {
+  renderVentasMediosChart();
   const el = document.getElementById('ventas-metrics');
   if (!el) return;
   const total = _ventas.length;
   const pif   = _ventas.filter(v => v.tipo_pago === 'PIF').length;
   const cuotas= _ventas.filter(v => v.tipo_pago !== 'PIF').length;
-  const cobrado = _ventas.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
-  const pendiente= _ventas.reduce((a,v) => a + ((v.cuotas_total - v.cuotas_pagadas) * v.monto_cuota), 0);
+  // Facturación = precio completo del programa × cantidad de ventas (independiente de cuotas pagadas)
+  const facturacion = _ventas.reduce((a,v) => a + (+v.monto_total || 300), 0);
+  const cobrado     = _ventas.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
+  const pendiente   = _ventas.reduce((a,v) => a + ((v.cuotas_total - v.cuotas_pagadas) * v.monto_cuota), 0);
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const vencidas = _ventas.filter(v => v.fecha_proximo_pago && new Date(v.fecha_proximo_pago+'T12:00:00') < hoy).length;
 
-  const m = (label, val, color='') => `<div style="flex:1;min-width:120px;padding:16px 20px;border-right:1px solid var(--border)">
-    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">${label}</div>
-    <div style="font-size:1.5rem;font-weight:700;${color?'color:'+color:''}">${val}</div>
+  // Tile grande (valores $)
+  const m = (label, val, color='') => `<div style="flex:1;min-width:90px;padding:14px 16px;border-right:1px solid var(--border)">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">${label}</div>
+    <div style="font-size:1.35rem;font-weight:700;${color?'color:'+color:''}">${val}</div>
+  </div>`;
+  // Tile pequeño para conteos (PIF / Cuotas / Vencidas agrupados)
+  const mSm = (label, val, color='') => `<div style="display:flex;flex-direction:column;justify-content:center;padding:8px 12px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">${label}</div>
+    <div style="font-size:1.1rem;font-weight:700;${color?'color:'+color:''}">${val}</div>
+  </div>`;
+
+  const cashTotal = _ventas.reduce((a,v) => a + (v.cash_collected != null ? +v.cash_collected : 0), 0);
+  // Seña excluida de comisiones: en una seña el cash recibido es el monto acordado, no hay pérdida por pasarela
+  const ventasConFee = _ventas.filter(v => v.cash_collected != null && v.medio_pago !== 'Seña');
+  const cobradoConCC = ventasConFee.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
+  const cashConFee   = ventasConFee.reduce((a,v) => a + (+v.cash_collected), 0);
+  const feePerda = cobradoConCC - cashConFee;
+
+  // % cash recibido = cash total / facturación × 100
+  const pctCash = facturacion > 0 ? ((cashTotal / facturacion) * 100).toFixed(1) : '—';
+  const pctColor = +pctCash >= 70 ? 'var(--success)' : +pctCash >= 50 ? 'var(--gold-light)' : 'var(--red)';
+
+  // Bloque compacto PIF / Cuotas / Vencidas en una sola celda
+  const conteoBloque = `<div style="flex:0 0 auto;padding:10px 14px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:4px;justify-content:center">
+    ${mSm('PIF', pif)}
+    ${mSm('Cuotas', cuotas)}
+    ${vencidas > 0 ? mSm('Vencidas', vencidas, 'var(--red)') : ''}
   </div>`;
 
   el.innerHTML =
-    m('Total ventas', total) +
-    m('Cobrado', `$${cobrado}`, 'var(--success)') +
+    m('Ventas', total) +
+    m('Facturación', `$${facturacion}`, 'var(--success)') +
     m('Por cobrar', `$${pendiente}`, pendiente>0?'var(--gold-light)':'var(--text3)') +
-    m('PIF', pif) +
-    m('En cuotas', cuotas) +
-    (vencidas > 0 ? m('Cuotas vencidas', vencidas, 'var(--red)') : '');
+    m('Cash recibido', `$${cashTotal.toFixed(0)}`, 'var(--success)') +
+    (facturacion > 0 ? m('% Cash recibido', `${pctCash}%`, pctColor) : '') +
+    conteoBloque;
 }
 
 // ─── FIN VENTAS MANUALES ─────────────────────────────────────────────────────
@@ -4376,7 +4660,17 @@ async function saveGas(){
   try{const res=await apiFetch(`${API_URL}/egresos`,{method:'POST',body:JSON.stringify(item)});if(res.ok){const d=await res.json().catch(()=>({}));if(d?.id)item.id=d.id;}}catch(e){console.warn('[saveGas]',e.message);}
   S.gas.push(item);save('gas');closeModal('modal-gas');renderFin();toast('Egreso guardado ✓');
 }
-async function delIng(id){if(!confirm('¿Eliminar?'))return;try{const r=await apiFetch(`${API_URL}/ingresos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}S.ing=S.ing.filter(x=>x.id!==id);save('ing');renderFin();}
+async function delIng(id){
+  if(String(id).startsWith('vm_')){
+    // Entrada sintética de ventas manuales — redirigir a la sección de ventas
+    toast('Para eliminar esta venta usá la sección de Ventas ↓');
+    document.getElementById('ventas-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  if(!confirm('¿Eliminar?'))return;
+  try{const r=await apiFetch(`${API_URL}/ingresos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}
+  S.ing=S.ing.filter(x=>x.id!==id);save('ing');renderFin();
+}
 async function delGas(id){if(!confirm('¿Eliminar?'))return;try{const r=await apiFetch(`${API_URL}/egresos/${id}`,{method:'DELETE'});if(!r.ok)throw new Error();}catch(e){toast('✗ Error al eliminar');return;}S.gas=S.gas.filter(x=>x.id!==id);save('gas');renderFin();}
 function editIngNombre(id){
   const x=S.ing.find(x=>x.id===id);if(!x)return;
@@ -8896,7 +9190,7 @@ function _repsComparativa(v,comp){
 function _repsFunnel(funnel){
   if(!funnel?.fases?.length) return '';
   const total = Math.max(funnel.total||1, 1);
-  const FASE_COL = {'Primer Contacto':'#9a9690','Descubrimiento':'#6090d4','Nutrición':'#a070d8','Agendamiento':'#e0a848','Cierre':'#d4a832','Cerrados':'#5cb87a'};
+  const FASE_COL = {'Primer Contacto':'#9a9690','Descubrimiento':'#6090d4','Nutrición':'#a070d8','VSL':'#e0a848','Link de Pago':'#e07030','Cerrados':'#5cb87a'};
   return `
     <div class="reps-section-label" style="margin-top:4px">Funnel
       <span style="font-weight:400;margin-left:6px">${funnel.total??0} activos · ${funnel.perdidos??0} perdidos</span>
