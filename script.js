@@ -4410,6 +4410,20 @@ async function pagarCuotaVenta(id) {
   } catch(e) { toast('✗ ' + e.message); }
 }
 
+async function deshacerCuotaVenta(id) {
+  try {
+    const res = await apiFetch(`${API_URL}/ventas/${id}/deshacer-cuota`, { method: 'PATCH', body: '{}' });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    const d = await res.json();
+    const idx = _ventas.findIndex(v => v.id === id);
+    if (idx !== -1) _ventas[idx] = d.venta;
+    renderVentasTable();
+    renderVentasMetrics();
+    _syncVentasToIng();
+    toast('↩ Pago deshecho');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
 async function deleteVenta(id) {
   if (!confirm('¿Eliminar esta venta?')) return;
   try {
@@ -4540,9 +4554,13 @@ function renderVentasTable() {
       const label = dias < 0 ? `Vencido hace ${-dias}d` : dias === 0 ? 'Hoy' : `en ${dias}d`;
       proximoCell = `<div style="color:${color};font-size:12px">${fp.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</div>
         <div style="font-size:10px;color:${color}">${label}</div>
-        ${v.cuotas_pagadas < v.cuotas_total ? `<button onclick="event.stopPropagation();pagarCuotaVenta('${v.id}')" style="margin-top:4px;font-size:10px;font-weight:700;border-radius:4px;padding:3px 8px;cursor:pointer;border:none;${dias < 0 ? 'background:var(--red);color:#fff' : dias === 0 ? 'background:#f4a261;color:#fff' : 'background:var(--surface2);border:1px solid var(--border);color:var(--text2)'}">✓ Pagar</button>` : ''}`;
+        <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+          ${v.cuotas_pagadas < v.cuotas_total ? `<button onclick="event.stopPropagation();pagarCuotaVenta('${v.id}')" style="font-size:10px;font-weight:700;border-radius:4px;padding:3px 8px;cursor:pointer;border:none;${dias < 0 ? 'background:var(--red);color:#fff' : dias === 0 ? 'background:#f4a261;color:#fff' : 'background:var(--surface2);border:1px solid var(--border);color:var(--text2)'}">✓ Pagar</button>` : ''}
+          ${v.cuotas_pagadas > 0 ? `<button onclick="event.stopPropagation();deshacerCuotaVenta('${v.id}')" style="font-size:10px;font-weight:600;border-radius:4px;padding:3px 8px;cursor:pointer;background:none;border:1px solid var(--border);color:var(--text3)">↩ Deshacer</button>` : ''}
+        </div>`;
     } else if (v.cuotas_pagadas >= v.cuotas_total) {
-      proximoCell = '<span style="color:var(--success);font-size:12px">✓ Saldado</span>';
+      proximoCell = `<span style="color:var(--success);font-size:12px">✓ Ya pagó</span>
+        <div style="margin-top:4px"><button onclick="event.stopPropagation();deshacerCuotaVenta('${v.id}')" style="font-size:10px;font-weight:600;border-radius:4px;padding:3px 8px;cursor:pointer;background:none;border:1px solid var(--border);color:var(--text3)">↩ Deshacer</button></div>`;
     }
     return `<tr onclick="openEditVenta('${v.id}')" style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
