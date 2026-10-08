@@ -4540,7 +4540,7 @@ function renderVentasTable() {
       const label = dias < 0 ? `Vencido hace ${-dias}d` : dias === 0 ? 'Hoy' : `en ${dias}d`;
       proximoCell = `<div style="color:${color};font-size:12px">${fp.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</div>
         <div style="font-size:10px;color:${color}">${label}</div>
-        ${v.cuotas_pagadas < v.cuotas_total ? `<button onclick="pagarCuotaVenta('${v.id}')" style="margin-top:4px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;color:var(--text2)">✓ Pagar</button>` : ''}`;
+        ${v.cuotas_pagadas < v.cuotas_total ? `<button onclick="event.stopPropagation();pagarCuotaVenta('${v.id}')" style="margin-top:4px;font-size:10px;font-weight:700;border-radius:4px;padding:3px 8px;cursor:pointer;border:none;${dias < 0 ? 'background:var(--red);color:#fff' : dias === 0 ? 'background:#f4a261;color:#fff' : 'background:var(--surface2);border:1px solid var(--border);color:var(--text2)'}">✓ Pagar</button>` : ''}`;
     } else if (v.cuotas_pagadas >= v.cuotas_total) {
       proximoCell = '<span style="color:var(--success);font-size:12px">✓ Saldado</span>';
     }
