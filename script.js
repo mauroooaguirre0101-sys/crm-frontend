@@ -5101,7 +5101,7 @@ function applyRolePermissions(){
 
 function setupAutoLogout(){
   const KEY='crm_last_activity';
-  const MAX=5*24*60*60*1000;
+  const MAX=30*24*60*60*1000;
   const last=parseInt(localStorage.getItem(KEY)||'0',10);
   if(Date.now()-last>MAX && last>0){
     _sb.auth.signOut().then(()=>location.reload());
