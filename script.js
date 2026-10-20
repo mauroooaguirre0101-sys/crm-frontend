@@ -4638,6 +4638,30 @@ function renderVentasMetrics() {
     m('Cash recibido', `$${cashTotal.toFixed(0)}`, 'var(--success)') +
     (facturacion > 0 ? m('% Cash recibido', `${pctCash}%`, pctColor) : '') +
     conteoBloque;
+
+  // ── Contadores por cuota ──────────────────────────────────────────────────
+  const ccEl = document.getElementById('ventas-cuota-counters');
+  if (ccEl) {
+    const ordinal = n => ['1ra','2da','3ra','4ta','5ta','6ta','7ma','8va','9na','10ma'][n-1] || `${n}ta`;
+    const maxCuota = _ventas.reduce((a,v) => Math.max(a, v.cuotas_total||0), 0);
+    const tiles = [];
+    for (let n = 2; n <= maxCuota; n++) {
+      const pagaron = _ventas.filter(v => v.cuotas_pagadas >= n);
+      if (pagaron.length === 0) continue;
+      const cashNivel = pagaron.reduce((a,v) => a + (+v.monto_cuota||0), 0);
+      tiles.push(`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Pagaron ${ordinal(n)} Cuota</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text1)">${pagaron.length} alumno${pagaron.length!==1?'s':''}</div>
+        <div style="font-size:12px;color:var(--success);font-weight:600">$${cashNivel} cobrado</div>
+      </div>`);
+    }
+    if (tiles.length > 0) {
+      ccEl.style.display = 'flex';
+      ccEl.innerHTML = `<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-right:4px;align-self:center">CUOTAS</div>` + tiles.join('');
+    } else {
+      ccEl.style.display = 'none';
+    }
+  }
 }
 
 // ─── FIN VENTAS MANUALES ─────────────────────────────────────────────────────
