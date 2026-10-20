@@ -4654,7 +4654,7 @@ function renderVentasMetrics() {
         const fechaEstimada = v.fecha_venta
           ? (() => { const d=new Date(v.fecha_venta+'T12:00:00'); d.setMonth(d.getMonth()+(n-1)); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}); })()
           : '—';
-        return { nombre: v.nombre||'Sin nombre', instagram: v.instagram||null, fecha: fechaEstimada, monto: +v.monto_cuota||0 };
+        return { nombre: v.nombre||'Sin nombre', instagram: v.instagram||null, fecha: fechaEstimada, monto: +v.monto_cuota||0, medio: v.medio_pago||'—' };
       });
       tiles.push(`<div onclick="_openCuotaModal(${n})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Pagaron ${ordinal(n)} Cuota</div>
@@ -4692,9 +4692,10 @@ function _openCuotaModal(n) {
       <td style="padding:9px 14px;color:var(--text2);font-size:12px">${a.instagram ? `@${a.instagram.replace('@','')}` : '—'}</td>
       <td style="padding:9px 14px;color:var(--text2);font-size:12px">${a.fecha}</td>
       <td style="padding:9px 14px;font-weight:600;color:var(--success)">$${a.monto}</td>
+      <td style="padding:9px 14px;font-size:12px;color:var(--text2)">${a.medio}</td>
     </tr>`).join('');
 
-  modal.innerHTML = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0;width:min(540px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+  modal.innerHTML = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0;width:min(600px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-weight:700;font-size:15px">Pagaron ${ordinal(n)} Cuota</div>
@@ -4709,6 +4710,7 @@ function _openCuotaModal(n) {
           <th style="padding:8px 14px;text-align:left">Instagram</th>
           <th style="padding:8px 14px;text-align:left">Fecha est.</th>
           <th style="padding:8px 14px;text-align:left">Monto</th>
+          <th style="padding:8px 14px;text-align:left">Pasarela</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
