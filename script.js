@@ -4645,11 +4645,18 @@ function renderVentasMetrics() {
     const ordinal = n => ['1ra','2da','3ra','4ta','5ta','6ta','7ma','8va','9na','10ma'][n-1] || `${n}ta`;
     const maxCuota = _ventas.reduce((a,v) => Math.max(a, v.cuotas_total||0), 0);
     const tiles = [];
+    _cuotaModalData = {};
     for (let n = 2; n <= maxCuota; n++) {
       const pagaron = _ventas.filter(v => v.cuotas_pagadas >= n);
       if (pagaron.length === 0) continue;
       const cashNivel = pagaron.reduce((a,v) => a + (+v.monto_cuota||0), 0);
-      tiles.push(`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;gap:2px">
+      _cuotaModalData[n] = pagaron.map(v => {
+        const fechaEstimada = v.fecha_venta
+          ? (() => { const d=new Date(v.fecha_venta+'T12:00:00'); d.setMonth(d.getMonth()+(n-1)); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}); })()
+          : '—';
+        return { nombre: v.nombre||'Sin nombre', instagram: v.instagram||null, fecha: fechaEstimada, monto: +v.monto_cuota||0 };
+      });
+      tiles.push(`<div onclick="_openCuotaModal(${n})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Pagaron ${ordinal(n)} Cuota</div>
         <div style="font-size:13px;font-weight:700;color:var(--text1)">${pagaron.length} alumno${pagaron.length!==1?'s':''}</div>
         <div style="font-size:12px;color:var(--success);font-weight:600">$${cashNivel} cobrado</div>
@@ -4662,6 +4669,51 @@ function renderVentasMetrics() {
       ccEl.style.display = 'none';
     }
   }
+}
+
+let _cuotaModalData = {};
+function _openCuotaModal(n) {
+  const ordinal = n => ['1ra','2da','3ra','4ta','5ta','6ta','7ma','8va','9na','10ma'][n-1] || `${n}ta`;
+  const alumnos = _cuotaModalData[n] || [];
+  const totalCash = alumnos.reduce((a,v) => a + v.monto, 0);
+
+  let modal = document.getElementById('cuota-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'cuota-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(2px)';
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+
+  const rows = alumnos.map(a => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 14px;font-weight:500">${a.nombre}</td>
+      <td style="padding:9px 14px;color:var(--text2);font-size:12px">${a.instagram ? `@${a.instagram.replace('@','')}` : '—'}</td>
+      <td style="padding:9px 14px;color:var(--text2);font-size:12px">${a.fecha}</td>
+      <td style="padding:9px 14px;font-weight:600;color:var(--success)">$${a.monto}</td>
+    </tr>`).join('');
+
+  modal.innerHTML = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0;width:min(540px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-weight:700;font-size:15px">Pagaron ${ordinal(n)} Cuota</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${alumnos.length} alumno${alumnos.length!==1?'s':''} · $${totalCash} cobrado</div>
+      </div>
+      <button onclick="document.getElementById('cuota-detail-modal').remove()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px">×</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--text2);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">
+          <th style="padding:8px 14px;text-align:left">Alumno</th>
+          <th style="padding:8px 14px;text-align:left">Instagram</th>
+          <th style="padding:8px 14px;text-align:left">Fecha est.</th>
+          <th style="padding:8px 14px;text-align:left">Monto</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
 // ─── FIN VENTAS MANUALES ─────────────────────────────────────────────────────
