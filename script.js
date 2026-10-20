@@ -4410,6 +4410,19 @@ async function pagarCuotaVenta(id) {
   } catch(e) { toast('✗ ' + e.message); }
 }
 
+async function toggleBajaVenta(id, nuevoEstado) {
+  try {
+    const res = await apiFetch(`${API_URL}/ventas/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ estado: nuevoEstado }) });
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    const d = await res.json();
+    const idx = _ventas.findIndex(v => v.id === id);
+    if (idx !== -1) _ventas[idx] = d.venta;
+    renderVentasTable();
+    renderVentasMetrics();
+    toast(nuevoEstado === 'baja' ? '✕ Lead dado de baja' : '↺ Lead reactivado');
+  } catch(e) { toast('✗ ' + e.message); }
+}
+
 async function deshacerCuotaVenta(id) {
   try {
     const res = await apiFetch(`${API_URL}/ventas/${id}/deshacer-cuota`, { method: 'PATCH', body: '{}' });
@@ -4537,8 +4550,9 @@ function renderVentasTable() {
     return _ventasSortAsc ? da - db : db - da;
   });
   tbody.innerHTML = sorted.map(v => {
+    const esBaja = v.estado === 'baja';
     const fecha = v.fecha_venta ? new Date(v.fecha_venta+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-    const ig = v.instagram ? `<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">@${v.instagram.replace('@','')}</a>` : '—';
+    const ig = v.instagram ? `<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" rel="noopener" style="color:${esBaja?'#a55':'var(--gold)'};text-decoration:none">@${v.instagram.replace('@','')}</a>` : '—';
     const wa = v.celular ? _waLink(v.celular) : '—';
     const tipoBadge = v.tipo_pago === 'PIF'
       ? `<span style="background:rgba(82,183,136,.15);color:#52B788;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700">PIF</span>`
@@ -4547,7 +4561,9 @@ function renderVentasTable() {
     const cuotasTxt = `${v.cuotas_pagadas}/${v.cuotas_total}`;
     // Próximo pago
     let proximoCell = '<span style="color:var(--text3)">—</span>';
-    if (v.fecha_proximo_pago) {
+    if (esBaja) {
+      proximoCell = `<span style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.04em">BAJA</span>`;
+    } else if (v.fecha_proximo_pago) {
       const fp = new Date(v.fecha_proximo_pago+'T12:00:00');
       const dias = Math.round((fp-hoy)/(1000*60*60*24));
       const color = dias < 0 ? 'var(--red)' : dias <= 7 ? '#f4a261' : 'var(--text2)';
@@ -4562,9 +4578,13 @@ function renderVentasTable() {
       proximoCell = `<span style="color:var(--success);font-size:12px">✓ Ya pagó</span>
         <div style="margin-top:4px"><button onclick="event.stopPropagation();deshacerCuotaVenta('${v.id}')" style="font-size:10px;font-weight:600;border-radius:4px;padding:3px 8px;cursor:pointer;background:none;border:1px solid var(--border);color:var(--text3)">↩ Deshacer</button></div>`;
     }
-    return `<tr onclick="openEditVenta('${v.id}')" style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+    const rowBg = esBaja ? 'background:rgba(180,40,40,.08)' : '';
+    const bajaBtn = esBaja
+      ? `<button onclick="event.stopPropagation();toggleBajaVenta('${v.id}','activo')" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;padding:2px 4px;display:block;white-space:nowrap" title="Reactivar">↺ Reactivar</button>`
+      : `<button onclick="event.stopPropagation();toggleBajaVenta('${v.id}','baja')" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;padding:2px 4px;display:block;white-space:nowrap" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'" title="Dar de baja">✕ Baja</button>`;
+    return `<tr onclick="openEditVenta('${v.id}')" style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;${rowBg}" onmouseover="this.style.background='${esBaja?'rgba(180,40,40,.14)':'var(--surface2)'}'" onmouseout="this.style.background='${esBaja?'rgba(180,40,40,.08)':''}'" >
       <td style="padding:11px 16px;color:var(--text2);white-space:nowrap">${fecha}</td>
-      <td style="padding:11px 16px;font-weight:500">${v.nombre||'—'}</td>
+      <td style="padding:11px 16px;font-weight:500;${esBaja?'color:var(--text3);text-decoration:line-through':''}">${v.nombre||'—'}</td>
       <td onclick="event.stopPropagation()" style="padding:11px 16px;white-space:nowrap">${wa}</td>
       <td onclick="event.stopPropagation()" style="padding:11px 16px">${ig}</td>
       <td style="padding:11px 16px">${tipoBadge}</td>
@@ -4581,8 +4601,9 @@ function renderVentasTable() {
       </td>
       <td style="padding:11px 16px;font-size:12px;text-align:center">${cuotasTxt}</td>
       <td onclick="event.stopPropagation()" style="padding:11px 16px">${proximoCell}</td>
-      <td onclick="event.stopPropagation()" style="padding:11px 16px;text-align:center">
-        <button onclick="deleteVenta('${v.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+      <td onclick="event.stopPropagation()" style="padding:11px 16px;text-align:center;min-width:70px">
+        ${bajaBtn}
+        <button onclick="event.stopPropagation();deleteVenta('${v.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </td>
     </tr>`;
   }).join('');
@@ -4593,14 +4614,15 @@ function renderVentasMetrics() {
   const el = document.getElementById('ventas-metrics');
   if (!el) return;
   const total = _ventas.length;
-  const pif   = _ventas.filter(v => v.tipo_pago === 'PIF').length;
-  const cuotas= _ventas.filter(v => v.tipo_pago !== 'PIF').length;
+  const activas = _ventas.filter(v => v.estado !== 'baja');
+  const pif   = activas.filter(v => v.tipo_pago === 'PIF').length;
+  const cuotas= activas.filter(v => v.tipo_pago !== 'PIF').length;
   // Facturación = precio completo del programa × cantidad de ventas (independiente de cuotas pagadas)
-  const facturacion = _ventas.reduce((a,v) => a + (+v.monto_total || 300), 0);
-  const cobrado     = _ventas.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
-  const pendiente   = _ventas.reduce((a,v) => a + ((v.cuotas_total - v.cuotas_pagadas) * v.monto_cuota), 0);
+  const facturacion = activas.reduce((a,v) => a + (+v.monto_total || 300), 0);
+  const cobrado     = activas.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
+  const pendiente   = activas.reduce((a,v) => a + ((v.cuotas_total - v.cuotas_pagadas) * v.monto_cuota), 0);
   const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const vencidas = _ventas.filter(v => v.fecha_proximo_pago && new Date(v.fecha_proximo_pago+'T12:00:00') < hoy).length;
+  const vencidas = activas.filter(v => v.fecha_proximo_pago && new Date(v.fecha_proximo_pago+'T12:00:00') < hoy).length;
 
   // Tile grande (valores $)
   const m = (label, val, color='') => `<div style="flex:1;min-width:90px;padding:14px 16px;border-right:1px solid var(--border)">
@@ -4613,9 +4635,9 @@ function renderVentasMetrics() {
     <div style="font-size:1.1rem;font-weight:700;${color?'color:'+color:''}">${val}</div>
   </div>`;
 
-  const cashTotal = _ventas.reduce((a,v) => a + (v.cash_collected != null ? +v.cash_collected : 0), 0);
+  const cashTotal = activas.reduce((a,v) => a + (v.cash_collected != null ? +v.cash_collected : 0), 0);
   // Seña excluida de comisiones: en una seña el cash recibido es el monto acordado, no hay pérdida por pasarela
-  const ventasConFee = _ventas.filter(v => v.cash_collected != null && v.medio_pago !== 'Seña');
+  const ventasConFee = activas.filter(v => v.cash_collected != null && v.medio_pago !== 'Seña');
   const cobradoConCC = ventasConFee.reduce((a,v) => a + (v.cuotas_pagadas * v.monto_cuota), 0);
   const cashConFee   = ventasConFee.reduce((a,v) => a + (+v.cash_collected), 0);
   const feePerda = cobradoConCC - cashConFee;
@@ -4647,7 +4669,7 @@ function renderVentasMetrics() {
     const tiles = [];
     _cuotaModalData = {};
     for (let n = 2; n <= maxCuota; n++) {
-      const pagaron = _ventas.filter(v => v.cuotas_pagadas >= n);
+      const pagaron = _ventas.filter(v => v.estado !== 'baja' && v.cuotas_pagadas >= n);
       if (pagaron.length === 0) continue;
       const cashNivel = pagaron.reduce((a,v) => a + (+v.monto_cuota||0), 0);
       _cuotaModalData[n] = pagaron.map(v => {
