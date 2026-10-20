@@ -4673,10 +4673,10 @@ function renderVentasMetrics() {
       if (pagaron.length === 0) continue;
       const cashNivel = pagaron.reduce((a,v) => a + (+v.monto_cuota||0), 0);
       _cuotaModalData[n] = pagaron.map(v => {
-        const fechaEstimada = v.fecha_venta
-          ? (() => { const d=new Date(v.fecha_venta+'T12:00:00'); d.setMonth(d.getMonth()+(n-1)); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}); })()
-          : '—';
-        return { nombre: v.nombre||'Sin nombre', instagram: v.instagram||null, fecha: fechaEstimada, monto: +v.monto_cuota||0, medio: v.medio_pago||'—' };
+        const fechaReal = Array.isArray(v.fechas_pagos) && v.fechas_pagos[n-1]
+          ? new Date(v.fechas_pagos[n-1]+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+          : (v.fecha_venta ? (() => { const d=new Date(v.fecha_venta+'T12:00:00'); d.setMonth(d.getMonth()+(n-1)); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}); })() : '—');
+        return { nombre: v.nombre||'Sin nombre', instagram: v.instagram||null, fecha: fechaReal, monto: +v.monto_cuota||0, medio: v.medio_pago||'—' };
       });
       tiles.push(`<div onclick="_openCuotaModal(${n})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Pagaron ${ordinal(n)} Cuota</div>
