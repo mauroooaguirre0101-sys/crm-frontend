@@ -4875,6 +4875,7 @@ const ROLE_ALLOWED = {
   setter:         ['dash','acc','leads','funnel','calls'],
   content:        ['acc','found','cont','ang','formatos'],
   closer_content: ['dash','acc','found','cont','ang','leads','funnel','calls','clients','formatos','forms'],
+  lauti:          ['dash','acc','found','cont','ang','leads','funnel','calls','clients','formatos','forms'],
 };
 
 const TASKS_ALLOWED_EMAILS = [
@@ -5181,22 +5182,22 @@ function applyRolePermissions(){
     diagSection.style.display=(currentUserRole==='admin' && _esCliente6)?'':'none';
   }
 
-  const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0',closer_content:'#7B8FD4'};
-  const roleLabels={admin:'admin',closer:'closer',setter:'setter',content:'content',closer_content:'closer'};
+  const roleColors={admin:'var(--gold)',closer:'#6090d4',setter:'#5cb87a',content:'#B890F0',closer_content:'#7B8FD4',lauti:'#E8A838'};
+  const roleLabels={admin:'admin',closer:'closer',setter:'setter',content:'content',closer_content:'closer',lauti:'lauti'};
   _updateUserNickname();
   document.getElementById('user-role-label').textContent=roleLabels[currentUserRole]||currentUserRole;
   document.getElementById('user-role-label').style.color=roleColors[currentUserRole]||'var(--text2)';
   if(currentUserRole==='content'){
     setTimeout(()=>nav('cont',document.getElementById('nav-cont')),100);
-  } else if(['setter','closer','closer_content'].includes(currentUserRole)){
+  } else if(['setter','closer','closer_content','lauti'].includes(currentUserRole)){
     setTimeout(()=>nav('dash',document.getElementById('nav-dash')),100);
   }
   document.getElementById('user-header').style.display='flex';
 
   const thLink=document.getElementById('calls-th-link');
-  if(thLink) thLink.style.display=['admin','closer','closer_content'].includes(currentUserRole)?'':'none';
+  if(thLink) thLink.style.display=['admin','closer','closer_content','lauti'].includes(currentUserRole)?'':'none';
   const btnNewCall=document.getElementById('btn-new-call');
-  if(btnNewCall) btnNewCall.style.display=['admin','closer','closer_content'].includes(currentUserRole)?'':'none';
+  if(btnNewCall) btnNewCall.style.display=['admin','closer','closer_content','lauti'].includes(currentUserRole)?'':'none';
 }
 
 function setupAutoLogout(){
